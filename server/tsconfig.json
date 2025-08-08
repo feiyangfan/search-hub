@@ -1,0 +1,13 @@
+{
+    "extends": "@tsconfig/node23/tsconfig.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "noImplicitAny": true,
+        "sourceMap": true,
+        "preserveConstEnums": true,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true
+    },
+    "include": ["src/**/*", "./eslint.config.mjs"],
+    "exclude": ["node_modules", "dist"]
+}

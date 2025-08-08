@@ -1,0 +1,21 @@
+{
+    "name": "nexus-trace",
+    "version": "1.0.0",
+    "private": true,
+    "description": "",
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "packageManager": "pnpm@10.14.0",
+    "scripts": {
+        "dev": "pnpm -r --parallel dev",
+        "build": "pnpm -r build",
+        "lint": "pnpm -r lint",
+        "typecheck": "pnpm -r typecheck",
+        "test": "pnpm -r test"
+    },
+    "engines": {
+        "node": ">=24.0.0",
+        "pnpm": ">=10.0.0"
+    }
+}

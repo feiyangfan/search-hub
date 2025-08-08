@@ -1,0 +1,39 @@
+{
+    "name": "@app/server",
+    "version": "1.0.0",
+    "description": "Backend for nexus-trace",
+    "main": "dist/index.js",
+    "private": true,
+    "type": "module",
+    "author": "Feiyang Fan",
+    "packageManager": "pnpm@10.14.0",
+    "dependencies": {
+        "express": "^5.1.0"
+    },
+    "scripts": {
+        "dev": "tsx watch src/index.js",
+        "build": "tsup src/index.ts --format esm,cjs --out-dir dist",
+        "start": "node dist/index.js",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "lint": "eslint .",
+        "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
+        "prettier-watch": "onchange 'src/**/*.ts' -- prettier --write {{changed}}"
+    },
+    "engines": {
+        "node": ">=24"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.32.0",
+        "@tsconfig/node23": "^23.0.2",
+        "@types/express": "^5.0.3",
+        "eslint": "^9.32.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.4",
+        "onchange": "^7.1.0",
+        "prettier": "^3.6.2",
+        "tsup": "^8.5.0",
+        "tsx": "^4.20.3",
+        "typescript-eslint": "^8.39.0"
+    }
+}
