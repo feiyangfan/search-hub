@@ -1,13 +1,14 @@
 {
-    "extends": "@tsconfig/node23/tsconfig.json",
+    "extends": "@tsconfig/node24/tsconfig.json",
     "compilerOptions": {
         "outDir": "./dist",
         "noImplicitAny": true,
         "sourceMap": true,
         "preserveConstEnums": true,
         "forceConsistentCasingInFileNames": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "typeRoots": ["./src/types", "./node_modules/@types"]
     },
-    "include": ["src/**/*", "./eslint.config.mjs"],
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "./eslint.config.mjs"],
     "exclude": ["node_modules", "dist"]
 }
