@@ -2,11 +2,12 @@ import { RequestHandler } from 'express';
 import { randomUUID } from 'node:crypto';
 import { httpLogger } from '../lib/logger.js';
 
-export const equestLoggerMiddleware: RequestHandler = function (
+export const requestLoggerMiddleware: RequestHandler = function (
     req,
     res,
     next
 ) {
+    let completed = false;
     const headerId: string | string[] | undefined = req.headers['x-request-id'];
     // if request id already exists
     const reqId =
@@ -19,33 +20,47 @@ export const equestLoggerMiddleware: RequestHandler = function (
     req.log = log;
     res.setHeader('X-Request-Id', reqId);
 
+    const requestTime = Date.now();
     const start = process.hrtime.bigint();
-    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
 
     res.once('finish', () => {
+        const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
         // Access line
         req.log.info(
             {
                 method: req.method,
                 path: req.originalUrl ?? req.url,
                 statusCode: res.statusCode,
+                requestTime,
                 durationMs,
+                contentLength: res.getHeader('content-length'),
+                userAgent: req.get('user-agent'),
+                ip: req.ip,
             },
-            'request completed'
+            'http_request'
         );
+        completed = true;
     });
 
     res.once('close', () => {
         // client disconnected / aborted
+        if (completed) {
+            return;
+        }
+        const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
         req.log.warn(
             {
+                aborted: true,
                 method: req.method,
                 path: req.originalUrl ?? req.url,
                 statusCode: res.statusCode,
+                requestTime,
                 durationMs,
-                aborted: true,
+                contentLength: res.getHeader('content-length'),
+                userAgent: req.get('user-agent'),
+                ip: req.ip,
             },
-            'request aborted'
+            'http_request_aborted'
         );
     });
     next();
