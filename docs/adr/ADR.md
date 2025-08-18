@@ -1,238 +1,165 @@
-# Architecture Decision Records (ADR)
+# ADR-0001: Runtime & Language – Node.js + TypeScript
 
-This folder contains documented architectural decisions for the project. Each decision has its own Markdown file, following a consistent format.
-
-## ADR Workflow
-
-- **Status values:**
-
-  - `Proposed` – Under consideration, not yet accepted.
-  - `Accepted` – Decision agreed upon and implemented (or planned).
-  - `Superseded` – Replaced by a newer ADR.
-  - `Deprecated` – No longer in use.
-
-- **Numbering:** Sequential, starting from `0001`.
-- **File naming:** `adr-XXXX-short-title.md` where `XXXX` is zero‑padded number.
-- **One decision per ADR** – Keep scope narrow for clarity.
-- **Changes:** Do not edit historical ADRs except to change status or add references.
-
-## Template
-
-```md
-# ADR-XXXX: Title
-
-**Status:** Proposed | Accepted | Superseded | Deprecated
-**Date:** YYYY-MM-DD
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Explain the problem, constraints, and environment leading to the decision.
+We need a stable, type-safe runtime with strong ecosystem support.
 
 ## Decision
 
-State the choice made, clearly and concisely.
+Use **Node.js 22 LTS** with **TypeScript (strict)**.
 
 ## Consequences
 
-List positive, negative, and neutral results of this decision.
-
-## Alternatives Considered
-
-(Optional) List other options considered, and why they were not chosen.
-```
+-   ✅ Long-term support, stable ABI.
+-   ✅ Strong typing improves maintainability.
+-   ❌ Slower than Go/Rust for CPU-bound tasks.
 
 ---
 
-## Index
+# ADR-0002: Package Manager – pnpm
 
-- [ADR-0001: Runtime & Language – Node.js 20 + TypeScript](adr-0001-runtime-nodejs-typescript.md)
-- [ADR-0002: HTTP Framework – Express now, Fastify later](adr-0002-http-framework-express-fastify.md)
-- [ADR-0003: Database – PostgreSQL + Kysely + Kysely Migrator](adr-0003-database-postgres-kysely.md)
-- [ADR-0004: Search – Postgres FTS + pgvector (Hybrid)](adr-0004-search-postgres-fts-pgvector.md)
-- [ADR-0005: Caching/Queues/Events – Redis + BullMQ + Outbox](adr-0005-caching-redis-bullmq-outbox.md)
-- [ADR-0006: Embeddings – Self-hosted (xenova MiniLM-L6-v2)](adr-0006-embeddings-selfhosted-minilm.md)
-- [ADR-0007: Auth & Security – Cookie sessions, argon2, CSRF, rate limits](adr-0007-auth-security-cookie-argon2-csrf.md)
-- [ADR-0008: Observability – pino, OpenTelemetry, prom-client](adr-0008-observability-pino-otel-prom.md)
-- [ADR-0009: Validation & Config – Zod + env validation](adr-0009-validation-config-zod-env.md)
-- [ADR-0010: Testing & CI – Vitest, Supertest, k6, Husky, GitHub Actions](adr-0010-testing-ci-vitest-supertest.md)
-- [ADR-0011: Build/Deploy – Docker Compose, workers, platform TLS; add NGINX later](adr-0011-build-deploy-docker-nginx.md)
-
-# ADR-0001: Runtime & Language – Node.js 20 + TypeScript
-
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Need fast backend iteration, rich ecosystem, and strong typing without heavy ceremony.
+Efficient dependency management is critical for reproducible builds and CI.
 
 ## Decision
 
-Use **Node.js 20 LTS** with **TypeScript (strict)**.
+Use **pnpm (workspaces)**.
 
 ## Consequences
 
-- ✅ High dev velocity, huge library ecosystem.
-- ✅ Type safety for maintainability and interviews.
-- ❌ Not as fast as Go on CPU-bound tasks (mitigated by offloading heavy work to workers).
-
-## Alternatives Considered
-
-Go, Python — rejected due to slower personal velocity and weaker fit for the chosen stack.
+-   ✅ Faster installs, disk efficiency, shared package store.
+-   ✅ Strong monorepo support.
+-   ❌ Less common in older projects vs npm/yarn.
 
 ---
 
-# ADR-0002: HTTP Framework – Express now, Fastify later
+# ADR-0003: Architecture – Hexagonal (Ports & Adapters)
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-MVP needs minimal friction. Later we want better performance and plugins.
+We want domain logic decoupled from frameworks and infra.
 
 ## Decision
 
-Start with **Express 5**, keep controllers framework-agnostic, plan to **migrate to Fastify** post-MVP.
+Adopt **Hexagonal architecture**.
 
 ## Consequences
 
-- ✅ Faster to wire now.
-- ✅ Easy migration if handlers are isolated.
-- ❌ Migration cost later.
-
-## Alternatives Considered
-
-Start with Fastify now — viable but more setup.
+-   ✅ Business logic independent of Express/Postgres/Redis.
+-   ✅ Easier testing and replacement of adapters.
+-   ❌ More boilerplate vs direct coupling.
 
 ---
 
-# ADR-0003: Database – PostgreSQL + Kysely + Kysely Migrator
+# ADR-0004: HTTP Framework – Express (Fastify later)
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Relational storage with FTS and explicit SQL control is needed.
+MVP requires fast iteration with a large ecosystem.
 
 ## Decision
 
-Use **PostgreSQL 16** + **Kysely** (type-safe SQL) + **Kysely Migrator**.
+Start with **Express 5**, plan migration to **Fastify**.
 
 ## Consequences
 
-- ✅ Full SQL transparency/control.
-- ✅ Postgres extensions (FTS, pgvector).
-- ❌ More boilerplate vs ORM.
-
-## Alternatives Considered
-
-Prisma/Drizzle — faster scaffolding but less control.
+-   ✅ Fast setup.
+-   ✅ Broad middleware support.
+-   ❌ Migration work later.
 
 ---
 
-# ADR-0004: Search – Postgres FTS + pgvector (Hybrid)
+# ADR-0005: Validation & Config – Zod
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-We want both keyword and semantic search without extra infra.
+We need safe request validation and environment configuration.
 
 ## Decision
 
-Hybrid search combining **FTS (tsvector + GIN)** and **pgvector (IVFFlat)**.
+Use **Zod** for DTOs and `safeParse` for environment validation.
 
 ## Consequences
 
-- ✅ Single datastore ops.
-- ❌ OLTP + vector in one DB may hit limits at scale.
-
-## Alternatives Considered
-
-External vector DB (Qdrant/Milvus) — defer until scaling.
+-   ✅ Fail-fast on bad inputs/config.
+-   ❌ Slight boilerplate cost.
 
 ---
 
-# ADR-0005: Caching/Queues/Events – Redis + BullMQ + Outbox
+# ADR-0006: Database – PostgreSQL + Kysely
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Async work must not block requests; events must be reliable.
+Relational DB with strong SQL support and extensions is needed.
 
 ## Decision
 
-**Redis 7** + **BullMQ** queues. Outbox table for reliability.
+Use **PostgreSQL 16 (Docker)** + **Kysely** query builder with Kysely Migrator.
 
 ## Consequences
 
-- ✅ Fast responses.
-- ✅ Reliable side-effects.
-- ❌ Need queue monitoring.
-
-## Alternatives Considered
-
-Raw Redis Streams later; Kafka/NATS overkill for MVP.
+-   ✅ Full SQL control, type safety.
+-   ✅ Supports FTS and pgvector.
+-   ❌ Slightly more verbose than Prisma/Drizzle.
 
 ---
 
-# ADR-0006: Embeddings – Self-hosted (xenova MiniLM-L6-v2)
+# ADR-0007: Cache & Sessions – Redis
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Need semantic vectors without API cost or data exposure.
+Need fast caching, stateless APIs, and rate limiting.
 
 ## Decision
 
-Use **@xenova/transformers** with **all-MiniLM-L6-v2** (384-dim).
+Use **Redis 7** for caching, session store, and rate limiting.
 
 ## Consequences
 
-- ✅ Zero API cost.
-- ❌ CPU latency on save.
-
-## Alternatives Considered
-
-Hosted embeddings — rejected due to lock-in and cost.
+-   ✅ Simple server-side sessions via opaque IDs.
+-   ✅ Reliable rate-limiting with TTL.
+-   ❌ Extra infra to maintain.
 
 ---
 
-# ADR-0007: Auth & Security – Cookie sessions, argon2, CSRF, rate limits
+# ADR-0008: Authentication – Cookie Sessions
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Standard web security for a single-user MVP.
+MVP needs simple, secure auth.
 
 ## Decision
 
-**iron-session** cookies, **argon2id** hashing, **helmet**, CORS, CSRF, Redis rate limits.
+Use **iron-session** cookies with Redis-backed session state.
 
 ## Consequences
 
-- ✅ Boring, correct, widely used.
-- ❌ CSRF complexity.
-
-## Alternatives Considered
-
-JWT, OAuth — later if multi-tenant.
+-   ✅ Simpler than JWT.
+-   ✅ Cookies secure by default with flags.
+-   ❌ Not multi-tenant ready.
 
 ---
 
-# ADR-0008: Observability – pino, OpenTelemetry, prom-client
+# ADR-0009: Observability – Logs, Metrics, Traces
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
@@ -240,85 +167,79 @@ Credible observability from day one.
 
 ## Decision
 
-**pino** for logs, **OpenTelemetry** for tracing, **prom-client** for metrics.
+-   **Logs:** Pino → Promtail → Loki → Grafana.
+-   **Metrics:** prom-client → Prometheus → Grafana.
+-   **Traces:** OpenTelemetry → Tempo → Grafana.
 
 ## Consequences
 
-- ✅ Three pillars covered.
-- ❌ Cardinality risks.
-
-## Alternatives Considered
-
-Console logs only — toy.
+-   ✅ Covers three pillars: logs, metrics, traces.
+-   ✅ Single Grafana UI for all signals.
+-   ❌ Requires running multiple services.
 
 ---
 
-# ADR-0009: Validation & Config – Zod + env validation
+# ADR-0010: Security – Best Practices
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Prevent bad inputs and misconfigurations.
+We need secure defaults against common attacks.
 
 ## Decision
 
-Use **Zod** for DTOs and envalid/Zod for env vars.
+-   **Helmet** for HTTP headers.
+-   **Body size limits**.
+-   **Strict CORS allowlist**.
+-   **Redis-backed rate limiting**.
+-   **Cookie flags:** HttpOnly, Secure, SameSite=Lax.
+-   **Zod env validation**.
 
 ## Consequences
 
-- ✅ Fail-fast.
-- ❌ Slight boilerplate.
-
-## Alternatives Considered
-
-AJV, TypeBox — possible but Zod is simpler.
+-   ✅ Hardened MVP.
+-   ❌ Slight friction in local dev.
 
 ---
 
-# ADR-0010: Testing & CI – Vitest, Supertest, k6, Husky, GitHub Actions
+# ADR-0011: Testing & CI/CD
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-Local guardrails and non-bypassable CI.
+Need guardrails and reproducible builds.
 
 ## Decision
 
-**Vitest**, **Supertest**, **k6**, ESLint/Prettier, Husky, lint-staged, GitHub Actions.
+-   **Vitest** for unit tests.
+-   **Supertest** for e2e.
+-   **GitHub Actions** for lint, typecheck, unit + e2e, gated deploy.
 
 ## Consequences
 
-- ✅ Measurable p95.
-- ❌ CI runtime cost.
-
-## Alternatives Considered
-
-Jest — fine alternative.
+-   ✅ Reliable, non-bypassable quality gates.
+-   ❌ Slightly longer CI runs.
 
 ---
 
-# ADR-0011: Build/Deploy – Docker Compose, workers, platform TLS; add NGINX later
+# ADR-0012: Containers & DevOps
 
-**Status:** Accepted
-**Date:** 2025-08-08
+**Status:** Accepted **Date:** 2025-08-18
 
 ## Context
 
-One-command dev and low-ops deploy.
+We want reproducible environments.
 
 ## Decision
 
-**Docker Compose** with Postgres, Redis, API, workers; deploy on Fly/Render/Railway. Add NGINX later.
+-   **Docker Compose** for dev: api, postgres, redis, prometheus, grafana, loki,
+    promtail, tempo.
+-   Separate Dockerfiles for client and server.
 
 ## Consequences
 
-- ✅ Minimal ops.
-- ❌ Free-tier cold starts.
-
-## Alternatives Considered
-
-Kubernetes — overkill for MVP.
+-   ✅ One-command setup.
+-   ✅ Easy teardown/reset.
+-   ❌ Higher resource usage in dev.

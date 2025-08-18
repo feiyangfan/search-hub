@@ -13,18 +13,7 @@ const server = app
         process.exit(1);
     });
 
-// Test
-app.post('/', (req, res) => {
-    req.log.info({ params: req.params }, 'req log info');
 
-    // Simulate a bug / failure
-    try {
-        throw new Error('Simulated failure for testing logs');
-    } catch (err) {
-        req.log.error({ err }, 'Handler failed');
-        res.status(500).send('Internal Server Error');
-    }
-});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
