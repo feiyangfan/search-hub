@@ -23,5 +23,9 @@
         "tsup": "^8.5.0",
         "typescript": "^5.9.2"
     },
-    "sideEffects": false
+    "sideEffects": false,
+    "dependencies": {
+        "dotenv": "^17.2.2",
+        "zod": "^4.1.9"
+    }
 }

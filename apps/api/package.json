@@ -8,10 +8,15 @@
     "author": "Feiyang Fan",
     "packageManager": "pnpm@10.15.1",
     "dependencies": {
+        "@search-hub/config-env": "workspace:*",
+        "@search-hub/logger": "workspace:*",
+        "compression": "^1.8.1",
+        "cors": "^2.8.5",
         "dotenv": "^17.2.2",
         "express": "^5.1.0",
         "helmet": "^8.1.0",
         "pino": "^9.10.0",
+        "pino-http": "^10.5.0",
         "zod": "^4.1.9"
     },
     "scripts": {
@@ -30,6 +35,8 @@
     "devDependencies": {
         "@eslint/js": "^9.35.0",
         "@tsconfig/node22": "^22.0.2",
+        "@types/compression": "^1.8.1",
+        "@types/cors": "^2.8.19",
         "@types/express": "^5.0.3",
         "@types/node": "^24.5.2",
         "eslint": "^9.35.0",

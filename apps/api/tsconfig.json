@@ -1,15 +1,17 @@
 {
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
-        "types": ["node"],
         "outDir": "./dist",
         "noImplicitAny": true,
         "sourceMap": true,
         "preserveConstEnums": true,
         "forceConsistentCasingInFileNames": true,
         "esModuleInterop": true,
-        "typeRoots": ["./src/types", "./node_modules/@types"]
+        "typeRoots": ["./src/types", "./node_modules/@types"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "types": ["node"],
     },
-    "include": ["src/**/*.ts", "src/**/*.d.ts", "./eslint.config.mjs"],
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "./eslint.config.mjs", "../../packages/config/env/src/env.ts"],
     "exclude": ["node_modules", "dist"]
 }
