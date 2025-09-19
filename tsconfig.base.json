@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": {
+      "@search-hub/*": ["packages/*/src"],
+      "@search-hub/config/*": ["packages/config/*/src"],
+      "@search-hub/ui": ["packages/ui/src"]
+    }
+  }
+}

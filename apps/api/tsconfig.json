@@ -1,0 +1,15 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "types": ["node"],
+        "outDir": "./dist",
+        "noImplicitAny": true,
+        "sourceMap": true,
+        "preserveConstEnums": true,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "typeRoots": ["./src/types", "./node_modules/@types"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "./eslint.config.mjs"],
+    "exclude": ["node_modules", "dist"]
+}

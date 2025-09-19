@@ -1,8 +1,37 @@
 # Environment Variables
-.env
+.env*
+
+# Turbo
+.turbo/
+.turbo/*
+
+# prettier
+.prettierrc
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log
+pnpm-debug.log
+
+# Build artifacts
+dist/
+build/
+coverage/
+*.tsbuildinfo
 
 # Node
 node_modules/
+**/node_modules/
 
 # Mac
 /.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Tooling outputs
+.next/
+.vercel/
+.sass-cache/
+.cache/

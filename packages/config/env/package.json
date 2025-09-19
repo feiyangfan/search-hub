@@ -1,0 +1,27 @@
+{
+    "name": "@search-hub/config-env",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "dev": "tsup src/index.ts --format esm --dts --watch",
+        "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "lint": "echo \"(config-env) lint placeholder\"",
+        "test": "echo \"(config-env) test placeholder\""
+    },
+    "devDependencies": {
+        "@types/node": "^24.5.2",
+        "tsup": "^8.5.0",
+        "typescript": "^5.9.2"
+    },
+    "sideEffects": false
+}
