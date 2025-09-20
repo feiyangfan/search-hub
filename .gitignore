@@ -1,37 +1,48 @@
-# Environment Variables
+# Environment
 .env*
 
-# Turbo
-.turbo/
-.turbo/*
+# Logs & diagnostics
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
 
-# prettier
-.prettierrc
-
-# pnpm
+# Package manager stuff
+node_modules/
+**/node_modules/
 .pnpm-store/
-.pnpm-debug.log
-pnpm-debug.log
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # Build artifacts
-dist/
 build/
+dist/
+/out/
 coverage/
 *.tsbuildinfo
 
-# Node
-node_modules/
-**/node_modules/
-
-# Mac
-/.DS_Store
-
-# Logs
-*.log
-logs/
-
-# Tooling outputs
+# Tooling caches
+.turbo/
 .next/
 .vercel/
 .sass-cache/
 .cache/
+
+# Project config overrides
+.prettierrc
+
+# macOS
+.DS_Store
+
+# Certificates / misc secrets
+*.pem
+
+# TypeScript generated file
+next-env.d.ts
