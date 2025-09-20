@@ -14,19 +14,23 @@ const server = app
         process.exit(1);
     });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    logger.error('SIGTERM received, shutting down');
-    server.close(() => {
-        logger.info('HTTP server closed');
-        process.exit(0);
-    });
-});
+async function shutdown(signal: NodeJS.Signals) {
+    logger.warn({ signal }, 'shutting down server');
 
-process.on('SIGINT', () => {
-    logger.error('SIGINT received, shutting down');
-    server.close(() => {
-        logger.info('HTTP server closed');
-        process.exit(0);
-    });
-});
+    const shutdownTimer = setTimeout(() => {
+        logger.error(
+            'Could not close connections in time, forcefully shutting down'
+        );
+        process.exit(1);
+    }, 5000).unref();
+
+    clearTimeout(shutdownTimer);
+
+    if ('flush' in logger && typeof logger.flush === 'function') {
+        await logger.flush();
+    }
+    process.exit(0);
+}
+// Graceful shutdown
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
