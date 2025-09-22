@@ -5,8 +5,8 @@ import { Id, Pagination } from './common.js';
 export const SearchQuery = z.object({
     tenantId: Id, // for scoping
     q: z.string().min(1).meta({ example: 'typescript' }), // the query itself
-    limit: z.number().int().min(1).max(50).default(10), // size limit to protect server
-    offset: z.number().int().min(0).default(0), // simple pagination
+    limit: z.coerce.number().int().min(1).max(50).default(10), // size limit to protect server
+    offset: z.coerce.number().int().min(0).default(0), // simple pagination
 });
 
 // inside searchresponse.items
