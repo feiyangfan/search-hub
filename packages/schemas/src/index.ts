@@ -1,4 +1,4 @@
 // packages/schemas/src/index.ts
-export * from './common';
-export * from './document';
-export * from './search';
+export * from './common.js';
+export * from './document.js';
+export * from './search.js';

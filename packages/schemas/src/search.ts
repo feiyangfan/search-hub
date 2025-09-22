@@ -1,6 +1,6 @@
 // packages/schemas/src/search.ts
 import { z } from 'zod';
-import { Id, Pagination } from './common';
+import { Id, Pagination } from './common.js';
 
 export const SearchQuery = z.object({
     tenantId: Id, // for scoping

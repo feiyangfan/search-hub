@@ -1,7 +1,7 @@
 import { createDocument } from 'zod-openapi';
-import { ApiError } from './common';
-import { CreateDocumentRequest, CreateDocumentResponse } from './document';
-import { SearchQuery, SearchResponse } from './search';
+import { ApiError } from './common.js';
+import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
+import { SearchQuery, SearchResponse } from './search.js';
 
 /**
  * OpenAPI 3.0 for Zod schemas
