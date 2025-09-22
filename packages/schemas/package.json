@@ -24,7 +24,7 @@
     },
     "sideEffects": false,
     "dependencies": {
-        "zod": "^4.1.9",
+        "zod": "^4.1.11",
         "zod-openapi": "^5.4.1"
     }
 }

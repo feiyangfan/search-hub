@@ -6,7 +6,7 @@
     "keywords": [],
     "author": "Feiyang Fan",
     "license": "ISC",
-    "packageManager": "pnpm@10.15.1",
+    "packageManager": "pnpm@10.17.1",
     "scripts": {
         "build": "turbo run build",
         "dev": "turbo run dev --parallel",

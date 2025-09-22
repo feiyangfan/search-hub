@@ -15,9 +15,9 @@
         "dotenv": "^17.2.2",
         "express": "^5.1.0",
         "helmet": "^8.1.0",
-        "pino": "^9.10.0",
+        "pino": "^9.11.0",
         "pino-http": "^10.5.0",
-        "zod": "^4.1.9"
+        "zod": "^4.1.11"
     },
     "scripts": {
         "dev": "tsx watch src/index.js",
@@ -33,13 +33,13 @@
         "node": "22"
     },
     "devDependencies": {
-        "@eslint/js": "^9.35.0",
+        "@eslint/js": "^9.36.0",
         "@tsconfig/node22": "^22.0.2",
         "@types/compression": "^1.8.1",
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.3",
         "@types/node": "^24.5.2",
-        "eslint": "^9.35.0",
+        "eslint": "^9.36.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.4",
         "onchange": "^7.1.0",

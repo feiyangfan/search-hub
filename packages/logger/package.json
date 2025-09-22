@@ -27,6 +27,6 @@
     "sideEffects": false,
     "dependencies": {
         "@search-hub/config-env": "workspace:*",
-        "pino": "^9.10.0"
+        "pino": "^9.11.0"
     }
 }
