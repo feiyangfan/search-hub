@@ -12,6 +12,9 @@
         }
     },
     "scripts": {
+        "prisma:generate": "prisma generate",
+        "prisma:migrate": "prisma migrate dev",
+        "prisma:migrateinit": "prisma migrate dev --name init",
         "dev": "tsup src/index.ts --format esm --dts --watch",
         "build": "tsup src/index.ts --format esm --dts --out-dir dist",
         "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -19,8 +22,13 @@
         "test": "echo \"(db) test placeholder\""
     },
     "devDependencies": {
+        "@types/node": "^24.5.2",
+        "prisma": "^6.16.2",
         "tsup": "^8.5.0",
         "typescript": "^5.9.2"
+    },
+    "dependencies": {
+        "@prisma/client": "^6.16.2"
     },
     "sideEffects": false
 }

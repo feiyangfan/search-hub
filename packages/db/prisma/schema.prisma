@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- enums ----
+enum JobStatus {
+  queued
+  processing
+  indexed
+  failed
+}
+
+// ---- models ----
+model Tenant {
+  id        String    @id @default(cuid())
+  name      String
+  // relationships
+  users     User[]
+  documents Document[]
+  jobs      IndexJob[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([name])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String   @unique
+  // future: add role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  @@index([tenantId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  tenantId  String   // viewbility 
+  title     String
+  source    String   // "upload" | "url" | "api" (string for now; convert to enum later if stable)
+  mimeType  String?
+  // future: size, checksum, storageKey, tags, etc.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs      IndexJob[]
+
+  @@index([tenantId])
+  @@index([title])
+}
+
+model IndexJob {
+  id         String    @id @default(cuid())
+  tenantId   String
+  documentId String
+
+  status     JobStatus @default(queued)
+  error      String?   // capture failure reasons
+
+  // future: attempts, durations, pipeline step metadata...
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([status])
+}
