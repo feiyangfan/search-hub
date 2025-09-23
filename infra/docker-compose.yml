@@ -3,6 +3,7 @@ version: '1.0'
 services:
     postgres:
         image: postgres:17
+        mem_limit: 512m
         container_name: searchhub-postgres
         environment:
             POSTGRES_USER: searchhub
