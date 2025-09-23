@@ -30,5 +30,18 @@ export function createServer() {
         res.status(404).json({ message: 'Not Found' });
     });
 
+    // error handler
+    app.use((err: any, _req: any, res: any, _next: any) => {
+        // eslint-disable-next-line no-console
+        console.error('[api error]', err);
+        const status = typeof err?.status === 'number' ? err.status : 500;
+        res.status(status).json({
+            error:
+                status === 500
+                    ? 'Internal Server Error'
+                    : (err.message ?? 'Error'),
+        });
+    });
+
     return app;
 }
