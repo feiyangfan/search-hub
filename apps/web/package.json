@@ -20,6 +20,7 @@
         "tailwind-merge": "^3.3.1"
     },
     "devDependencies": {
+        "@search-hub/sdk": "workspace:^",
         "@eslint/eslintrc": "^3.3.1",
         "@tailwindcss/postcss": "^4.1.13",
         "@types/node": "^20.19.17",

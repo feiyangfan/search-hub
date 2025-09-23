@@ -7,6 +7,11 @@ import { httpLogger } from '@search-hub/logger';
 import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware.js';
 import { buildRoutes } from './routes/routes.js';
 
+import swaggerUi from 'swagger-ui-express';
+import { readFileSync } from 'fs';
+
+const openapiDoc = JSON.parse(readFileSync('openapi/openapi.json', 'utf-8'));
+
 export function createServer() {
     const app = express();
     app.use(express.json({ limit: '1mb' }));
@@ -18,6 +23,8 @@ export function createServer() {
     app.use(cors({ origin: true, credentials: true }));
     app.use(compression());
     app.use(errorHandlerMiddleware);
+
+    app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
 
     app.get('/health', (_req, res) => {
         _req.log.info('health_check');

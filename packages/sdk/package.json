@@ -1,0 +1,25 @@
+{
+    "name": "@search-hub/sdk",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "generate": "openapi-typescript ../../apps/api/openapi/openapi.json -o src/types.ts",
+        "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+        "dev": "tsup src/index.ts --format esm --dts --watch",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "devDependencies": {
+        "openapi-typescript": "^7.9.1",
+        "tsup": "^8.5.0",
+        "typescript": "^5.9.2"
+    }
+}

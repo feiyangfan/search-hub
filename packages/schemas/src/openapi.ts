@@ -21,6 +21,7 @@ export function buildOpenApi(
             '/v1/documents': {
                 post: {
                     requestBody: {
+                        required: true,
                         content: {
                             'application/json': {
                                 schema: CreateDocumentRequest,
@@ -67,6 +68,7 @@ export function buildOpenApi(
             '/v1/tenants': {
                 post: {
                     requestBody: {
+                        required: true,
                         content: {
                             'application/json': {
                                 schema: CreateTenantRequest,

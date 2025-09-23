@@ -1,0 +1,115 @@
+import type { paths } from './types';
+
+export type Fetcher = (
+    input: RequestInfo,
+    init?: RequestInit
+) => Promise<Response>;
+
+export interface ClientOptions {
+    baseUrl?: string;
+    fetcher?: Fetcher;
+    headers?: Record<string, string>;
+}
+
+export class SearchHubClient {
+    private baseUrl: string;
+    private fetcher: Fetcher;
+    private defaultHeaders: Record<string, string>;
+
+    constructor(options: ClientOptions = {}) {
+        this.baseUrl = (options.baseUrl ?? '').replace(/\/+$/, '');
+        this.fetcher = options.fetcher ?? (globalThis.fetch as Fetcher);
+        this.defaultHeaders = { ...(options.headers ?? {}) };
+    }
+
+    /** Small helper to throw readable errors on non-2xx */
+    private async ensureOk(res: Response, operation: string) {
+        if (!res.ok) {
+            const txt = await safeText(res);
+            throw new Error(
+                `${operation} failed: ${res.status} ${res.statusText} ${
+                    txt ?? ''
+                }`
+            );
+        }
+    }
+
+    /** GET /v1/search */
+    async search(
+        params: paths['/v1/search']['get']['parameters']['query']
+    ): Promise<
+        paths['/v1/search']['get']['responses']['200']['content']['application/json']
+    > {
+        const qs = new URLSearchParams(params as any).toString();
+        const url = `${this.baseUrl}/v1/search?${qs}`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'search');
+        return res.json();
+    }
+
+    /** POST /v1/document */
+    async createDocument(
+        body: paths['/v1/documents']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/documents']['post']['responses']['202']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.status !== 202) {
+            const txt = await safeText(res);
+            throw new Error(
+                `createDocument failed: ${res.status} ${res.statusText} ${
+                    txt ?? ''
+                }`
+            );
+        }
+        return res.json();
+    }
+
+    /** POST /v1/tenant */
+    async createTenant(
+        body: paths['/v1/tenants']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/tenants']['post']['responses']['201']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/tenants`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: {
+                ...this.defaultHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.status !== 200 && res.status !== 201) {
+            const txt = await safeText(res);
+            throw new Error(
+                `createTenant failed: ${res.status} ${res.statusText} ${
+                    txt ?? ''
+                }`
+            );
+        }
+
+        return res.json();
+    }
+}
+
+async function safeText(res: Response) {
+    try {
+        return await res.text();
+    } catch {
+        return undefined;
+    }
+}
