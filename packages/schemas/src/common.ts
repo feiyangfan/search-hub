@@ -7,10 +7,7 @@ export const Id = z.string().min(1).meta({
 });
 
 // for server managed time
-export const IsoDate = z.string().meta({
-    description: 'ISO 8601 timestamp',
-    example: '2025-01-01T00:00:00.000Z',
-});
+export const IsoDate = z.iso.datetime({ offset: true, local: true });
 
 // universal pagination
 export const Pagination = z.object({
@@ -33,5 +30,8 @@ export const ApiError = z.object({
         description: 'Error message',
         example: 'Bad Request',
     }),
-    code: z.string().optional().meta({ example: 'VALIDATION_ERROR' }),
+    code: z.string().optional().meta({
+        description: 'API Error format',
+        example: 'VALIDATION_ERROR',
+    }),
 });
