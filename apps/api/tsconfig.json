@@ -12,6 +12,12 @@
         "moduleResolution": "NodeNext",
         "types": ["node"],
     },
-    "include": ["src/**/*.ts", "src/**/*.d.ts", "./eslint.config.mjs", "../../packages/config/env/src/env.ts"],
+    "include": [
+        "src/**/*.ts",
+        "src/**/*.d.ts",
+        "scripts/**/*.ts",
+        "./eslint.config.mjs",
+        "../../packages/config/env/src/env.ts"
+    ],
     "exclude": ["node_modules", "dist"]
 }

@@ -1,4 +1,7 @@
 import { createDocument } from 'zod-openapi';
+import type { oas31 } from 'zod-openapi';
+
+type OpenApiDocument = oas31.OpenAPIObject;
 import { ApiError } from './common.js';
 import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
@@ -7,7 +10,9 @@ import { CreateTenantRequest, CreateTenantResponse } from './tenant.js';
 /**
  * OpenAPI 3.0 for Zod schemas
  */
-export function buildOpenApi(baseUrl = 'http://localhost:3000') {
+export function buildOpenApi(
+    baseUrl = 'http://localhost:3000'
+): OpenApiDocument {
     return createDocument({
         openapi: '3.0.3',
         info: { title: 'Search Hub API', version: '0.1.0' },
