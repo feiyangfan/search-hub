@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const ServerEnvSchema = z.object({
+    BASE_URL: z.url().default('http://localhost:3000'),
     NODE_ENV: z
         .enum(['development', 'test', 'production'])
         .default('development'),
