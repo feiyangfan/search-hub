@@ -57,6 +57,9 @@ importers:
       '@search-hub/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@search-hub/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@tsconfig/node22':
         specifier: ^22.0.2
         version: 22.0.2
