@@ -8,6 +8,10 @@
     "license": "ISC",
     "packageManager": "pnpm@10.17.1",
     "scripts": {
+        "prisma:gen": "pnpm --filter @search-hub/db prisma:generate",
+        "prisma:migrate": "pnpm --filter @search-hub/db prisma:migrate",
+        "prisma:migrateinit": "pnpm --filter @search-hub/db prisma:migrateinit",
+        "prisma:all": "pnpm --filter @search-hub/db prisma:generate && pnpm --filter @search-hub/db prisma:migrate",
         "gen:api": "pnpm --filter api generate",
         "gen:sdk": "pnpm --filter @search-hub/sdk generate",
         "gen:all": "pnpm run gen:api && pnpm run gen:sdk",

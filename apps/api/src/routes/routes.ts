@@ -9,10 +9,13 @@ import {
 import {
     CreateDocumentRequest,
     CreateDocumentResponse,
+    IndexDocumentJobSchema,
     SearchQuery,
     SearchResponse,
 } from '@search-hub/schemas';
 import { prisma, db } from '@search-hub/db';
+import { indexQueue } from '../queue.js';
+import { JOBS, IndexDocumentJob } from '@search-hub/schemas';
 
 export function buildRoutes() {
     const r = Router();
@@ -27,21 +30,40 @@ export function buildRoutes() {
                     typeof CreateDocumentRequest
                 >;
 
+                // We write the DB row before enqueue.
+                // If enqueue fails, the DB shows queued with no Redis job;
+                // The runbook has a remediation (re-enqueue).
+                // The inverse order is also valid (enqueue then DB),
+                // but then a crash between the two creates a “ghost” Redis job with no DB record.
                 const doc = await db.document.create({
                     tenantId: body.tenantId,
                     title: body.title,
                     source: body.source,
                     mimeType: body.mimeType,
                 });
+
                 await db.job.enqueueIndex(body.tenantId, doc.id);
 
-                // placeholder for now, #TODO: persist + enqueue job
-                const resp: z.infer<typeof CreateDocumentResponse> = {
-                    id: doc.id,
-                    status: 'queued',
-                };
+                // Enqueue work to index the document
+                // Could do this here in a transaction with the document creation
+                const jobPayload: IndexDocumentJob =
+                    IndexDocumentJobSchema.parse({
+                        tenantId: doc.tenantId,
+                        documentId: doc.id,
+                    });
 
-                res.status(202).json(resp); // 202 accepted since it's async work (queue)
+                await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
+                    attempts: 3,
+                    backoff: {
+                        type: 'exponential',
+                        delay: 1000,
+                    },
+                    removeOnComplete: true,
+                    removeOnFail: false, // For debugging keep failed jobs in the queue
+                });
+
+                // Respond with 'queued',
+                res.status(202).json({ id: doc.id, status: 'queued' }); // 202 accepted since it's async work (queue)
             } catch (err) {
                 next(err);
             }

@@ -36,8 +36,15 @@ export const db = {
             title: string;
             source: string;
             mimeType?: string | null;
+            content?: string | null;
         }) => {
             return prisma.document.create({ data: input });
+        },
+        getById: async (documentId: string) => {
+            return prisma.document.findUnique({ where: { id: documentId } });
+        },
+        updateTitle: async (documentId: string, title: string) => {
+            return prisma.document.update({ where: { id: documentId }, data: { title } });
         },
         listByTenant: async (tenantId: string, limit = 10, offset = 0) => {
             const [items, total] = await Promise.all([
@@ -53,10 +60,42 @@ export const db = {
         },
     },
     job: {
+        /** API uses this immediately after creating the Document */
         enqueueIndex: async (tenantId: string, documentId: string) => {
             return prisma.indexJob.create({
                 data: { tenantId, documentId, status: 'queued' },
             });
+        },
+
+        /** Worker: queued -> processing (idempotent; returns how many rows changed) */
+        startProcessing: async (tenantId: string, documentId: string) => {
+            const res = await prisma.indexJob.updateMany({
+                where: { tenantId, documentId, status: 'queued' },
+                data: { status: 'processing' },
+            });
+            return res.count;
+        },
+
+        /** Worker: processing -> indexed */
+        markIndexed: async (tenantId: string, documentId: string) => {
+            const res = await prisma.indexJob.updateMany({
+                where: { tenantId, documentId, status: 'processing' },
+                data: { status: 'indexed' },
+            });
+            return res.count;
+        },
+
+        /** Worker: processing -> failed (records error text) */
+        markFailed: async (
+            tenantId: string,
+            documentId: string,
+            error: string
+        ) => {
+            const res = await prisma.indexJob.updateMany({
+                where: { tenantId, documentId, status: 'processing' },
+                data: { status: 'failed', error },
+            });
+            return res.count;
         },
     },
 };

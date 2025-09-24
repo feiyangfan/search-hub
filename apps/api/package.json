@@ -10,6 +10,7 @@
     "dependencies": {
         "@search-hub/config-env": "workspace:*",
         "@search-hub/logger": "workspace:*",
+        "bullmq": "^5.58.7",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
         "dotenv": "^17.2.2",

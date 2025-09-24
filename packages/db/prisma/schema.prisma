@@ -58,6 +58,8 @@ model Document {
 
   @@index([tenantId])
   @@index([title])
+
+  @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
 }
 
 model IndexJob {
@@ -79,4 +81,6 @@ model IndexJob {
   @@index([tenantId])
   @@index([documentId])
   @@index([status])
+
+  @@index([tenantId, documentId, status]) 
 }
