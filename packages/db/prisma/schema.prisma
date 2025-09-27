@@ -47,6 +47,7 @@ model Document {
   tenantId  String   // viewbility 
   title     String
   source    String   // "upload" | "url" | "api" (string for now; convert to enum later if stable)
+  content   String?
   mimeType  String?
   // future: size, checksum, storageKey, tags, etc.
 
@@ -55,11 +56,35 @@ model Document {
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   jobs      IndexJob[]
+  chunks    DocumentChunk[]
 
   @@index([tenantId])
   @@index([title])
 
   @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
+}
+
+model DocumentChunk {
+  id          String   @id @default(cuid())
+  tenantId    String
+  documentId  String
+  idx         Int      // chunk order within a document (0..N-1)
+  content     String   // the chunked text
+  // 1536 dims for OpenAI text-embedding-3-small 
+  embedding   Unsupported("vector") // vector(1536)
+  createdAt   DateTime  @default(now())
+
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([documentId, idx])
+}
+
+// idempotency checkpoint
+model DocumentIndexState {
+  documentId    String  @id
+  lastChecksum  String
+  lastIndexedAt DateTime
 }
 
 model IndexJob {

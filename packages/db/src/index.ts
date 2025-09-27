@@ -40,11 +40,82 @@ export const db = {
         }) => {
             return prisma.document.create({ data: input });
         },
+        findUnique: async (documentId: string) => {
+            return prisma.document.findUnique({
+                where: { id: documentId },
+                select: {
+                    id: true,
+                    tenantId: true,
+                    content: true,
+                    title: true,
+                },
+            });
+        },
         getById: async (documentId: string) => {
             return prisma.document.findUnique({ where: { id: documentId } });
         },
         updateTitle: async (documentId: string, title: string) => {
-            return prisma.document.update({ where: { id: documentId }, data: { title } });
+            return prisma.document.update({
+                where: { id: documentId },
+                data: { title },
+            });
+        },
+        replaceChunksWithEmbeddings: async ({
+            tenantId,
+            documentId,
+            chunks,
+            vectors,
+            checksum,
+        }: {
+            tenantId: string;
+            documentId: string;
+            chunks: { idx: number; text: string }[];
+            vectors: number[][];
+            checksum: string;
+        }) => {
+            if (chunks.length !== vectors.length) {
+                throw new Error('Chunk count and vector count must match');
+            }
+
+            await prisma.$transaction(async (tx) => {
+                await tx.documentChunk.deleteMany({ where: { documentId } });
+
+                for (let i = 0; i < chunks.length; i++) {
+                    const chunk = chunks[i];
+                    const vector = vectors[i];
+
+                    if (!chunk || !vector) {
+                        throw new Error(`Chunk/vector mismatch at index ${i}`);
+                    }
+
+                    await tx.$executeRawUnsafe(
+                        `
+                        INSERT INTO "DocumentChunk"
+                          ("id","tenantId","documentId","idx","content","embedding","createdAt")
+                        VALUES
+                          (gen_random_uuid(), $1, $2, $3, $4, $5::vector, now())
+                        `,
+                        tenantId,
+                        documentId,
+                        chunk.idx,
+                        chunk.text,
+                        `[${vector.join(',')}]`
+                    );
+                }
+
+                await tx.documentIndexState.upsert({
+                    where: { documentId },
+                    create: {
+                        documentId,
+                        lastChecksum: checksum,
+                        lastIndexedAt: new Date(),
+                    },
+                    update: {
+                        lastChecksum: checksum,
+                        lastIndexedAt: new Date(),
+                    },
+                });
+            });
         },
         listByTenant: async (tenantId: string, limit = 10, offset = 0) => {
             const [items, total] = await Promise.all([
@@ -57,6 +128,16 @@ export const db = {
                 prisma.document.count({ where: { tenantId } }),
             ]);
             return { items, total };
+        },
+    },
+    documentIndexState: {
+        findUnique: async (documentId: string) => {
+            return prisma.documentIndexState.findUnique({
+                where: {
+                    documentId,
+                },
+                select: { lastChecksum: true },
+            });
         },
     },
     job: {

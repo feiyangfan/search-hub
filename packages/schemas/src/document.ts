@@ -23,6 +23,10 @@ export const DocumentMeta = z.object({
         description: 'MIME type of the document',
         example: 'application/pdf',
     }),
+    content: z.string().optional().meta({
+        description: 'Document content',
+        example: 'Test content',
+    }),
     createdAt: IsoDate.optional(),
     updatedAt: IsoDate.optional(),
 });

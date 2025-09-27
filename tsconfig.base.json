@@ -1,17 +1,18 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022", "DOM"],
-    "module": "ESNext",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "baseUrl": ".",
-    "paths": {
-      "@search-hub/*": ["packages/*/src"],
-      "@search-hub/config/*": ["packages/config/*/src"],
-      "@search-hub/ui": ["packages/ui/src"],
-      "@search-hub/schemas": ["packages/schemas/src/index.ts"],
-      "@search-hub/schemas/*": ["packages/schemas/src/*"]
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2022", "DOM"],
+        "module": "ESNext",
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "baseUrl": ".",
+        "paths": {
+            "@search-hub/*": ["packages/*/src"],
+            "@search-hub/config/*": ["packages/config/*/src"],
+            "@search-hub/ui": ["packages/ui/src"],
+            "@search-hub/schemas": ["packages/schemas/src/index.ts"],
+            "@search-hub/schemas/*": ["packages/schemas/src/*"],
+            "@search-hub/ai": ["packages/ai/src/index.ts"]
+        }
     }
-  }
 }

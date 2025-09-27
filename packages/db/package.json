@@ -13,8 +13,9 @@
     },
     "scripts": {
         "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate dev",
-        "prisma:migrateinit": "prisma migrate dev --name init",
+        "prisma:migratedev": "prisma migrate dev",
+        "prisma:migratedevinit": "prisma migrate dev --name init",
+        "prisma:reset": "prisma migrate reset",
         "dev": "tsup src/index.ts --format esm --dts --watch",
         "build": "tsup src/index.ts --format esm --dts --out-dir dist",
         "typecheck": "tsc -p tsconfig.json --noEmit",

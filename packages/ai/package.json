@@ -1,7 +1,16 @@
 {
-    "name": "worker",
+    "name": "@search-hub/ai",
+    "version": "0.1.0",
     "private": true,
     "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
     "scripts": {
         "dev": "tsx watch src/index.ts",
         "build": "tsup src/index.ts --format esm --dts --out-dir dist",
@@ -10,17 +19,12 @@
         "lint": "echo \"(worker) lint placeholder\"",
         "test": "echo \"(worker) test placeholder\""
     },
-    "devDependencies": {
-        "@search-hub/db": "workspace:*",
-        "@search-hub/logger": "workspace:*",
-        "@search-hub/schemas": "workspace:*",
-        "@search-hub/ai": "workspace:*",
-        "tsup": "^8.5.0",
-        "tsx": "^4.20.5",
-        "typescript-eslint": "^8.44.1"
-    },
     "dependencies": {
-        "bullmq": "^5.58.7",
-        "openai": "^5.23.0"
+        "@types/node": "^24.5.2",
+        "tsup": "^8.5.0",
+        "typescript": "^5.9.2"
+    },
+    "devDependencies": {
+        "tsx": "^4.20.0"
     }
 }

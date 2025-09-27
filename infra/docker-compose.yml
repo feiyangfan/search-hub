@@ -1,7 +1,7 @@
 name: searchhub-infra
 services:
     postgres:
-        image: postgres:17
+        image: pgvector/pgvector:pg17-trixie
         container_name: searchhub-postgres
         environment:
             POSTGRES_USER: searchhub
