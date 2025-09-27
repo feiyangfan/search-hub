@@ -158,6 +158,8 @@ export function buildRoutes() {
         try {
             const { tenantId, q, k, recall_k } = SemanticQuery.parse(req.query);
 
+            const effectiveRecall = Math.max(recall_k ?? k, k);
+
             // Query embedding
             const qVec = await embedQuery(String(q));
 
@@ -183,7 +185,7 @@ export function buildRoutes() {
                 `,
                 `[${qVec.join(',')}]`,
                 tenantId,
-                recall_k
+                effectiveRecall
             );
 
             if (candidates.length === 0) return res.json({ items: [] });

@@ -17,15 +17,15 @@ enum JobStatus {
 
 // ---- models ----
 model Tenant {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
   // relationships
   users     User[]
   documents Document[]
   jobs      IndexJob[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([name])
 }
@@ -33,79 +33,83 @@ model Tenant {
 model User {
   id        String   @id @default(cuid())
   tenantId  String
-  email     String   @unique
+  email     String
   // future: add role
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
   @@index([tenantId])
 }
 
 model Document {
-  id        String   @id @default(cuid())
-  tenantId  String   // viewbility 
-  title     String
-  source    String   // "upload" | "url" | "api" (string for now; convert to enum later if stable)
-  content   String?
-  mimeType  String?
+  id       String  @id @default(cuid())
+  tenantId String // viewbility 
+  title    String
+  source   String // "upload" | "url" | "api" (string for now; convert to enum later if stable)
+  content  String?
+  mimeType String?
   // future: size, checksum, storageKey, tags, etc.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  jobs      IndexJob[]
-  chunks    DocumentChunk[]
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs       IndexJob[]
+  chunks     DocumentChunk[]
+  indexState DocumentIndexState?
 
   @@index([tenantId])
   @@index([title])
-
   @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
 }
 
 model DocumentChunk {
-  id          String   @id @default(cuid())
-  tenantId    String
-  documentId  String
-  idx         Int      // chunk order within a document (0..N-1)
-  content     String   // the chunked text
-  // 1536 dims for OpenAI text-embedding-3-small 
-  embedding   Unsupported("vector") // vector(1536)
-  createdAt   DateTime  @default(now())
+  id         String                @id @default(cuid())
+  tenantId   String
+  documentId String
+  idx        Int // chunk order within a document (0..N-1)
+  content    String // the chunked text
+  // 1024 for voyage
+  embedding  Unsupported("vector") // vector(1024)
+  createdAt  DateTime              @default(now())
 
-  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
+  @@unique([documentId, idx])
   @@index([tenantId])
   @@index([documentId, idx])
 }
 
 // idempotency checkpoint
 model DocumentIndexState {
-  documentId    String  @id
+  documentId    String   @id
   lastChecksum  String
   lastIndexedAt DateTime
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
 
 model IndexJob {
-  id         String    @id @default(cuid())
+  id         String @id @default(cuid())
   tenantId   String
   documentId String
 
-  status     JobStatus @default(queued)
-  error      String?   // capture failure reasons
+  status JobStatus @default(queued)
+  error  String? // capture failure reasons
 
   // future: attempts, durations, pipeline step metadata...
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([documentId])
   @@index([status])
-
-  @@index([tenantId, documentId, status]) 
+  @@index([tenantId, documentId, status])
 }
