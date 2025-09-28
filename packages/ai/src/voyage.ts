@@ -1,3 +1,5 @@
+import { loadAiEnv } from '@search-hub/config-env';
+
 type VoyageEmbeddingInput = {
     model: string;
     input: string[]; // batch inputs
@@ -5,6 +7,9 @@ type VoyageEmbeddingInput = {
     output_dimension: 1024;
     output_dtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary'; // optional
 };
+
+const env = loadAiEnv();
+const VOYAGE_API_KEY = env.VOYAGE_API_KEY!;
 
 export async function voyageEmbed(
     texts: string[],
@@ -16,7 +21,7 @@ export async function voyageEmbed(
     const resp = await fetch('https://api.voyageai.com/v1/embeddings', {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
+            Authorization: `Bearer ${VOYAGE_API_KEY}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -24,7 +29,7 @@ export async function voyageEmbed(
             input: texts,
             input_type,
             output_dimension: 1024,
-            // output_dtype: "float" // default; you can switch to int8/binary later
+            // output_dtype: "float" // default, can switch to int8/binary later
         }),
     });
 

@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
+import { loadDbEnv } from '@search-hub/config-env';
 
+const env = loadDbEnv();
 /**
  * Create a single PrismaClient instance.
  * In dev, Next/tsx hot reload can instantiate multiple times — guard with global.
@@ -11,12 +13,12 @@ export const prisma =
     globalForPrisma.prisma ??
     new PrismaClient({
         log:
-            process.env.NODE_ENV === 'development'
+            env.NODE_ENV === 'development'
                 ? ['query', 'error', 'warn']
                 : ['error'],
     });
 
-if (process.env.NODE_ENV === 'development') {
+if (env.NODE_ENV === 'development') {
     globalForPrisma.prisma = prisma;
 }
 

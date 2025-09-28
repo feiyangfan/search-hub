@@ -2,17 +2,21 @@ import { Worker, QueueEvents, Job } from 'bullmq';
 import { db } from '@search-hub/db';
 import { logger as base } from '@search-hub/logger';
 import { chunkText, sha256 } from '@search-hub/schemas';
-type TextChunk = ReturnType<typeof chunkText>[number];
 import { voyageEmbed } from '@search-hub/ai';
-
-const logger = base.child({
-    service: 'worker',
-});
+import { loadWorkerEnv } from '@search-hub/config-env';
 import {
     JOBS,
     IndexDocumentJobSchema,
     type IndexDocumentJob,
 } from '@search-hub/schemas';
+
+const env = loadWorkerEnv();
+
+type TextChunk = ReturnType<typeof chunkText>[number];
+
+const logger = base.child({
+    service: 'worker',
+});
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const WORKER_CONCURRENCY = Number(process.env.WORKER_CONCURRENCY ?? 5);

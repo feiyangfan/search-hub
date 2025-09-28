@@ -1,7 +1,9 @@
-// packages/ai/src/rerank.ts
-type VoyageRerankModel = 'rerank-2.5-lite' | 'rerank-2.5'; // pick one
+import { loadAiEnv } from '@search-hub/config-env';
 
-const VOYAGE_API_KEY = process.env.VOYAGE_API_KEY!;
+type VoyageRerankModel = 'rerank-2.5-lite';
+
+const env = loadAiEnv();
+const VOYAGE_API_KEY = env.VOYAGE_API_KEY!;
 const DEFAULT_MODEL: VoyageRerankModel = 'rerank-2.5-lite';
 
 /**

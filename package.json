@@ -17,7 +17,7 @@
         "gen:sdk": "pnpm --filter @search-hub/sdk generate",
         "gen:all": "pnpm run gen:api && pnpm run gen:sdk",
         "build": "turbo run build",
-        "dev": "turbo run dev --parallel",
+        "dev": "TURBO_STDOUT=inherit turbo run dev --parallel",
         "lint": "turbo run lint",
         "typecheck": "turbo run typecheck",
         "test": "turbo run test",

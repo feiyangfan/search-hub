@@ -12,7 +12,9 @@
             "@search-hub/ui": ["packages/ui/src"],
             "@search-hub/schemas": ["packages/schemas/src/index.ts"],
             "@search-hub/schemas/*": ["packages/schemas/src/*"],
-            "@search-hub/ai": ["packages/ai/src/index.ts"]
+            "@search-hub/config-env": ["packages/config/env/src/index.ts"],
+            "@search-hub/ai": ["packages/ai/src/index.ts"],
+            "@search-hub/logger": ["packages/logger/src/index.ts"]
         }
     }
 }

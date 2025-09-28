@@ -29,7 +29,8 @@
         "typescript": "^5.9.2"
     },
     "dependencies": {
-        "@prisma/client": "^6.16.2"
+        "@prisma/client": "^6.16.2",
+        "@search-hub/config-env": "workspace:*"
     },
     "sideEffects": false
 }
