@@ -6,9 +6,7 @@ export function validateQuery(schema: z.ZodTypeAny) {
     return (req: Request, res: Response, next: NextFunction) => {
         const parsed = schema.safeParse(req.query);
         if (!parsed.success) {
-            return res
-                .status(400)
-                .json({ error: 'Invalid query', details: parsed.error.issues });
+            return next(parsed.error);
         }
         (req as any).validated = {
             ...(req as any).validated,
@@ -23,9 +21,7 @@ export function validateBody(schema: z.ZodTypeAny) {
     return (req: Request, res: Response, next: NextFunction) => {
         const parsed = schema.safeParse(req.body);
         if (!parsed.success) {
-            return res
-                .status(400)
-                .json({ error: 'Invalid body', details: parsed.error.issues });
+            return next(parsed.error);
         }
         (req as any).validated = {
             ...(req as any).validated,

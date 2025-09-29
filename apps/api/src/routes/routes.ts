@@ -213,11 +213,6 @@ export function buildRoutes() {
 
             res.json({ items: byRerank });
         } catch (error: any) {
-            if (error?.name === 'ZodError') {
-                return res
-                    .status(400)
-                    .json({ error: 'Invalid query', details: error.issues });
-            }
             next(error);
         }
     });

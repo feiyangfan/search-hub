@@ -17,12 +17,11 @@ export function createServer() {
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ extended: true }));
 
-    // Middleware s
+    // Middlewares
     app.use(helmet());
     app.use(httpLogger);
     app.use(cors({ origin: true, credentials: true }));
     app.use(compression());
-    app.use(errorHandlerMiddleware);
 
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
 
@@ -33,22 +32,24 @@ export function createServer() {
 
     app.use(buildRoutes());
 
-    app.use((_req, res) => {
-        res.status(404).json({ message: 'Not Found' });
-    });
-
     // error handler
-    app.use((err: any, _req: any, res: any, _next: any) => {
-        // eslint-disable-next-line no-console
-        console.error('[api error]', err);
-        const status = typeof err?.status === 'number' ? err.status : 500;
-        res.status(status).json({
-            error:
-                status === 500
-                    ? 'Internal Server Error'
-                    : (err.message ?? 'Error'),
+    app.use((req, res) => {
+        const requestId = (req as any)?.id;
+        const log: any = (req as any)?.log;
+        log?.warn(
+            { path: req.originalUrl, method: req.method },
+            'request_not_found'
+        );
+        res.status(404).json({
+            error: {
+                code: 'NOT_FOUND',
+                message: 'Resource not found',
+                ...(requestId ? { requestId } : {}),
+            },
         });
     });
+
+    app.use(errorHandlerMiddleware);
 
     return app;
 }
