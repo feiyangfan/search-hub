@@ -17,10 +17,15 @@ import {
 import { prisma, db } from '@search-hub/db';
 import { indexQueue } from '../queue.js';
 import { JOBS, IndexDocumentJob } from '@search-hub/schemas';
-import { embedQuery } from '@search-hub/ai';
-import { voyageRerank } from '@search-hub/ai';
+import { loadAiEnv } from '@search-hub/config-env';
+import { createVoyageHelpers } from '@search-hub/ai';
 
 import { logger } from '@search-hub/logger';
+
+const env = loadAiEnv();
+const VOYAGE_API_KEY = env.VOYAGE_API_KEY;
+
+const voyage = createVoyageHelpers({ apiKey: VOYAGE_API_KEY });
 
 export function buildRoutes() {
     const r = Router();
@@ -161,7 +166,9 @@ export function buildRoutes() {
             const effectiveRecall = Math.max(recall_k ?? k, k);
 
             // Query embedding
-            const qVec = await embedQuery(String(q));
+            const qVec = await voyage.embed([String(q)], {
+                input_type: 'query',
+            });
 
             // Vector Search with cosine
             type Candidate = {
@@ -191,7 +198,7 @@ export function buildRoutes() {
             if (candidates.length === 0) return res.json({ items: [] });
 
             // 3) Rerank those candidates (higher score = better)
-            const rerank = await voyageRerank(
+            const rerank = await voyage.rerank(
                 String(q),
                 candidates.map((candidate: Candidate) => candidate.content)
             );

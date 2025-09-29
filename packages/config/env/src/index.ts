@@ -1,6 +1,12 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const defaultAiEnvPath = resolve(__dirname, '..', '..', '..', 'ai/.env');
+
 const ServerEnvSchema = z.object({
     BASE_URL: z.url().default('http://localhost:3000'),
     NODE_ENV: z
@@ -62,11 +68,10 @@ export const loadServerEnv = (opts?: { path?: string }) =>
     loadEnv(ServerEnvSchema, opts);
 
 export const loadAiEnv = (opts?: { path?: string }) =>
-    loadEnv(AiEnvSchema, opts);
+    loadEnv(AiEnvSchema, { path: opts?.path ?? defaultAiEnvPath });
 
 export const loadDbEnv = (opts?: { path?: string }) =>
     loadEnv(DbEnvSchema, opts);
 
-export const loadWorkerEnv = (opts?: { path?: string }) => {
+export const loadWorkerEnv = (opts?: { path?: string }) =>
     loadEnv(WorkerEnvSchema, opts);
-};

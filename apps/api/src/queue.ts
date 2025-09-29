@@ -1,8 +1,11 @@
 // apps/api/src/queue.ts
 import { Queue } from 'bullmq';
 import { JOBS, IndexDocumentJob } from '@search-hub/schemas';
+import { loadWorkerEnv } from '@search-hub/config-env';
 
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+const env = loadWorkerEnv();
+
+const REDIS_URL = env.REDIS_URL ?? 'redis://localhost:6379';
 
 // Prevent duplicate queue instances during dev reloads.
 declare global {

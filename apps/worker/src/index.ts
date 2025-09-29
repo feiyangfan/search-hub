@@ -2,15 +2,18 @@ import { Worker, QueueEvents, Job } from 'bullmq';
 import { db } from '@search-hub/db';
 import { logger as base } from '@search-hub/logger';
 import { chunkText, sha256 } from '@search-hub/schemas';
-import { voyageEmbed } from '@search-hub/ai';
-import { loadWorkerEnv } from '@search-hub/config-env';
+import { createVoyageHelpers } from '@search-hub/ai';
+import { loadAiEnv, loadWorkerEnv } from '@search-hub/config-env';
 import {
     JOBS,
     IndexDocumentJobSchema,
     type IndexDocumentJob,
 } from '@search-hub/schemas';
 
+const VOYAGE_API_KEY = loadAiEnv().VOYAGE_API_KEY;
 const env = loadWorkerEnv();
+
+const voyage = createVoyageHelpers({ apiKey: VOYAGE_API_KEY });
 
 type TextChunk = ReturnType<typeof chunkText>[number];
 
@@ -18,9 +21,9 @@ const logger = base.child({
     service: 'worker',
 });
 
-const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
-const WORKER_CONCURRENCY = Number(process.env.WORKER_CONCURRENCY ?? 5);
-const MAX_CHUNK_LIMIT = Number(process.env.WORKER_MAX_CHUNK_LIMIT ?? 5000);
+const REDIS_URL = env.REDIS_URL ?? 'redis://localhost:6379';
+const WORKER_CONCURRENCY = Number(env.WORKER_CONCURRENCY ?? 5);
+const MAX_CHUNK_LIMIT = Number(env.WORKER_MAX_CHUNK_LIMIT ?? 5000);
 
 const connection = { url: REDIS_URL };
 
@@ -129,7 +132,7 @@ const processor = async (job: Job<IndexDocumentJob>) => {
             );
         }
 
-        const vectors = await voyageEmbed(
+        const vectors = await voyage.embed(
             chunks.map((c: TextChunk) => c.text),
             {
                 input_type: 'document',

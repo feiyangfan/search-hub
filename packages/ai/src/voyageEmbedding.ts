@@ -1,6 +1,4 @@
-import { loadAiEnv } from '@search-hub/config-env';
-
-type VoyageEmbeddingInput = {
+export type VoyageEmbeddingInput = {
     model: string;
     input: string[]; // batch inputs
     input_type?: 'document' | 'query';
@@ -8,10 +6,8 @@ type VoyageEmbeddingInput = {
     output_dtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary'; // optional
 };
 
-const env = loadAiEnv();
-const VOYAGE_API_KEY = env.VOYAGE_API_KEY!;
-
 export async function voyageEmbed(
+    apiKey: string,
     texts: string[],
     {
         model = 'voyage-3.5-lite',
@@ -21,7 +17,7 @@ export async function voyageEmbed(
     const resp = await fetch('https://api.voyageai.com/v1/embeddings', {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${VOYAGE_API_KEY}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -56,8 +52,8 @@ export async function voyageEmbed(
     return vecs;
 }
 
-export const embedQuery = async (text: string, dims = 1024) => {
-    const [v] = await voyageEmbed([text], {
+export const embedQuery = async (apiKey: string, text: string, dims = 1024) => {
+    const [v] = await voyageEmbed(apiKey, [text], {
         input_type: 'query',
     });
     return v ?? [];
