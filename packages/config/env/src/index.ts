@@ -6,6 +6,14 @@ import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const defaultAiEnvPath = resolve(__dirname, '..', '..', '..', 'ai/.env');
+const defaultWorkerEnvPath = resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'apps/api/worker/.env'
+);
 
 const ServerEnvSchema = z.object({
     BASE_URL: z.url().default('http://localhost:3000'),
@@ -17,6 +25,7 @@ const ServerEnvSchema = z.object({
     LOG_LEVEL: z
         .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
         .optional(),
+    REDIS_URL: z.url(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
@@ -74,4 +83,4 @@ export const loadDbEnv = (opts?: { path?: string }) =>
     loadEnv(DbEnvSchema, opts);
 
 export const loadWorkerEnv = (opts?: { path?: string }) =>
-    loadEnv(WorkerEnvSchema, opts);
+    loadEnv(WorkerEnvSchema, { path: opts?.path ?? defaultWorkerEnvPath });
