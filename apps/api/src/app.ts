@@ -3,8 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import { httpLogger } from '@search-hub/logger';
-
 import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware.js';
+import { createRateLimiter } from './middleware/rateLimitMiddleware.js';
+
 import { buildRoutes } from './routes/routes.js';
 
 import swaggerUi from 'swagger-ui-express';
@@ -29,6 +30,8 @@ export function createServer() {
         _req.log.info('health_check');
         res.status(200).json('OK!');
     });
+
+    app.use('/v1', createRateLimiter());
 
     app.use(buildRoutes());
 

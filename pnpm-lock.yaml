@@ -44,6 +44,9 @@ importers:
       helmet:
         specifier: ^8.1.0
         version: 8.1.0
+      ioredis:
+        specifier: ^5.8.0
+        version: 5.8.0
       pino:
         specifier: ^9.11.0
         version: 9.11.0
@@ -191,6 +194,9 @@ importers:
       '@search-hub/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@search-hub/config-env':
+        specifier: workspace:*
+        version: link:../../packages/config/env
       '@search-hub/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -212,6 +218,9 @@ importers:
 
   packages/ai:
     dependencies:
+      '@search-hub/config-env':
+        specifier: workspace:*
+        version: link:../config/env
       '@types/node':
         specifier: ^24.5.2
         version: 24.5.2
@@ -250,6 +259,9 @@ importers:
       '@prisma/client':
         specifier: ^6.16.2
         version: 6.16.2(prisma@6.16.2(typescript@5.9.2))(typescript@5.9.2)
+      '@search-hub/config-env':
+        specifier: workspace:*
+        version: link:../config/env
     devDependencies:
       '@types/node':
         specifier: ^24.5.2

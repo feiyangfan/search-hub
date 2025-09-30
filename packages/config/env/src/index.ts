@@ -5,6 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const defaultServerEnvPath = resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    '..',
+    'apps/api/.env'
+);
 const defaultAiEnvPath = resolve(__dirname, '..', '..', '..', 'ai/.env');
 const defaultWorkerEnvPath = resolve(
     __dirname,
@@ -12,7 +20,7 @@ const defaultWorkerEnvPath = resolve(
     '..',
     '..',
     '..',
-    'apps/api/worker/.env'
+    'apps/worker/.env'
 );
 
 const ServerEnvSchema = z.object({
@@ -26,6 +34,8 @@ const ServerEnvSchema = z.object({
         .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
         .optional(),
     REDIS_URL: z.url(),
+    API_RATE_LIMIT_WINDOW_MS: z.coerce.number(),
+    API_RATE_LIMIT_MAX: z.coerce.number(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
@@ -74,7 +84,7 @@ function loadEnv<T>(schema: z.ZodType<T>, options?: { path?: string }) {
 }
 
 export const loadServerEnv = (opts?: { path?: string }) =>
-    loadEnv(ServerEnvSchema, opts);
+    loadEnv(ServerEnvSchema, { path: opts?.path ?? defaultServerEnvPath });
 
 export const loadAiEnv = (opts?: { path?: string }) =>
     loadEnv(AiEnvSchema, { path: opts?.path ?? defaultAiEnvPath });
