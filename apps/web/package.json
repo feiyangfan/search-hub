@@ -6,7 +6,8 @@
         "dev": "next dev --turbopack -p 3001",
         "build": "next build --turbopack",
         "start": "next start -p 3001",
-        "lint": "echo \"eslint . --max-warnings=0\""
+        "lint": "echo \"eslint . --max-warnings=0\"",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {
         "@radix-ui/react-separator": "^1.1.7",
