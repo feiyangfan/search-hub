@@ -35,7 +35,7 @@ export function createRateLimiter(): RequestHandler {
     if tokens <= 0 then
       redis.call("HMSET", key, "tokens", tokens, "refill_at", refill)
       redis.call("PEXPIRE", key, window)
-      return tokens
+      return -1
     end
 
     tokens = tokens - 1
@@ -66,7 +66,7 @@ export function createRateLimiter(): RequestHandler {
                 );
             }
 
-            if (tokens <= 0) {
+            if (tokens < 0) {
                 return res.status(429).json({
                     error: {
                         code: 'RATE_LIMITED',
