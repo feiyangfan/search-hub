@@ -216,7 +216,10 @@ export function buildRoutes() {
                 effectiveRecall
             );
 
-            if (candidates.length === 0) return res.json({ items: [] });
+            if (candidates.length === 0) {
+                voyageBreaker.recordSuccess();
+                return res.json({ items: [] });
+            }
 
             // 3) Rerank those candidates (higher score = better)
             const rerank = await voyage.rerank(

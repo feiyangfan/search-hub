@@ -9,61 +9,60 @@ export type CircuitBreakerOptions = {
     resetTimeoutMs: number;
 };
 
+// closed: healthy
+// open: all requests fail
+// half-open: let one request through, if success -> closed, else -> open
 type State = 'closed' | 'open' | 'half-open';
 
 export class CircuitBreaker {
     private state: State = 'closed';
     private failures = 0;
-    private lastOpenedAt = 0;
+    private nextProbeAt = 0;
+    private halfOpenProbeInFlight = false;
 
     constructor(private readonly opts: CircuitBreakerOptions) {}
 
-    /**
-     * Returns true when the protected operation should run.
-     * - Closed: calls are allowed.
-     * - Open: calls are blocked until the reset timeout expires.
-     * - Half-open: a single trial call is allowed; further calls wait for the result.
-     */
+    // canExecute returns true if a request is allowed to proceed
     canExecute(now = Date.now()) {
-        if (
-            this.state === 'open' &&
-            now - this.lastOpenedAt >= this.opts.resetTimeoutMs
-        ) {
-            // Enough time has passed—allow exactly one trial request.
+        // if open, check if we can try again
+        if (this.state === 'open') {
+            if (now < this.nextProbeAt) {
+                return false;
+            }
+
+            // move to half-open to let one request through
             this.state = 'half-open';
-            this.failures = 0;
-            return true;
+            this.halfOpenProbeInFlight = false;
         }
-        return this.state !== 'open';
+
+        // if half-open, only let one request through
+        if (this.state === 'half-open') {
+            if (this.halfOpenProbeInFlight) {
+                return false;
+            }
+            // mark that probe is in flight
+            this.halfOpenProbeInFlight = true;
+        }
+
+        return true;
     }
 
-    /**
-     * Resets the breaker back to its healthy (closed) state after a successful call.
-     */
     recordSuccess() {
         this.state = 'closed';
         this.failures = 0;
+        this.halfOpenProbeInFlight = false;
     }
 
-    /**
-     * Records a failure. If the threshold is reached—or we’re already in half-open—
-     * flip to open, wait out the cool-down, and then transition to half-open so
-     * the next caller can probe for recovery.
-     */
-    async recordFailure(now = Date.now()) {
+    recordFailure(now = Date.now()) {
         this.failures += 1;
         if (
             this.state === 'half-open' ||
             this.failures >= this.opts.failureThreshold
         ) {
             this.state = 'open';
-            this.lastOpenedAt = now;
-
-            // Optional: give the downstream a moment before allowing the half-open probe.
-            await sleep(this.opts.halfOpenTimeoutMs);
-
-            this.state = 'half-open';
             this.failures = 0;
+            this.halfOpenProbeInFlight = false;
+            this.nextProbeAt = now + this.opts.resetTimeoutMs;
         }
     }
 
