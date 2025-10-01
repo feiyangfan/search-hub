@@ -9,7 +9,6 @@
         "paths": {
             "@search-hub/*": ["packages/*/src"],
             "@search-hub/config/*": ["packages/config/*/src"],
-            "@search-hub/ui": ["packages/ui/src"],
             "@search-hub/schemas": ["packages/schemas/src/index.ts"],
             "@search-hub/schemas/*": ["packages/schemas/src/*"],
             "@search-hub/config-env": ["packages/config/env/src/index.ts"],

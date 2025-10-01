@@ -8,6 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
+      eslint-config-prettier:
+        specifier: ^10.1.8
+        version: 10.1.8(eslint@9.36.0(jiti@2.6.0))
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -17,6 +26,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   apps/api:
     dependencies:
@@ -151,6 +163,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3.3.1
         version: 3.3.1
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
       '@search-hub/sdk':
         specifier: workspace:^
         version: link:../../packages/sdk
@@ -181,6 +196,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   apps/worker:
     dependencies:
@@ -191,6 +209,9 @@ importers:
         specifier: ^5.23.0
         version: 5.23.0
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
       '@search-hub/ai':
         specifier: workspace:*
         version: link:../../packages/ai
@@ -206,6 +227,9 @@ importers:
       '@search-hub/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       tsup:
         specifier: ^8.5.0
         version: 8.5.0(jiti@2.6.0)(postcss@8.5.6)(tsx@4.20.5)(typescript@5.9.2)(yaml@2.8.1)
@@ -231,9 +255,18 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       tsx:
         specifier: ^4.20.0
         version: 4.20.6
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   packages/config/env:
     dependencies:
@@ -244,15 +277,24 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
       '@types/node':
         specifier: ^24.5.2
         version: 24.5.2
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       tsup:
         specifier: ^8.5.0
         version: 8.5.0(jiti@2.6.0)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.2)(yaml@2.8.1)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   packages/db:
     dependencies:
@@ -263,9 +305,15 @@ importers:
         specifier: workspace:*
         version: link:../config/env
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
       '@types/node':
         specifier: ^24.5.2
         version: 24.5.2
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       prisma:
         specifier: ^6.16.2
         version: 6.16.2(typescript@5.9.2)
@@ -275,6 +323,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   packages/logger:
     dependencies:
@@ -285,9 +336,15 @@ importers:
         specifier: ^9.11.0
         version: 9.11.0
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
       '@types/node':
         specifier: ^24.5.2
         version: 24.5.2
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       pino-http:
         specifier: ^10.5.0
         version: 10.5.0
@@ -300,6 +357,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   packages/schemas:
     dependencies:
@@ -310,18 +370,33 @@ importers:
         specifier: ^5.4.1
         version: 5.4.1(zod@4.1.11)
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
       '@types/node':
         specifier: ^22.9.0
         version: 22.18.6
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       tsup:
         specifier: ^8.5.0
         version: 8.5.0(jiti@2.6.0)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.2)(yaml@2.8.1)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   packages/sdk:
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.36.0
+        version: 9.36.0
+      eslint:
+        specifier: ^9.36.0
+        version: 9.36.0(jiti@2.6.0)
       openapi-typescript:
         specifier: ^7.9.1
         version: 7.9.1(typescript@5.9.2)
@@ -331,6 +406,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
+      typescript-eslint:
+        specifier: ^8.44.1
+        version: 8.44.1(eslint@9.36.0(jiti@2.6.0))(typescript@5.9.2)
 
   packages/ui:
     dependencies:

@@ -1,12 +1,13 @@
+import type { Request } from 'express';
 import { ErrorRequestHandler } from 'express';
 import { STATUS_CODES } from 'node:http';
-import { resolve } from 'node:path';
 import { ZodError } from 'zod';
 import { logger as fallbackLogger } from '@search-hub/logger';
+import type { Logger } from 'pino';
 
 type NormalizedError = Error &
     Record<string, unknown> & {
-        status?: string | string;
+        status?: string | number;
         statusCode?: number | string;
         code?: string;
         expose?: boolean;
@@ -186,7 +187,7 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
     const message = resolveMessage(error, status, isZodError, expose);
     const details = resolveDetails(error, isZodError, expose);
 
-    const requestId = (req as any)?.id;
+    const requestId = (req as { id?: string | number }).id;
     const responseBody = {
         error: {
             code,
@@ -196,7 +197,7 @@ export const errorHandlerMiddleware: ErrorRequestHandler = (
         },
     };
 
-    const log: any = (req as any)?.log ?? fallbackLogger;
+    const log = (req as Request & { log?: Logger }).log ?? fallbackLogger;
     const logLevel: 'error' | 'warn' = status > 500 ? 'error' : 'warn';
 
     log[logLevel](

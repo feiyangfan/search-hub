@@ -1,11 +1,11 @@
-export type CircuitBreakerOptions = {
+export interface CircuitBreakerOptions {
     /** Number of consecutive failures allowed before the breaker opens */
     failureThreshold: number;
     /** How long to wait after opening before letting a single trial request through */
     halfOpenTimeoutMs: number;
     /** Minimum time the breaker stays open before transitioning toward recovery */
     resetTimeoutMs: number;
-};
+}
 
 // closed: healthy
 // open: all requests fail

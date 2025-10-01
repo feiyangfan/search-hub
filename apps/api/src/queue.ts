@@ -9,7 +9,6 @@ const REDIS_URL = env.REDIS_URL ?? 'redis://localhost:6379';
 
 // Prevent duplicate queue instances during dev reloads.
 declare global {
-    // eslint-disable-next-line no-var
     var __queues: { indexDocument?: Queue<IndexDocumentJob> } | undefined;
 }
 

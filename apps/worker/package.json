@@ -7,15 +7,17 @@
         "build": "tsup src/index.ts --format esm --dts --out-dir dist",
         "start": "node dist/index.js",
         "typecheck": "tsc -p tsconfig.json --noEmit",
-        "lint": "echo \"(worker) lint placeholder\"",
+        "lint": "eslint src/**/*.ts --config ../../eslint.config.mjs --max-warnings=0",
         "test": "echo \"(worker) test placeholder\""
     },
     "devDependencies": {
+        "@eslint/js": "^9.36.0",
+        "@search-hub/ai": "workspace:*",
+        "@search-hub/config-env": "workspace:*",
         "@search-hub/db": "workspace:*",
         "@search-hub/logger": "workspace:*",
         "@search-hub/schemas": "workspace:*",
-        "@search-hub/ai": "workspace:*",
-        "@search-hub/config-env": "workspace:*",
+        "eslint": "^9.36.0",
         "tsup": "^8.5.0",
         "tsx": "^4.20.5",
         "typescript-eslint": "^8.44.1"

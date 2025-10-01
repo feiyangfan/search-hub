@@ -1,5 +1,6 @@
 // routes -> validate -> do work -> respond
 import { Router } from 'express';
+import type { Request } from 'express';
 import { type z } from 'zod';
 import {
     validateBody,
@@ -7,7 +8,6 @@ import {
 } from '../middleware/validateMiddleware.js';
 import {
     CreateDocumentRequest,
-    CreateDocumentResponse,
     IndexDocumentJobSchema,
     SearchQuery,
     SearchResponse,
@@ -38,6 +38,20 @@ const VOYAGE_API_KEY = env.VOYAGE_API_KEY;
 
 const voyage = createVoyageHelpers({ apiKey: VOYAGE_API_KEY });
 
+interface RequestWithBody<TBody> extends Request {
+    validated: {
+        body: TBody;
+        query?: unknown;
+    };
+}
+
+interface RequestWithQuery<TQuery> extends Request {
+    validated: {
+        query: TQuery;
+        body?: unknown;
+    };
+}
+
 export function buildRoutes() {
     const r = Router();
 
@@ -47,9 +61,11 @@ export function buildRoutes() {
         validateBody(CreateDocumentRequest),
         async (req, res, next) => {
             try {
-                const body = (req as any).validated.body as z.infer<
-                    typeof CreateDocumentRequest
-                >;
+                const body = (
+                    req as RequestWithBody<
+                        z.infer<typeof CreateDocumentRequest>
+                    >
+                ).validated.body;
 
                 // We write the DB row before enqueue.
                 // If enqueue fails, the DB shows queued with no Redis job;
@@ -113,30 +129,38 @@ export function buildRoutes() {
         }
     );
 
+    interface CreateTenantBody {
+        name?: string;
+    }
+
     // POST /v1/tenants to create new tenant
-    r.post('/v1/tenants', async (req, res, next) => {
-        try {
-            const name = (req.body?.name as string | undefined)?.trim();
-            if (!name)
-                return res.status(400).json({ error: 'name is required' });
+    r.post(
+        '/v1/tenants',
+        async (req: Request<unknown, unknown, CreateTenantBody>, res, next) => {
+            try {
+                const name = req.body?.name?.trim();
+                if (!name)
+                    return res.status(400).json({ error: 'name is required' });
 
-            // Prevent dup by name (will use unique slug in Prisma)
-            const existing = await prisma.tenant.findFirst({ where: { name } });
-            if (existing) return res.status(200).json(existing);
+                // Prevent dup by name (will use unique slug in Prisma)
+                const existing = await prisma.tenant.findFirst({
+                    where: { name },
+                });
+                if (existing) return res.status(200).json(existing);
 
-            const tenant = await prisma.tenant.create({ data: { name } });
-            res.status(201).json(tenant);
-        } catch (err) {
-            next(err);
+                const tenant = await prisma.tenant.create({ data: { name } });
+                res.status(201).json(tenant);
+            } catch (err) {
+                next(err);
+            }
         }
-    });
+    );
 
     // GET /v1/search?q=&tenantId=...
     r.get('/v1/search', validateQuery(SearchQuery), async (req, res, next) => {
         try {
-            const q = (req as any).validated.query as z.infer<
-                typeof SearchQuery
-            >;
+            const q = (req as RequestWithQuery<z.infer<typeof SearchQuery>>)
+                .validated.query;
 
             const where = {
                 tenantId: q.tenantId,
@@ -192,13 +216,13 @@ export function buildRoutes() {
             });
 
             // Vector Search with cosine
-            type Candidate = {
+            interface Candidate {
                 documentId: string;
                 idx: number;
                 content: string;
                 distance: number;
                 similarity: number;
-            };
+            }
             const candidates = await prisma.$queryRawUnsafe<Candidate[]>(
                 `
                 SELECT "documentId",
@@ -238,8 +262,8 @@ export function buildRoutes() {
                 }));
 
             res.json({ items: byRerank });
-        } catch (error: any) {
-            await voyageBreaker.recordFailure();
+        } catch (error: unknown) {
+            voyageBreaker.recordFailure();
             if (!voyageBreaker.canExecute()) {
                 return res.status(503).json({
                     error: {

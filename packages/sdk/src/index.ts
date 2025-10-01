@@ -40,14 +40,21 @@ export class SearchHubClient {
     ): Promise<
         paths['/v1/search']['get']['responses']['200']['content']['application/json']
     > {
-        const qs = new URLSearchParams(params as any).toString();
-        const url = `${this.baseUrl}/v1/search?${qs}`;
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value === undefined || value === null) {
+                return;
+            }
+            searchParams.append(key, String(value));
+        });
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search${qs ? `?${qs}` : ''}`;
         const res = await this.fetcher(url, {
             method: 'GET',
             headers: this.defaultHeaders,
         });
         await this.ensureOk(res, 'search');
-        return res.json();
+        return (await res.json()) as paths['/v1/search']['get']['responses']['200']['content']['application/json'];
     }
 
     /** POST /v1/document */
@@ -74,7 +81,7 @@ export class SearchHubClient {
                 }`
             );
         }
-        return res.json();
+        return (await res.json()) as paths['/v1/documents']['post']['responses']['202']['content']['application/json'];
     }
 
     /** POST /v1/tenant */
@@ -102,7 +109,7 @@ export class SearchHubClient {
             );
         }
 
-        return res.json();
+        return (await res.json()) as paths['/v1/tenants']['post']['responses']['201']['content']['application/json'];
     }
 }
 

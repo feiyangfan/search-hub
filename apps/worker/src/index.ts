@@ -29,15 +29,19 @@ const connection = { url: REDIS_URL };
 
 // Optional: listen to queue-level events for observability
 const queueEvents = new QueueEvents(JOBS.INDEX_DOCUMENT, { connection });
-queueEvents.on('completed', ({ jobId }) =>
-    logger.info({ jobId }, 'Index job completed')
-);
-queueEvents.on('failed', ({ jobId, failedReason }) =>
-    logger.error({ jobId, failedReason }, 'Index job failed')
-);
+queueEvents.on('completed', ({ jobId }) => {
+    logger.info({ jobId }, 'Index job completed');
+});
+queueEvents.on('failed', ({ jobId, failedReason }) => {
+    logger.error({ jobId, failedReason }, 'Index job failed');
+});
 
 // Processor function: does the actual work
-const processor = async (job: Job<IndexDocumentJob>) => {
+type ProcessorResult =
+    | { ok: true; reason: 'empty-content' | 'already-indexed' | 'no-chunks' }
+    | { ok: true; documentId: string; chunks: number };
+
+const processor = async (job: Job<IndexDocumentJob>): Promise<ProcessorResult> => {
     // 1) Validate payload
     const { tenantId, documentId } = IndexDocumentJobSchema.parse(job.data);
 
@@ -177,14 +181,15 @@ const processor = async (job: Job<IndexDocumentJob>) => {
 
         // You could return metadata for logging/metrics
         return { ok: true, documentId, chunks: chunks.length };
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err : new Error(String(err));
         // 5) Mark failed in DB and rethrow so BullMQ can retry
-        await db.job.markFailed(tenantId, documentId, err?.message ?? err);
+        await db.job.markFailed(tenantId, documentId, error.message);
         logger.error(
-            { err, jobId: job.id, data: job.data },
+            { err: error, jobId: job.id, data: job.data },
             'Index job failed; marked as failed in DB'
         );
-        throw err;
+        throw error;
     }
 };
 
@@ -203,9 +208,13 @@ worker.on('failed', (job, err) =>
 );
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
+const handleSigint = async () => {
     logger.info('Shutting down worker...');
     await worker.close();
     await queueEvents.close();
     process.exit(0);
+};
+
+process.on('SIGINT', () => {
+    void handleSigint();
 });

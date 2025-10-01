@@ -6,7 +6,6 @@ import { Redis } from 'ioredis';
 const { REDIS_URL, API_RATE_LIMIT_WINDOW_MS, API_RATE_LIMIT_MAX } =
     loadServerEnv();
 declare global {
-    // eslint-disable-next-line no-var
     var __redis__: Redis | undefined;
 }
 

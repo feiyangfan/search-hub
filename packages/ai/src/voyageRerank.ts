@@ -24,10 +24,17 @@ export async function voyageRerank(
         throw new Error(`Voyage rerank failed: ${resp.status} ${t}`);
     }
 
-    const json: any = await resp.json();
-    // json.data = [{ index: number, relevance_score: number, ... }, ...]
-    return (json?.data ?? []).map((d: any) => ({
-        index: d.index as number,
-        score: (d.relevance_score as number) ?? 0,
+    interface VoyageRerankResult {
+        data?: {
+            index: number;
+            relevance_score?: number;
+        }[];
+    }
+
+    const json = (await resp.json()) as VoyageRerankResult;
+
+    return (json.data ?? []).map(({ index, relevance_score }) => ({
+        index,
+        score: relevance_score ?? 0,
     }));
 }

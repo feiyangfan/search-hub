@@ -10,14 +10,15 @@
         "typeRoots": ["./src/types", "./node_modules/@types"],
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
-        "types": ["node"],
+        "types": ["node"]
     },
     "include": [
         "src/**/*.ts",
         "src/**/*.d.ts",
         "scripts/**/*.ts",
         "./eslint.config.mjs",
-        "../../packages/config/env/src/env.ts"
+        "../../packages/config/env/src/env.ts",
+        "src/types/express/index.d.ts"
     ],
     "exclude": ["node_modules", "dist"]
 }

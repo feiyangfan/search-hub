@@ -15,11 +15,15 @@
         "generate": "openapi-typescript ../../apps/api/openapi/openapi.json -o src/types.ts",
         "build": "tsup src/index.ts --format esm --dts --out-dir dist",
         "dev": "tsup src/index.ts --format esm --dts --watch",
-        "typecheck": "tsc -p tsconfig.json --noEmit"
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "lint": "eslint src/**/*.ts --config ../../eslint.config.mjs --ignore-pattern src/types.ts --max-warnings=0"
     },
     "devDependencies": {
+        "@eslint/js": "^9.36.0",
+        "eslint": "^9.36.0",
         "openapi-typescript": "^7.9.1",
         "tsup": "^8.5.0",
-        "typescript": "^5.9.2"
+        "typescript": "^5.9.2",
+        "typescript-eslint": "^8.44.1"
     }
 }

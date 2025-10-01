@@ -11,7 +11,11 @@ import { buildRoutes } from './routes/routes.js';
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
 
-const openapiDoc = JSON.parse(readFileSync('openapi/openapi.json', 'utf-8'));
+import type { Request, Response } from 'express';
+
+const openapiDoc = JSON.parse(
+    readFileSync('openapi/openapi.json', 'utf-8')
+) as Record<string, unknown>;
 
 export function createServer() {
     const app = express();
@@ -36,9 +40,8 @@ export function createServer() {
     app.use(buildRoutes());
 
     // error handler
-    app.use((req, res) => {
-        const requestId = (req as any)?.id;
-        const log: any = (req as any)?.log;
+    app.use((req: Request, res: Response) => {
+        const { id: requestId, log } = req;
         log?.warn(
             { path: req.originalUrl, method: req.method },
             'request_not_found'

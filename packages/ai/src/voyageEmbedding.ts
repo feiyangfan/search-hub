@@ -1,10 +1,10 @@
-export type VoyageEmbeddingInput = {
+export interface VoyageEmbeddingInput {
     model: string;
     input: string[]; // batch inputs
     input_type?: 'document' | 'query';
     output_dimension: 1024;
     output_dtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary'; // optional
-};
+}
 
 export async function voyageEmbed(
     apiKey: string,
@@ -34,8 +34,14 @@ export async function voyageEmbed(
         throw new Error(`Voyage embed failed: ${resp.status} ${errText}`);
     }
 
-    const data = await resp.json();
-    const vecs: number[][] = (data.data ?? []).map((d: any) => d.embedding);
+    interface VoyageEmbeddingResponse {
+        data?: {
+            embedding: number[];
+        }[];
+    }
+
+    const json = (await resp.json()) as VoyageEmbeddingResponse;
+    const vecs: number[][] = (json.data ?? []).map(({ embedding }) => embedding);
 
     // Sanity check: ensure all vectors match the expected dimension
     for (const v of vecs) {
@@ -52,7 +58,7 @@ export async function voyageEmbed(
     return vecs;
 }
 
-export const embedQuery = async (apiKey: string, text: string, dims = 1024) => {
+export const embedQuery = async (apiKey: string, text: string) => {
     const [v] = await voyageEmbed(apiKey, [text], {
         input_type: 'query',
     });
