@@ -41,6 +41,9 @@ jobs:
           key: ${{ runner.os }}-turbo-${{ hashFiles('**/package.json', 'pnpm-lock.yaml', 'turbo.json') }}
           restore-keys: |
             ${{ runner.os }}-turbo-
+            
+      - name: Generate Prisma client
+        run: pnpm prisma:gen
 
       - name: Lint
         run: pnpm lint

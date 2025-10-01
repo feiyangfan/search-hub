@@ -13,14 +13,14 @@
         "bullmq": "^5.58.7",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
-        "dotenv": "^17.2.2",
         "express": "^5.1.0",
         "helmet": "^8.1.0",
         "ioredis": "^5.8.0",
-        "pino": "^9.11.0",
-        "pino-http": "^10.5.0",
         "swagger-ui-express": "^5.0.1",
-        "zod": "^4.1.11"
+        "zod": "^4.1.11",
+        "@search-hub/ai": "workspace:*",
+        "@search-hub/db": "workspace:*",
+        "@search-hub/schemas": "workspace:*"
     },
     "scripts": {
         "generate": "tsx scripts/generate-openapi.ts",
@@ -37,11 +37,10 @@
         "node": "22"
     },
     "devDependencies": {
+        "pino": "^9.11.0",
+        "pino-http": "^10.5.0",
         "@eslint/js": "^9.36.0",
-        "@search-hub/ai": "workspace:*",
-        "@search-hub/db": "workspace:*",
         "@search-hub/logger": "workspace:*",
-        "@search-hub/schemas": "workspace:*",
         "@tsconfig/node22": "^22.0.2",
         "@types/compression": "^1.8.1",
         "@types/cors": "^2.8.19",
@@ -52,7 +51,6 @@
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.4",
         "onchange": "^7.1.0",
-        "pino-pretty": "^13.1.1",
         "prettier": "^3.6.2",
         "tsup": "^8.5.0",
         "tsx": "^4.20.5",
