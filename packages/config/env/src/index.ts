@@ -36,6 +36,9 @@ const ServerEnvSchema = z.object({
     REDIS_URL: z.url(),
     API_RATE_LIMIT_WINDOW_MS: z.coerce.number(),
     API_RATE_LIMIT_MAX: z.coerce.number(),
+    API_BREAKER_FAILURE_THRESHOLD: z.coerce.number(),
+    API_BREAKER_RESET_TIMEOUT_MS: z.coerce.number(),
+    API_BREAKER_HALF_OPEN_TIMEOUT_MS: z.coerce.number(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;

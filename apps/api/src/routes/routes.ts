@@ -1,4 +1,3 @@
-// apps/api/src/routes.ts
 // routes -> validate -> do work -> respond
 import { Router } from 'express';
 import { type z } from 'zod';
@@ -17,10 +16,22 @@ import {
 import { prisma, db } from '@search-hub/db';
 import { indexQueue } from '../queue.js';
 import { JOBS, IndexDocumentJob } from '@search-hub/schemas';
-import { loadAiEnv } from '@search-hub/config-env';
+import { loadAiEnv, loadServerEnv } from '@search-hub/config-env';
 import { createVoyageHelpers } from '@search-hub/ai';
 
 import { logger } from '@search-hub/logger';
+import { CircuitBreaker } from '../lib/circuitBreaker.js';
+const {
+    API_BREAKER_FAILURE_THRESHOLD,
+    API_BREAKER_RESET_TIMEOUT_MS,
+    API_BREAKER_HALF_OPEN_TIMEOUT_MS,
+} = loadServerEnv();
+
+const voyageBreaker = new CircuitBreaker({
+    failureThreshold: API_BREAKER_FAILURE_THRESHOLD,
+    resetTimeoutMs: API_BREAKER_RESET_TIMEOUT_MS,
+    halfOpenTimeoutMs: API_BREAKER_HALF_OPEN_TIMEOUT_MS,
+});
 
 const env = loadAiEnv();
 const VOYAGE_API_KEY = env.VOYAGE_API_KEY;
@@ -160,6 +171,16 @@ export function buildRoutes() {
 
     // GET /v1/semantic-search?q=&tenantId=...
     r.get('/v1/semantic-search', async (req, res, next) => {
+        if (!voyageBreaker.canExecute()) {
+            return res.status(503).json({
+                error: {
+                    code: 'VOYAGE_UNAVAILABLE',
+                    message:
+                        'Semantic search is temporarily unavailable. Please retry shortly.',
+                },
+            });
+        }
+
         try {
             const { tenantId, q, k, recall_k } = SemanticQuery.parse(req.query);
 
@@ -203,6 +224,8 @@ export function buildRoutes() {
                 candidates.map((candidate: Candidate) => candidate.content)
             );
 
+            voyageBreaker.recordSuccess();
+
             const byRerank = rerank
                 .sort((a, b) => b.score - a.score)
                 .slice(0, k)
@@ -213,6 +236,16 @@ export function buildRoutes() {
 
             res.json({ items: byRerank });
         } catch (error: any) {
+            await voyageBreaker.recordFailure();
+            if (!voyageBreaker.canExecute()) {
+                return res.status(503).json({
+                    error: {
+                        code: 'VOYAGE_UNAVAILABLE',
+                        message:
+                            'Semantic search is temporarily unavailable. Please retry shortly.',
+                    },
+                });
+            }
             next(error);
         }
     });
