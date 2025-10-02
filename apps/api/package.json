@@ -8,8 +8,11 @@
     "author": "Feiyang Fan",
     "packageManager": "pnpm@10.15.1",
     "dependencies": {
+        "@search-hub/ai": "workspace:*",
         "@search-hub/config-env": "workspace:*",
+        "@search-hub/db": "workspace:*",
         "@search-hub/logger": "workspace:*",
+        "@search-hub/schemas": "workspace:*",
         "bullmq": "^5.58.7",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
@@ -17,10 +20,7 @@
         "helmet": "^8.1.0",
         "ioredis": "^5.8.0",
         "swagger-ui-express": "^5.0.1",
-        "zod": "^4.1.11",
-        "@search-hub/ai": "workspace:*",
-        "@search-hub/db": "workspace:*",
-        "@search-hub/schemas": "workspace:*"
+        "zod": "^4.1.11"
     },
     "scripts": {
         "generate": "tsx scripts/generate-openapi.ts",
@@ -28,7 +28,7 @@
         "build": "tsup src/index.ts --format esm,cjs --out-dir dist",
         "start": "node dist/index.js",
         "typecheck": "tsc -p tsconfig.json --noEmit",
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "vitest run --coverage",
         "lint": "eslint . --max-warnings=0",
         "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
         "prettier-watch": "onchange 'src/**/*.ts' -- prettier --write {{changed}}"
@@ -37,8 +37,6 @@
         "node": "22"
     },
     "devDependencies": {
-        "pino": "^9.11.0",
-        "pino-http": "^10.5.0",
         "@eslint/js": "^9.36.0",
         "@search-hub/logger": "workspace:*",
         "@tsconfig/node22": "^22.0.2",
@@ -46,14 +44,20 @@
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.3",
         "@types/node": "^24.5.2",
+        "@types/supertest": "^6.0.3",
         "@types/swagger-ui-express": "^4.1.8",
+        "@vitest/coverage-v8": "^3.2.4",
         "eslint": "^9.36.0",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-prettier": "^5.5.4",
         "onchange": "^7.1.0",
+        "pino": "^9.11.0",
+        "pino-http": "^10.5.0",
         "prettier": "^3.6.2",
+        "supertest": "^7.1.4",
         "tsup": "^8.5.0",
         "tsx": "^4.20.5",
-        "typescript-eslint": "^8.44.1"
+        "typescript-eslint": "^8.44.1",
+        "vitest": "^3.2.4"
     }
 }

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
 
 concurrency:
@@ -14,6 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TURBO_TELEMETRY_DISABLED: 1
+      DATABASE_URL: postgresql://searchhub:searchhub@localhost:5432/searchhub
+      REDIS_URL: redis://localhost:6379
+      API_RATE_LIMIT_WINDOW_MS: 60000
+      API_RATE_LIMIT_MAX: 100
+      API_BREAKER_FAILURE_THRESHOLD: 5
+      API_BREAKER_RESET_TIMEOUT_MS: 30000
+      API_BREAKER_HALF_OPEN_TIMEOUT_MS: 5000
+      VOYAGE_API_KEY: placeholder
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,6 +40,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Start infrastructure
+        run: |
+          set -euo pipefail
+          docker compose -f infra/docker-compose.yml up -d
+          for _ in $(seq 1 30); do
+            if docker compose -f infra/docker-compose.yml exec -T postgres pg_isready -U searchhub -d searchhub; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "${ready:-0}" != "1" ]; then
+            echo "Postgres did not become ready in time" >&2
+            exit 1
+          fi
+          docker compose -f infra/docker-compose.yml exec -T redis redis-cli ping
+
       - name: Cache Turbo outputs
         uses: actions/cache@v4
         with:
@@ -41,9 +66,12 @@ jobs:
           key: ${{ runner.os }}-turbo-${{ hashFiles('**/package.json', 'pnpm-lock.yaml', 'turbo.json') }}
           restore-keys: |
             ${{ runner.os }}-turbo-
-            
+
       - name: Generate Prisma client
         run: pnpm prisma:gen
+
+      - name: Build
+        run: pnpm build
 
       - name: Lint
         run: pnpm lint
@@ -53,6 +81,7 @@ jobs:
 
       - name: Test
         run: pnpm test
-      
-      - name: Test coverage
-        run: pnpm coverage
+
+      - name: Stop infrastructure
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v

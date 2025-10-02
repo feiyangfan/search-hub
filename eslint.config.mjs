@@ -19,6 +19,12 @@ export default defineConfig(
     tseslint.configs.stylistic,
     prettierConfig,
     {
-        ignores: ['dist/', '**/dist/**', 'node_modules/', 'eslint.config.mjs'],
+        ignores: [
+            'dist/',
+            '**/dist/**',
+            'node_modules/',
+            'eslint.config.mjs',
+            '**/coverage/**',
+        ],
     }
 );

@@ -7,6 +7,7 @@
         "preserveConstEnums": true,
         "forceConsistentCasingInFileNames": true,
         "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
         "typeRoots": ["./src/types", "./node_modules/@types"],
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
@@ -18,7 +19,9 @@
         "scripts/**/*.ts",
         "./eslint.config.mjs",
         "../../packages/config/env/src/env.ts",
-        "src/types/express/index.d.ts"
+        "src/types/express/index.d.ts",
+        "./vitest.config.ts",
+        "test/**/*.ts"
     ],
     "exclude": ["node_modules", "dist"]
 }

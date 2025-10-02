@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AppHeader } from "@/components/app-header"; 
-import { AppFooter } from "@/components/app-footer";
 import { SearchBar } from "@/components/search-bar";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";

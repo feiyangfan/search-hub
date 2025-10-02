@@ -11,12 +11,12 @@ export async function GET(req: Request) {
     const client = new SearchHubClient({ baseUrl: apiBase });
 
     try {
-        const data = await client.search({ tenantId, q, limit, offset } as any);
+        const data = await client.search({ tenantId, q, limit, offset });
         return Response.json(data, { status: 200 });
-    } catch (e: any) {
+    } catch (e) {
         return Response.json(
             { error: 'upstream_failed', message: String(e) },
-            { status: e.status ?? 500 }
+            { status: 500 } //e.status ?? 500 }
         );
     }
 }

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { loadDbEnv } from '@search-hub/config-env';
 
 const env = loadDbEnv();
@@ -79,7 +79,7 @@ export const db = {
                 throw new Error('Chunk count and vector count must match');
             }
 
-            await prisma.$transaction(async (tx) => {
+            await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
                 await tx.documentChunk.deleteMany({ where: { documentId } });
 
                 for (let i = 0; i < chunks.length; i++) {

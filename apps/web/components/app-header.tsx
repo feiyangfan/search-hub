@@ -1,7 +1,6 @@
 // apps/web/components/app-header.tsx
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-const showStatus = process.env.NEXT_PUBLIC_SHOW_STATUS === "true";
 export function AppHeader() {
   return (
     <div className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
