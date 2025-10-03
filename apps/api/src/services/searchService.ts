@@ -25,10 +25,18 @@ export interface SemanticSearchResult {
     items: SemanticSearchResultItem[];
 }
 
+interface EnvOverrides {
+    voyageApiKey?: string;
+    breakerFailureThreshold?: number;
+    breakerResetTimeoutMs?: number;
+    breakerHalfOpenTimeoutMs?: number;
+}
+
 interface SearchServiceDependencies {
     prisma?: typeof defaultPrisma;
     voyage?: ReturnType<typeof createVoyageHelpers>;
     breaker?: CircuitBreaker;
+    env?: EnvOverrides;
 }
 
 export interface SearchService {
@@ -50,15 +58,25 @@ export function createSearchService(
 
     const { VOYAGE_API_KEY } = loadAiEnv();
 
+    const env = deps.env ?? {};
+
+    const breakerFailureThreshold =
+        env.breakerFailureThreshold ?? API_BREAKER_FAILURE_THRESHOLD;
+    const breakerResetTimeoutMs =
+        env.breakerResetTimeoutMs ?? API_BREAKER_RESET_TIMEOUT_MS;
+    const breakerHalfOpenTimeoutMs =
+        env.breakerHalfOpenTimeoutMs ?? API_BREAKER_HALF_OPEN_TIMEOUT_MS;
+    const voyageApiKey = env.voyageApiKey ?? VOYAGE_API_KEY;
+
     const prisma = deps.prisma ?? defaultPrisma;
     const voyage =
-        deps.voyage ?? createVoyageHelpers({ apiKey: VOYAGE_API_KEY });
+        deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });
     const breaker =
         deps.breaker ??
         new CircuitBreaker({
-            failureThreshold: API_BREAKER_FAILURE_THRESHOLD,
-            resetTimeoutMs: API_BREAKER_RESET_TIMEOUT_MS,
-            halfOpenTimeoutMs: API_BREAKER_HALF_OPEN_TIMEOUT_MS,
+            failureThreshold: breakerFailureThreshold,
+            resetTimeoutMs: breakerResetTimeoutMs,
+            halfOpenTimeoutMs: breakerHalfOpenTimeoutMs,
         });
 
     async function keywordSearch(
