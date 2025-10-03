@@ -1,39 +1,34 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, RequestHandler } from 'express';
 import type { z } from 'zod';
 
+type ValidationTarget = 'query' | 'body';
+
 type ValidatedRequest = Request & {
-    validated?: {
-        query?: unknown;
-        body?: unknown;
-    };
+    validated?: Partial<Record<ValidationTarget, unknown>>;
 };
 
-export function validateQuery<S extends z.ZodTypeAny>(schema: S) {
-    return (req: ValidatedRequest, res: Response, next: NextFunction) => {
-        const parsed = schema.safeParse(req.query);
+const applyValidation = <S extends z.ZodTypeAny, K extends ValidationTarget>(
+    schema: S,
+    target: K
+): RequestHandler => {
+    return (req, _res, next) => {
+        const request = req as ValidatedRequest;
+        const parsed = schema.safeParse(request[target]);
         if (!parsed.success) {
             return next(parsed.error); // ZodError extends Error
         }
 
-        req.validated = {
-            ...(req.validated ?? {}),
-            query: parsed.data,
+        request.validated = {
+            ...(request.validated ?? {}),
+            [target]: parsed.data,
         };
+
         next();
     };
-}
+};
 
-export function validateBody<S extends z.ZodTypeAny>(schema: S) {
-    return (req: ValidatedRequest, res: Response, next: NextFunction) => {
-        const parsed = schema.safeParse(req.body);
-        if (!parsed.success) {
-            return next(parsed.error);
-        }
+export const validateQuery = <S extends z.ZodTypeAny>(schema: S) =>
+    applyValidation(schema, 'query');
 
-        req.validated = {
-            ...(req.validated ?? {}),
-            body: parsed.data,
-        };
-        next();
-    };
-}
+export const validateBody = <S extends z.ZodTypeAny>(schema: S) =>
+    applyValidation(schema, 'body');
