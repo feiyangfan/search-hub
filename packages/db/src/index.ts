@@ -105,6 +105,28 @@ export const db = {
                     );
                 }
 
+                await tx.$executeRaw`
+                    UPDATE "Document" d
+                    SET "searchVector" =
+                        setweight(to_tsvector('english', d."title"), 'A') ||
+                        setweight(
+                            to_tsvector(
+                                'english',
+                                COALESCE(
+                                    (
+                                        SELECT string_agg(dc."content", ' ' ORDER BY dc."idx")
+                                        FROM "DocumentChunk" dc
+                                        WHERE dc."documentId" = d."id"
+                                    ),
+                                    d."content",
+                                    ''
+                                )
+                            ),
+                            'B'
+                        )
+                    WHERE d."id" = ${documentId};
+                `;
+
                 await tx.documentIndexState.upsert({
                     where: { documentId },
                     create: {

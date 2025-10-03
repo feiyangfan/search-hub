@@ -25,6 +25,13 @@ export interface SemanticSearchResult {
     items: SemanticSearchResultItem[];
 }
 
+interface LexicalResultRow {
+    id: string;
+    title: string;
+    snippet: string | null;
+    score: number;
+}
+
 interface EnvOverrides {
     voyageApiKey?: string;
     breakerFailureThreshold?: number;
@@ -40,10 +47,12 @@ interface SearchServiceDependencies {
 }
 
 export interface SearchService {
-    keywordSearch(
+    lexicalSearch(
         query: z.infer<typeof SearchQuery>
     ): Promise<z.infer<typeof SearchResponse>>;
-    semanticSearch(query: z.infer<typeof SemanticQuery>): Promise<SemanticSearchResult>;
+    semanticSearch(
+        query: z.infer<typeof SemanticQuery>
+    ): Promise<SemanticSearchResult>;
     isSemanticSearchAvailable(): boolean;
 }
 
@@ -69,8 +78,7 @@ export function createSearchService(
     const voyageApiKey = env.voyageApiKey ?? VOYAGE_API_KEY;
 
     const prisma = deps.prisma ?? defaultPrisma;
-    const voyage =
-        deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });
+    const voyage = deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });
     const breaker =
         deps.breaker ??
         new CircuitBreaker({
@@ -79,29 +87,43 @@ export function createSearchService(
             halfOpenTimeoutMs: breakerHalfOpenTimeoutMs,
         });
 
-    async function keywordSearch(
+    async function lexicalSearch(
         query: z.infer<typeof SearchQuery>
     ): Promise<z.infer<typeof SearchResponse>> {
-        const where = {
-            tenantId: query.tenantId,
-            title: { contains: query.q, mode: 'insensitive' as const },
-        };
+        const rows = await prisma.$queryRaw<LexicalResultRow[]>`
+            SELECT d."id",
+                   d."title",
+                   ts_headline(
+                       'english',
+                       COALESCE(d."content", ''),
+                       websearch_to_tsquery('english', ${query.q}),
+                       'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=30,MinWords=5'
+                   ) AS snippet,
+                   ts_rank(d."searchVector", websearch_to_tsquery('english', ${query.q})) AS score
+            FROM "Document" d
+            WHERE d."tenantId" = ${query.tenantId}
+              AND d."searchVector" @@ websearch_to_tsquery('english', ${query.q})
+            ORDER BY score DESC, d."createdAt" DESC
+            LIMIT ${query.limit}
+            OFFSET ${query.offset}
+        `;
 
-        const [items, total] = await Promise.all([
-            prisma.document.findMany({
-                where,
-                orderBy: { createdAt: 'desc' },
-                take: query.limit,
-                skip: query.offset,
-            }),
-            prisma.document.count({ where }),
-        ]);
+        const totalResult = await prisma.$queryRaw<{ count: number }[]>`
+            SELECT COUNT(*)::int AS count
+            FROM "Document" d
+            WHERE d."tenantId" = ${query.tenantId}
+              AND d."searchVector" @@ websearch_to_tsquery('english', ${query.q})
+        `;
+
+        const total = totalResult[0]?.count ?? 0;
 
         return {
             total,
-            items: items.map((item) => ({
-                id: item.id,
-                title: item.title,
+            items: rows.map((row) => ({
+                id: row.id,
+                title: row.title,
+                snippet: row.snippet ?? undefined,
+                score: row.score,
             })),
             page: Math.floor(query.offset / query.limit) + 1,
             pageSize: query.limit,
@@ -178,7 +200,7 @@ export function createSearchService(
     }
 
     return {
-        keywordSearch,
+        lexicalSearch,
         semanticSearch,
         isSemanticSearchAvailable,
     };

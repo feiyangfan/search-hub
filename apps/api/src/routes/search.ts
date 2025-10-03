@@ -10,13 +10,11 @@ import {
     type SearchService,
 } from '../services/searchService.js';
 
-export function searchRoutes(
-    service: SearchService = createSearchService()
-) {
+export function searchRoutes(service: SearchService = createSearchService()) {
     const router = Router();
 
     router.get(
-        '/search',
+        '/lexical-search',
         validateQuery(SearchQuery),
         async (req, res, next) => {
             try {
@@ -26,7 +24,7 @@ export function searchRoutes(
                     >
                 ).validated.query;
 
-                const response = await service.keywordSearch(q);
+                const response = await service.lexicalSearch(q);
 
                 res.json(response);
             } catch (err) {

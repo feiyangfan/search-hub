@@ -45,12 +45,13 @@ model User {
 }
 
 model Document {
-  id       String  @id @default(cuid())
-  tenantId String // viewbility 
-  title    String
-  source   String // "upload" | "url" | "api" (string for now; convert to enum later if stable)
-  content  String?
-  mimeType String?
+  id           String   @id @default(cuid())
+  tenantId     String // viewbility 
+  title        String
+  source       String // "upload" | "url" | "api" (string for now; convert to enum later if stable)
+  content      String?
+  mimeType     String?
+  searchVector Unsupported("tsvector") @default(dbgenerated("''::tsvector"))
   // future: size, checksum, storageKey, tags, etc.
 
   createdAt DateTime @default(now())
@@ -64,6 +65,7 @@ model Document {
   @@index([tenantId])
   @@index([title])
   @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
+  @@index([searchVector], type: Gin, map: "Document_searchVector_idx")
 }
 
 model DocumentChunk {
