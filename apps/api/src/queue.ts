@@ -1,4 +1,3 @@
-// apps/api/src/queue.ts
 import { Queue } from 'bullmq';
 import { JOBS, IndexDocumentJob } from '@search-hub/schemas';
 import { loadServerEnv } from '@search-hub/config-env';

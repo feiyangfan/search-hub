@@ -71,8 +71,8 @@ Search Hub is a multi-tenant knowledge platform that blends full-text and semant
 - Hybrid retrieval measured with nDCG/MRR to stay within latency budgets
 
 ### AI Integrations
-- OpenAI for embeddings and concise summaries
-- Ollama for local and development fallback
+- Voyage for embeddings and rerank
+- gloq for concise summaries
 
 ### File Storage & CDN
 - S3 presigned PUT uploads for browser clients (direct-to-S3)
