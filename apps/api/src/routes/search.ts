@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { type z } from 'zod';
 
-import { SearchQuery, SemanticQuery } from '@search-hub/schemas';
+import {
+    HybridSearchQuery,
+    SearchQuery,
+    SemanticQuery,
+} from '@search-hub/schemas';
 
 import { validateQuery } from '../middleware/validateMiddleware.js';
 import type { RequestWithValidatedQuery } from './types.js';
@@ -25,6 +29,26 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                 ).validated.query;
 
                 const response = await service.lexicalSearch(q);
+
+                res.json(response);
+            } catch (err) {
+                next(err);
+            }
+        }
+    );
+
+    router.get(
+        '/hybrid-search',
+        validateQuery(HybridSearchQuery),
+        async (req, res, next) => {
+            try {
+                const query = (
+                    req as RequestWithValidatedQuery<
+                        z.infer<typeof HybridSearchQuery>
+                    >
+                ).validated.query;
+
+                const response = await service.hybridSearch(query);
 
                 res.json(response);
             } catch (err) {

@@ -1,4 +1,3 @@
-// packages/schemas/src/search.ts
 import { z } from 'zod';
 import { Id, Pagination } from './common.js';
 
@@ -16,6 +15,24 @@ export const SearchQuery = z.object({
         description: 'Number of results to skip for pagination',
         example: 0,
     }), // simple pagination
+});
+
+export const HybridSearchQuery = SearchQuery.extend({
+    semanticK: z.coerce.number().int().min(1).max(50).optional().meta({
+        description:
+            'Number of semantic candidates to fuse (defaults to limit)',
+        example: 10,
+    }), // number of semantic candidates to fuse
+    semanticRecall: z.coerce.number().int().min(1).max(50).optional().meta({
+        description:
+            'Number of semantic candidates to retrieve before rerank (defaults to semanticK or limit)',
+        example: 20,
+    }), // number of semantic candidates to retrieve before rerank
+    rrfK: z.coerce.number().int().min(1).max(100).default(60).meta({
+        description:
+            'Reciprocal Rank Fusion constant. Lower values favor top ranks more strongly.',
+        example: 60,
+    }), // RRF k constant
 });
 
 // inside searchresponse.items
