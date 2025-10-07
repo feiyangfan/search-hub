@@ -46,6 +46,11 @@
                     "description": "MIME type of the document",
                     "example": "application/pdf",
                     "type": "string"
+                  },
+                  "content": {
+                    "description": "Document content",
+                    "example": "Test content",
+                    "type": "string"
                   }
                 },
                 "required": [

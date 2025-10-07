@@ -45,6 +45,11 @@ export interface paths {
                          * @example application/pdf
                          */
                         mimeType?: string;
+                        /**
+                         * @description Document content
+                         * @example Test content
+                         */
+                        content?: string;
                     };
                 };
             };
