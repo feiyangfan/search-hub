@@ -16,14 +16,15 @@ export function tenantRoutes() {
         async (req: Request, res, next) => {
             try {
                 const body = (
-                    req as RequestWithValidatedBody<z.infer<typeof CreateTenantRequest>>
+                    req as RequestWithValidatedBody<
+                        z.infer<typeof CreateTenantRequest>
+                    >
                 ).validated.body;
 
                 const name = body.name.trim();
                 if (!name)
                     return res.status(400).json({ error: 'name is required' });
 
-                // Prevent dup by name (will use unique slug in Prisma)
                 const existing = await prisma.tenant.findFirst({
                     where: { name },
                 });

@@ -7,12 +7,12 @@ type ValidatedRequest = Request & {
     validated?: Partial<Record<ValidationTarget, unknown>>;
 };
 
-const applyValidation = <S extends z.ZodTypeAny, K extends ValidationTarget>(
-    schema: S,
-    target: K
+const applyValidation = (
+    schema: z.ZodType,
+    target: ValidationTarget
 ): RequestHandler => {
-    return (req, _res, next) => {
-        const request = req as ValidatedRequest;
+    return (req: ValidatedRequest, _res, next) => {
+        const request = req;
         const parsed = schema.safeParse(request[target]);
         if (!parsed.success) {
             return next(parsed.error); // ZodError extends Error
@@ -27,8 +27,8 @@ const applyValidation = <S extends z.ZodTypeAny, K extends ValidationTarget>(
     };
 };
 
-export const validateQuery = <S extends z.ZodTypeAny>(schema: S) =>
+export const validateQuery = (schema: z.ZodType) =>
     applyValidation(schema, 'query');
 
-export const validateBody = <S extends z.ZodTypeAny>(schema: S) =>
+export const validateBody = (schema: z.ZodType) =>
     applyValidation(schema, 'body');
