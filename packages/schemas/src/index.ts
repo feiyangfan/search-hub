@@ -1,4 +1,3 @@
-// packages/schemas/src/index.ts
 export * from './common.js';
 export * from './document.js';
 export * from './search.js';
@@ -8,3 +7,4 @@ export * from './jobs.js';
 export * from './chunk.js';
 export * from './hash.js';
 export * from './semanticQuery.js';
+export * from './auth.js';

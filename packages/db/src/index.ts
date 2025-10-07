@@ -25,6 +25,24 @@ if (env.NODE_ENV === 'development') {
 
 /** Repository-like helpers so handlers stay clean */
 export const db = {
+    user: {
+        create: async (email: string, passwordHash: string) => {
+            const found = await prisma.user.findUnique({
+                where: { email },
+            });
+
+            if (found) {
+                throw Object.assign(new Error('User already exists'), {
+                    status: 409,
+                    code: 'USER_ALREADY_EXISTS',
+                    expose: true,
+                });
+            }
+            return prisma.user.create({
+                data: { email, passwordHash },
+            });
+        },
+    },
     tenant: {
         getOrCreate: async (name: string) => {
             // placeholder find by name for now; later use slug or id

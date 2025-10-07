@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
 import { DocumentMeta } from './document.js';
-import { User } from './user.js';
 
 // Tenant schema
 export const Tenant = z.object({
@@ -13,10 +12,7 @@ export const Tenant = z.object({
         description: 'Name of the tenant',
         example: 'Software Inc',
     }),
-    users: z.array(User).meta({
-        description: 'List of user IDs associated with the tenant',
-        example: [],
-    }),
+
     documents: z.array(DocumentMeta).meta({
         description: 'List of documents belonging to the tenant',
         example: [],
@@ -28,7 +24,6 @@ export const Tenant = z.object({
 // Request schema for creating a tenant
 export const CreateTenantRequest = Tenant.omit({
     id: true,
-    users: true,
     documents: true,
     createdAt: true,
     updatedAt: true,

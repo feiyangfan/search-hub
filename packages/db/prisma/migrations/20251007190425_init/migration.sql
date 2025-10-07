@@ -3,6 +3,9 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- CreateEnum
 CREATE TYPE "public"."JobStatus" AS ENUM ('queued', 'processing', 'indexed', 'failed');
 
+-- CreateEnum
+CREATE TYPE "public"."TenantRole" AS ENUM ('owner', 'admin', 'member');
+
 -- CreateTable
 CREATE TABLE "public"."Tenant" (
     "id" TEXT NOT NULL,
@@ -16,12 +19,24 @@ CREATE TABLE "public"."Tenant" (
 -- CreateTable
 CREATE TABLE "public"."User" (
     "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."TenantMembership" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" "public"."TenantRole" NOT NULL DEFAULT 'member',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TenantMembership_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -32,6 +47,7 @@ CREATE TABLE "public"."Document" (
     "source" TEXT NOT NULL,
     "content" TEXT,
     "mimeType" TEXT,
+    "searchVector" tsvector NOT NULL DEFAULT ''::tsvector,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -77,10 +93,16 @@ CREATE TABLE "public"."IndexJob" (
 CREATE INDEX "Tenant_name_idx" ON "public"."Tenant"("name");
 
 -- CreateIndex
-CREATE INDEX "User_tenantId_idx" ON "public"."User"("tenantId");
+CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_tenantId_email_key" ON "public"."User"("tenantId", "email");
+CREATE INDEX "TenantMembership_userId_idx" ON "public"."TenantMembership"("userId");
+
+-- CreateIndex
+CREATE INDEX "TenantMembership_tenantId_idx" ON "public"."TenantMembership"("tenantId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TenantMembership_tenantId_userId_key" ON "public"."TenantMembership"("tenantId", "userId");
 
 -- CreateIndex
 CREATE INDEX "Document_tenantId_idx" ON "public"."Document"("tenantId");
@@ -90,6 +112,9 @@ CREATE INDEX "Document_title_idx" ON "public"."Document"("title");
 
 -- CreateIndex
 CREATE INDEX "Document_tenantId_createdAt_idx" ON "public"."Document"("tenantId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Document_searchVector_idx" ON "public"."Document" USING GIN ("searchVector");
 
 -- CreateIndex
 CREATE INDEX "DocumentChunk_tenantId_idx" ON "public"."DocumentChunk"("tenantId");
@@ -113,7 +138,10 @@ CREATE INDEX "IndexJob_status_idx" ON "public"."IndexJob"("status");
 CREATE INDEX "IndexJob_tenantId_documentId_status_idx" ON "public"."IndexJob"("tenantId", "documentId", "status");
 
 -- AddForeignKey
-ALTER TABLE "public"."User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "public"."Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."TenantMembership" ADD CONSTRAINT "TenantMembership_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "public"."Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."TenantMembership" ADD CONSTRAINT "TenantMembership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Document" ADD CONSTRAINT "Document_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "public"."Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;

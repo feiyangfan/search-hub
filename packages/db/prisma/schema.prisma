@@ -17,32 +17,49 @@ enum JobStatus {
 
 // ---- models ----
 model Tenant {
-  id        String     @id @default(cuid())
-  name      String
-  // relationships
-  users     User[]
-  documents Document[]
-  jobs      IndexJob[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String             @id @default(cuid())
+  name         String
+  memberships  TenantMembership[]
+  documents    Document[]
+  jobs         IndexJob[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@index([name])
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id           String             @id @default(cuid())
+  email        String             @unique
+  passwordHash String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  memberships TenantMembership[]
+}
+
+model TenantMembership {
+  id        String     @id @default(cuid())
   tenantId  String
-  email     String
-  // future: add role
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId    String
+  role      TenantRole @default(member)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, email])
+  @@unique([tenantId, userId])
+  @@index([userId])
   @@index([tenantId])
 }
+
+enum TenantRole {
+  owner
+  admin
+  member
+}
+
 
 model Document {
   id           String   @id @default(cuid())
