@@ -4,6 +4,95 @@
  */
 
 export interface paths {
+    "/v1/auth/sign-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        password: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description User created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            user: {
+                                /**
+                                 * @description User Id
+                                 * @example user123
+                                 */
+                                id: string;
+                                /**
+                                 * Format: email
+                                 * @description User email
+                                 * @example user@email.com
+                                 */
+                                email: string;
+                                /** @default [] */
+                                memberships: {
+                                    /**
+                                     * @description Membership ID
+                                     * @example abc123
+                                     */
+                                    id: string;
+                                    /**
+                                     * @description Tenant ID referencing the workspace
+                                     * @example abc123
+                                     */
+                                    tenantId: string;
+                                    /**
+                                     * @description A unique identifier string
+                                     * @example abc123
+                                     */
+                                    userId: string;
+                                    /**
+                                     * @default member
+                                     * @enum {string}
+                                     */
+                                    role: "owner" | "admin" | "member";
+                                    /** Format: date-time */
+                                    createdAt?: string;
+                                    /** Format: date-time */
+                                    updatedAt?: string;
+                                }[];
+                                /** Format: date-time */
+                                createdAt?: string;
+                                /** Format: date-time */
+                                updatedAt?: string;
+                            };
+                            message: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/documents": {
         parameters: {
             query?: never;
@@ -62,7 +151,7 @@ export interface paths {
                     content: {
                         "application/json": {
                             /**
-                             * @description A unique identifier string
+                             * @description document Id, assigned by the server
                              * @example doc123
                              */
                             id: string;
@@ -70,7 +159,7 @@ export interface paths {
                              * @default queued
                              * @enum {string}
                              */
-                            status: "indexed" | "queued" | "failed";
+                            status: "indexed" | "queued" | "failed" | "processing";
                         };
                     };
                 };

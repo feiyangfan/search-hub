@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { SignUpPayload } from '@search-hub/schemas';
+import { SignUpPayload, UserProfile } from '@search-hub/schemas';
 import type { SignUpPayload as SignUpPayloadType } from '@search-hub/schemas';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -19,9 +19,12 @@ export function signUpRoutes() {
             const { email, password } = typedReq.validated.body;
 
             const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-            const userId = await db.user.create(email, passwordHash);
+            const user = await db.user.create(email, passwordHash);
 
-            res.status(201).json({ userId: userId, message: 'User created' });
+            res.status(201).json({
+                user: UserProfile.parse(user),
+                message: 'User created',
+            });
         } catch (error) {
             next(error);
         }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
 import { DocumentMeta } from './document.js';
+import { TenantMembership } from './tenantMembership.js';
 
 // Tenant schema
 export const Tenant = z.object({
@@ -17,14 +18,22 @@ export const Tenant = z.object({
         description: 'List of documents belonging to the tenant',
         example: [],
     }),
+
+    memberships: z
+        .array(TenantMembership)
+        .meta({ description: 'Workspace memberships for this tenant' }),
+
     createdAt: IsoDate.optional(),
     updatedAt: IsoDate.optional(),
 });
+
+export type Tenant = z.infer<typeof Tenant>;
 
 // Request schema for creating a tenant
 export const CreateTenantRequest = Tenant.omit({
     id: true,
     documents: true,
+    memberships: true,
     createdAt: true,
     updatedAt: true,
 });

@@ -4,7 +4,7 @@ import { Id, IsoDate } from './common.js';
 // Metadata for a document
 export const DocumentMeta = z.object({
     id: Id.optional().meta({
-        descriptions: 'document Id, assigned by the server',
+        description: 'document Id, assigned by the server',
         example: 'doc123',
     }),
     tenantId: Id.meta({
@@ -41,8 +41,10 @@ export const CreateDocumentRequest = DocumentMeta.omit({
 // Response after creating a document
 export const CreateDocumentResponse = z.object({
     id: Id.meta({
-        descriptions: 'document Id, assigned by the server',
+        description: 'document Id, assigned by the server',
         example: 'doc123',
     }),
-    status: z.enum(['indexed', 'queued', 'failed']).default('queued'),
+    status: z
+        .enum(['indexed', 'queued', 'failed', 'processing'])
+        .default('queued'),
 });

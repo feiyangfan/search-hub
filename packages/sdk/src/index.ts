@@ -24,14 +24,51 @@ export class SearchHubClient {
 
     /** Small helper to throw readable errors on non-2xx */
     private async ensureOk(res: Response, operation: string) {
-        if (!res.ok) {
-            const txt = await safeText(res);
-            throw new Error(
-                `${operation} failed: ${res.status} ${res.statusText} ${
-                    txt ?? ''
-                }`
-            );
+        if (res.ok) {
+            return;
         }
+
+        const txt = await safeText(res);
+        let parsedBody: unknown = undefined;
+
+        if (txt) {
+            try {
+                parsedBody = JSON.parse(txt);
+            } catch {
+                parsedBody = txt;
+            }
+        }
+
+        const err = new Error(
+            `${operation} failed: ${res.status} ${res.statusText}`
+        );
+        Object.assign(err, {
+            status: res.status,
+            statusText: res.statusText,
+            body: parsedBody,
+            rawBody: txt,
+        });
+        throw err;
+    }
+
+    /** POST /v1/auth/sign-up */
+    async signUp(
+        body: paths['/v1/auth/sign-up']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/auth/sign-up']['post']['responses']['201']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/auth/sign-up`;
+        const res = await this.fetcher(url, {
+            method: 'post',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'signUp');
+        return (await res.json()) as paths['/v1/auth/sign-up']['post']['responses']['201']['content']['application/json'];
     }
 
     /** GET /v1/search */

@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ['@search-hub/schemas', '@search-hub/sdk'],
+  experimental: {
+    externalDir: true,
+  },
 };
 
 export default nextConfig;

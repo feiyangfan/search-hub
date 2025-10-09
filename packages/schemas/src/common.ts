@@ -7,7 +7,10 @@ export const Id = z.string().min(1).meta({
 });
 
 // for server managed time
-export const IsoDate = z.iso.datetime({ offset: true, local: true });
+export const IsoDate = z.preprocess(
+    (value) => (value instanceof Date ? value.toISOString() : value),
+    z.iso.datetime({ offset: true, local: true })
+);
 
 // universal pagination
 export const Pagination = z.object({

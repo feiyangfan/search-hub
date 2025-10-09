@@ -14,29 +14,72 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+type FieldErrors = {
+    root?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+};
+
 export default function SignUpPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [isSigningUp, setIsSigningUp] = useState(false);
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (password !== confirmPassword) {
-            setError('Passwords do not match');
+            setFieldErrors({ confirmPassword: 'Passwords do not match' });
+            setSuccess(null);
             return;
         }
 
-        setError(null);
-        const res = await fetch('/api/auth/sign-up', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
+        setIsSigningUp(true);
+        setFieldErrors({});
+        setSuccess(null);
 
-        const data = await res.json();
+        try {
+            const res = await fetch('/api/auth/sign-up', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
 
-        console.log(data);
+            const data = await res.json().catch(() => ({}));
+
+            console.log('data', data);
+
+            if (!res.ok) {
+                let message;
+                let path;
+                if (res.status === 400 && data?.issues) {
+                    const messages = data.issues;
+                    message = messages[0].message;
+                    path = messages[0].path;
+                }
+
+                if (res.status === 409) {
+                    message = data.error.message;
+                    path = 'email';
+                }
+
+                setFieldErrors(path ? { [path]: message } : {});
+
+                return;
+            }
+
+            setSuccess('Account created successfully.');
+            // TODO: hook up with next-auth signIn with success message
+            // await signIn('credentials', { redirect: true, ... });
+        } catch {
+            setError('Something went wrong. Please try again.');
+        } finally {
+            setIsSigningUp(false);
+        }
     }
 
     return (
@@ -60,9 +103,18 @@ export default function SignUpPage() {
                                 required
                                 value={email}
                                 onChange={(event) => {
+                                    setFieldErrors({});
                                     setEmail(event.target.value);
                                 }}
+                                aria-invalid={
+                                    fieldErrors.email ? 'true' : 'false'
+                                }
                             />
+                            {fieldErrors.email ? (
+                                <p className="text-sm text-red-500 m-t=1">
+                                    {fieldErrors.email}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="password">Password</Label>
@@ -70,11 +122,20 @@ export default function SignUpPage() {
                                 id="password"
                                 type="password"
                                 value={password}
-                                onChange={(event) =>
-                                    setPassword(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    setFieldErrors({});
+                                    setPassword(event.target.value);
+                                }}
                                 required
+                                aria-invalid={
+                                    fieldErrors.password ? 'true' : 'false'
+                                }
                             />
+                            {fieldErrors.password ? (
+                                <p className="text-sm text-red-500 m-t=1">
+                                    {fieldErrors.password}
+                                </p>
+                            ) : null}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="confirmPassword">
@@ -84,24 +145,38 @@ export default function SignUpPage() {
                                 id="confirmPassword"
                                 type="password"
                                 value={confirmPassword}
-                                onChange={(event) =>
-                                    setConfirmPassword(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    setFieldErrors({});
+                                    setConfirmPassword(event.target.value);
+                                }}
                                 required
-                                aria-invalid={error ? 'true' : 'false'}
+                                aria-invalid={
+                                    fieldErrors.confirmPassword
+                                        ? 'true'
+                                        : 'false'
+                                }
                             />
-                            {error ? (
-                                <p
-                                    className="text-sm text-destructive"
-                                    role="alert"
-                                >
-                                    {error}
+                            {fieldErrors.confirmPassword ? (
+                                <p className="text-sm text-red-500 m-t=1">
+                                    {fieldErrors.confirmPassword}
                                 </p>
                             ) : null}
                         </div>
-                        <Button type="submit" className="w-full">
-                            Sign Up
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={isSigningUp}
+                        >
+                            {isSigningUp ? 'Signing Up…' : 'Sign Up'}
                         </Button>
+                        {success ? (
+                            <p className="text-sm  text-green-400">{success}</p>
+                        ) : null}
+                        {fieldErrors.root ? (
+                            <p className="text-sm text-red-500 m-t=1">
+                                {fieldErrors.root}
+                            </p>
+                        ) : null}
                     </form>
                 </CardContent>
                 <CardFooter className="flex-col gap-2">

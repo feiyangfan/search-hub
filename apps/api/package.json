@@ -24,7 +24,7 @@
         "zod": "^4.1.11"
     },
     "scripts": {
-        "generate": "tsx scripts/generate-openapi.ts",
+        "openapi:generate": "tsx scripts/generate-openapi.ts",
         "dev": "tsx watch src/index.js",
         "build": "tsup src/index.ts --format esm,cjs --out-dir dist",
         "start": "node dist/index.js",

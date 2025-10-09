@@ -38,7 +38,7 @@ export const db = {
                     expose: true,
                 });
             }
-            return prisma.user.create({
+            return await prisma.user.create({
                 data: { email, passwordHash },
             });
         },

@@ -6,6 +6,7 @@ import { ApiError } from './common.js';
 import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { CreateTenantRequest, CreateTenantResponse } from './tenant.js';
+import { SignUpPayload, SignUpResponse } from './auth.js';
 
 /**
  * OpenAPI 3.0 for Zod schemas
@@ -18,6 +19,29 @@ export function buildOpenApi(
         info: { title: 'Search Hub API', version: '0.1.0' },
         servers: [{ url: baseUrl }],
         paths: {
+            '/v1/auth/sign-up': {
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: SignUpPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        201: {
+                            description: 'User created',
+                            content: {
+                                'application/json': {
+                                    schema: SignUpResponse,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+
             '/v1/documents': {
                 post: {
                     requestBody: {

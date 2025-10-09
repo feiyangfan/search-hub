@@ -76,9 +76,10 @@ model Document {
 
   tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   jobs       IndexJob[]
-  chunks     DocumentChunk[]
+  chunks     DocumentChunk[]     
   indexState DocumentIndexState?
 
+  @@unique([tenantId, id])
   @@index([tenantId])
   @@index([title])
   @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
@@ -95,7 +96,7 @@ model DocumentChunk {
   embedding  Unsupported("vector") // vector(1024)
   createdAt  DateTime              @default(now())
 
-  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
 
   @@unique([documentId, idx])
   @@index([tenantId])
