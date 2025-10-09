@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { SignUpPayload, UserProfile } from '@search-hub/schemas';
-import type { SignUpPayload as SignUpPayloadType } from '@search-hub/schemas';
+import { AuthPayload, UserProfile } from '@search-hub/schemas';
+import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
 import type { RequestWithValidatedBody } from '../types.js';
@@ -13,9 +13,9 @@ const SALT_ROUNDS = 10;
 export function signUpRoutes() {
     const router = Router();
 
-    router.post('/', validateBody(SignUpPayload), async (req, res, next) => {
+    router.post('/', validateBody(AuthPayload), async (req, res, next) => {
         try {
-            const typedReq = req as RequestWithValidatedBody<SignUpPayloadType>;
+            const typedReq = req as RequestWithValidatedBody<AuthPayloadType>;
             const { email, password } = typedReq.validated.body;
 
             const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

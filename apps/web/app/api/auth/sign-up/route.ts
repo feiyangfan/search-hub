@@ -1,4 +1,4 @@
-import { SignUpPayload } from '@search-hub/schemas';
+import { AuthPayload } from '@search-hub/schemas';
 import { NextResponse, type NextRequest } from 'next/server';
 import { ZodError, z } from 'zod';
 import { SearchHubClient } from '@search-hub/sdk';
@@ -8,7 +8,7 @@ const client = new SearchHubClient({ baseUrl: apiBase });
 
 export async function POST(request: NextRequest) {
     try {
-        const payload = SignUpPayload.parse(await request.json());
+        const payload = AuthPayload.parse(await request.json());
 
         const res = await client.signUp(payload);
 

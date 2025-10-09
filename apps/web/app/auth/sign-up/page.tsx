@@ -26,7 +26,6 @@ export default function SignUpPage() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-    const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [isSigningUp, setIsSigningUp] = useState(false);
 
@@ -76,7 +75,9 @@ export default function SignUpPage() {
             // TODO: hook up with next-auth signIn with success message
             // await signIn('credentials', { redirect: true, ... });
         } catch {
-            setError('Something went wrong. Please try again.');
+            setFieldErrors({
+                root: 'Unable to process sign up request',
+            });
         } finally {
             setIsSigningUp(false);
         }
