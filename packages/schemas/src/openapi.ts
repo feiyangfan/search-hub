@@ -63,6 +63,15 @@ export function buildOpenApi(
                     },
                 },
             },
+            '/v1/auth/sign-out': {
+                post: {
+                    responses: {
+                        204: {
+                            description: 'Signed out successfully',
+                        },
+                    },
+                },
+            },
 
             '/v1/documents': {
                 post: {

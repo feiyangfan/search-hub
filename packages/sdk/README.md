@@ -1,7 +1,7 @@
 # SDK – Learning Notes (beginner-friendly)
 *author: <your name>*
 
-> I wrote these notes as I was learning and building the SDK for **Search Hub**. If you’re new to this codebase (or SDKs in general), this is the “explain it like I’m new” version.
+> I wrote these notes as I was learning and building the SDK for **Search Hub**. If you’re new to this codebase, this is the “explain it like I’m new” version.
 
 NEW ROUTES SOP:
 1. write routes in API
