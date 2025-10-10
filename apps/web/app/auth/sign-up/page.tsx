@@ -51,8 +51,6 @@ export default function SignUpPage() {
 
             const data = await res.json().catch(() => ({}));
 
-            console.log('data', data);
-
             if (!res.ok) {
                 let message;
                 let path;

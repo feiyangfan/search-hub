@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
                         password: password,
                     });
                     const user = res.user;
-                    return { id: user.id, email: user.email };
+                    return { id: user.id, email: user.email }; // add more fields if needed later
                 } catch (error) {
                     if ((error as { status?: number }).status === 401) {
                         return null;
@@ -53,9 +53,20 @@ export const authOptions: NextAuthOptions = {
             },
         }),
     ],
+    session: {
+        strategy: 'jwt',
+    },
     pages: {
         signIn: '/auth/sign-in',
         signOut: '/auth/sign-out',
+    },
+    callbacks: {
+        async session({ session, token, user }) {
+            return session;
+        },
+        async jwt({ token, user }) {
+            return token;
+        },
     },
 };
 

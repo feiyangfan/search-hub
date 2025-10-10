@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { getServerSession } from 'next-auth';
+import { SignOutButton } from './sign-out-button';
 
 function getInitials(input?: string | null) {
     if (!input) {
@@ -20,6 +21,7 @@ function getInitials(input?: string | null) {
 
 export async function AppHeader() {
     const session = await getServerSession(authOptions);
+    console.log('header ses', session);
     const user = session?.user;
     const initials = getInitials(user?.name ?? user?.email ?? undefined);
 
@@ -30,12 +32,6 @@ export async function AppHeader() {
                     Search Hub
                 </Link>
                 <nav className="flex items-center gap-3 text-sm">
-                    <Link
-                        href="/health"
-                        className="rounded-md px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    >
-                        Status
-                    </Link>
                     {session ? (
                         <Link
                             href="/dashboard"
@@ -49,6 +45,7 @@ export async function AppHeader() {
                             <Link href="/auth/sign-in">Sign in</Link>
                         </Button>
                     )}
+                    {session ? <SignOutButton /> : ''}
                 </nav>
             </div>
             <Separator />

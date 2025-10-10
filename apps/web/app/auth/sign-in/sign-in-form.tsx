@@ -1,4 +1,3 @@
-// apps/web/app/auth/sign-in/sign-in-form.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,12 +5,15 @@ import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
 
 type SignInFormProps = {
     callbackUrl?: string;
 };
 
 export function SignInForm({ callbackUrl = '/dashboard' }: SignInFormProps) {
+    const router = useRouter();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -34,10 +36,8 @@ export function SignInForm({ callbackUrl = '/dashboard' }: SignInFormProps) {
                 setError('Invalid email or password.');
                 return;
             }
-
-            if (res.url) {
-                window.location.href = res.url;
-            }
+            router.push(res?.url ?? callbackUrl);
+            router.refresh();
         } catch (err) {
             setError('Unable to sign in right now. Please try again.');
         } finally {
@@ -46,10 +46,11 @@ export function SignInForm({ callbackUrl = '/dashboard' }: SignInFormProps) {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
+                    name="email"
                     id="email"
                     type="email"
                     autoComplete="email"
@@ -69,6 +70,7 @@ export function SignInForm({ callbackUrl = '/dashboard' }: SignInFormProps) {
                     </a>
                 </div>
                 <Input
+                    name="password"
                     id="password"
                     type="password"
                     autoComplete="current-password"
