@@ -71,6 +71,26 @@ export class SearchHubClient {
         return (await res.json()) as paths['/v1/auth/sign-up']['post']['responses']['201']['content']['application/json'];
     }
 
+    /** POST /v1/auth/sign-in */
+    async signIn(
+        body: paths['/v1/auth/sign-in']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/auth/sign-in']['post']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/auth/sign-in`;
+        const res = await this.fetcher(url, {
+            method: 'post',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'signIn');
+        return (await res.json()) as paths['/v1/auth/sign-in']['post']['responses']['200']['content']['application/json'];
+    }
+
     /** GET /v1/search */
     async search(
         params: paths['/v1/search']['get']['parameters']['query']

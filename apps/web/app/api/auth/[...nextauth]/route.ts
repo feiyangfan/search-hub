@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import type { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import { SearchHubClient } from '@search-hub/sdk';
 
 // will use zod to validate in the future
 // const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
@@ -9,6 +10,12 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 // if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
 //     throw new Error('Missing Google OAuth environment variables');
 // }
+
+const apiBase = process.env.API_URL ?? 'http://localhost:3000';
+const client = new SearchHubClient({
+    baseUrl: apiBase,
+    fetcher: (input, init) => fetch(input, { ...init, credentials: 'include' }),
+});
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -19,23 +26,30 @@ export const authOptions: NextAuthOptions = {
         CredentialsProvider({
             name: 'Credentials',
             credentials: {
-                username: {
-                    label: 'Username',
-                    type: 'text',
-                    placeholder: 'jsmith',
+                email: {
+                    label: 'Email',
+                    type: 'email',
+                    placeholder: 'jsmith@email.com',
                 },
                 password: { label: 'Password', type: 'password' },
             },
             async authorize(credentials, req) {
-                const user = {
-                    id: '1',
-                    name: 'J Smith',
-                    email: 'jsmith@example.com',
-                };
-                if (user) {
-                    return user;
+                if (!credentials?.email || !credentials?.password) return null;
+                const email = credentials.email;
+                const password = credentials.password;
+                try {
+                    const res = await client.signIn({
+                        email: email,
+                        password: password,
+                    });
+                    const user = res.user;
+                    return { id: user.id, email: user.email };
+                } catch (error) {
+                    if ((error as { status?: number }).status === 401) {
+                        return null;
+                    }
+                    return null;
                 }
-                return null;
             },
         }),
     ],

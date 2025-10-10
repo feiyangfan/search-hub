@@ -8,9 +8,9 @@ export const AuthPayload = z.object({
 
 export type AuthPayload = z.infer<typeof AuthPayload>;
 
-export const SignUpResponse = z.object({
+export const AuthResponse = z.object({
     user: UserProfile,
     message: z.string(),
 });
 
-export type SignUpResponse = z.infer<typeof SignUpResponse>;
+export type AuthResponse = z.infer<typeof AuthResponse>;

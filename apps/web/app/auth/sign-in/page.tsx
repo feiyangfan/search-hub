@@ -1,4 +1,4 @@
-import { getProviders } from 'next-auth/react';
+import { getProviders, signIn } from 'next-auth/react';
 import { SignInButtons } from './sign-in-buttons';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,16 +10,12 @@ import {
     CardAction,
     CardFooter,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { SignInForm } from './sign-in-form';
 
 export default async function SignInPage() {
     const providers = await getProviders();
     if (!providers) return null;
 
-    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-    }
     return (
         <div className="flex flex-1 items-center justify-center bg-gray-50 py-12">
             <Card className="w-full max-w-md shadow-lg">
@@ -34,36 +30,10 @@ export default async function SignInPage() {
                         </Button>
                     </CardAction>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-6">
-                    <form>
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                autoComplete="email"
-                                placeholder="example@mail.com"
-                                required
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <div className="flex items-center">
-                                <Label htmlFor="password">Password</Label>
-                                <a
-                                    href="#"
-                                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                                >
-                                    Forgot your password?
-                                </a>
-                            </div>
-                            <Input id="password" type="password" required />
-                        </div>
-                    </form>
+                <CardContent>
+                    <SignInForm />
                 </CardContent>
-                <CardFooter className="flex-col gap-2">
-                    <Button type="submit" className="w-full">
-                        Login
-                    </Button>
+                <CardFooter>
                     <SignInButtons providers={providers} />
                 </CardFooter>
             </Card>

@@ -42,6 +42,9 @@ export const db = {
                 data: { email, passwordHash },
             });
         },
+        findByEmail: async (email: string) => {
+            return prisma.user.findUnique({ where: { email } });
+        },
     },
     tenant: {
         getOrCreate: async (name: string) => {

@@ -6,7 +6,7 @@ import { ApiError } from './common.js';
 import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { CreateTenantRequest, CreateTenantResponse } from './tenant.js';
-import { AuthPayload, SignUpResponse } from './auth.js';
+import { AuthPayload, AuthResponse } from './auth.js';
 
 /**
  * OpenAPI 3.0 for Zod schemas
@@ -34,7 +34,29 @@ export function buildOpenApi(
                             description: 'User created',
                             content: {
                                 'application/json': {
-                                    schema: SignUpResponse,
+                                    schema: AuthResponse,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/auth/sign-in': {
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: AuthPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'User signed in',
+                            content: {
+                                'application/json': {
+                                    schema: AuthResponse,
                                 },
                             },
                         },

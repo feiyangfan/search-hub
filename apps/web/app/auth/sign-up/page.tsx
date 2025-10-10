@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { signIn } from 'next-auth/react';
 
 type FieldErrors = {
     root?: string;
@@ -72,8 +73,19 @@ export default function SignUpPage() {
             }
 
             setSuccess('Account created successfully.');
-            // TODO: hook up with next-auth signIn with success message
-            // await signIn('credentials', { redirect: true, ... });
+
+            try {
+                await signIn('credentials', {
+                    redirect: true,
+                    email,
+                    password,
+                    callbackUrl: '/dashboard',
+                });
+            } catch (error) {
+                setFieldErrors({
+                    root: 'Account created, but unable to sign in. Please try signing in manually.',
+                });
+            }
         } catch {
             setFieldErrors({
                 root: 'Unable to process sign up request',

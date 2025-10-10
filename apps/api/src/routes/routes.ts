@@ -5,6 +5,7 @@ import { documentRoutes } from './documents.js';
 import { tenantRoutes } from './tenants.js';
 import { searchRoutes } from './search.js';
 import { signUpRoutes } from './auth/sign-up.js';
+import { signInRoutes } from './auth/sign-in.js';
 
 export function buildRoutes() {
     const router = Router();
@@ -13,6 +14,7 @@ export function buildRoutes() {
     router.use('/v1/tenants', tenantRoutes());
     router.use('/v1', searchRoutes());
     router.use('/v1/auth/sign-up', signUpRoutes());
+    router.use('/v1/auth/sign-in', signInRoutes());
 
     return router;
 }

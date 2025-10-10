@@ -4,6 +4,8 @@ import { loadServerEnv } from '@search-hub/config-env';
 import { logger } from '@search-hub/logger';
 import { createServer } from './app.js';
 
+import { closeSessionStore } from './session/store.js';
+
 const env = loadServerEnv();
 const app = createServer();
 
@@ -67,6 +69,7 @@ async function shutdown(signal: NodeJS.Signals) {
 
     try {
         await closeServer(server);
+        await closeSessionStore();
         await flushLogger();
         clearTimeout(shutdownTimer);
         process.exit(0);
