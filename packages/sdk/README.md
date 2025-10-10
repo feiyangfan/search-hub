@@ -3,10 +3,12 @@
 
 > I wrote these notes as I was learning and building the SDK for **Search Hub**. If you’re new to this codebase (or SDKs in general), this is the “explain it like I’m new” version.
 
-SOP:
+NEW ROUTES SOP:
 1. write routes in API
 2. update openapi.ts in schemas
-3. 
+3. pnpm --filter @search-hub/sdk generate
+4. pnpm --filter api openapi:generate
+5. update sdk/src/index
 
 ---
 
