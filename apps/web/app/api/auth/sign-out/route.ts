@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { SearchHubClient } from '@search-hub/sdk';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
-const client = new SearchHubClient({ baseUrl: apiBase });
+const client = new SearchHubClient({
+    baseUrl: apiBase,
+    fetcher: (input, init) => fetch(input, { ...init, credentials: 'include' }),
+});
 
 export async function POST() {
     try {

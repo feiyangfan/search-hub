@@ -39,6 +39,7 @@ const ServerEnvSchema = z.object({
     API_BREAKER_FAILURE_THRESHOLD: z.coerce.number(),
     API_BREAKER_RESET_TIMEOUT_MS: z.coerce.number(),
     API_BREAKER_HALF_OPEN_TIMEOUT_MS: z.coerce.number(),
+    SESSION_SECRET: z.string().min(32),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
@@ -86,7 +87,7 @@ function loadEnv<T>(schema: z.ZodType<T>, options?: { path?: string }) {
     return parsed.data;
 }
 
-export const loadServerEnv = (opts?: { path?: string }) =>
+export const loadApiEnv = (opts?: { path?: string }) =>
     loadEnv(ServerEnvSchema, { path: opts?.path ?? defaultServerEnvPath });
 
 export const loadAiEnv = (opts?: { path?: string }) =>

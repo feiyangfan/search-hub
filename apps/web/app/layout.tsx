@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppHeader } from '@/components/app-header';
+import { AppToaster } from '@/components/app-toaster';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -33,6 +34,7 @@ export default function RootLayout({
                     <main className="flex flex-1 flex-col">{children}</main>
                     {/* <AppFooter /> */}
                 </div>
+                <AppToaster />
             </body>
         </html>
     );

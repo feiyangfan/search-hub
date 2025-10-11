@@ -12,8 +12,9 @@ export function SignOutButton() {
         });
         if (!res.ok) {
             return toast('Could not sign out. Please try again');
+        } else {
+            await signOut({ callbackUrl: '/' });
         }
-        await signOut({ callbackUrl: '/' });
     }
     return <Button onClick={() => handleClick()}>Sign out</Button>;
 }

@@ -4,6 +4,6 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
-    if (!session) redirect('/auth/sign-in');
+    if (!session) return null;
     return <div className="flex m-6 p-6">Dashboard</div>;
 }
