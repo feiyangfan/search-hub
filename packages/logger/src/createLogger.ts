@@ -1,8 +1,8 @@
 import pino from 'pino';
-import { loadServerEnv } from '@search-hub/config-env';
+import { loadApiEnv } from '@search-hub/config-env';
 
 export function createLogger(service = 'api') {
-    const env = loadServerEnv();
+    const env = loadApiEnv();
     const isProd = env.NODE_ENV === 'production';
     const level = env.LOG_LEVEL ?? (isProd ? 'info' : 'debug');
 

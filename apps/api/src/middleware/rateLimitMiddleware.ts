@@ -1,10 +1,9 @@
-import { loadServerEnv } from '@search-hub/config-env';
+import { env } from '../config/env.js';
 import { logger } from '@search-hub/logger';
 import type { RequestHandler } from 'express';
 import { Redis } from 'ioredis';
 
-const { REDIS_URL, API_RATE_LIMIT_WINDOW_MS, API_RATE_LIMIT_MAX } =
-    loadServerEnv();
+const { REDIS_URL, API_RATE_LIMIT_WINDOW_MS, API_RATE_LIMIT_MAX } = env;
 declare global {
     var __redis__: Redis | undefined;
 }

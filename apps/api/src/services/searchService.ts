@@ -1,5 +1,6 @@
 import { createVoyageHelpers } from '@search-hub/ai';
-import { loadAiEnv, loadServerEnv } from '@search-hub/config-env';
+import { loadAiEnv } from '@search-hub/config-env';
+import { env } from '../config/env.js';
 import { prisma as defaultPrisma } from '@search-hub/db';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import type { z } from 'zod';
@@ -68,19 +69,19 @@ export function createSearchService(
         API_BREAKER_FAILURE_THRESHOLD,
         API_BREAKER_RESET_TIMEOUT_MS,
         API_BREAKER_HALF_OPEN_TIMEOUT_MS,
-    } = loadServerEnv();
+    } = env;
 
     const { VOYAGE_API_KEY } = loadAiEnv();
 
-    const env = deps.env ?? {};
+    const overrides = deps.env ?? {};
 
     const breakerFailureThreshold =
-        env.breakerFailureThreshold ?? API_BREAKER_FAILURE_THRESHOLD;
+        overrides.breakerFailureThreshold ?? API_BREAKER_FAILURE_THRESHOLD;
     const breakerResetTimeoutMs =
-        env.breakerResetTimeoutMs ?? API_BREAKER_RESET_TIMEOUT_MS;
+        overrides.breakerResetTimeoutMs ?? API_BREAKER_RESET_TIMEOUT_MS;
     const breakerHalfOpenTimeoutMs =
-        env.breakerHalfOpenTimeoutMs ?? API_BREAKER_HALF_OPEN_TIMEOUT_MS;
-    const voyageApiKey = env.voyageApiKey ?? VOYAGE_API_KEY;
+        overrides.breakerHalfOpenTimeoutMs ?? API_BREAKER_HALF_OPEN_TIMEOUT_MS;
+    const voyageApiKey = overrides.voyageApiKey ?? VOYAGE_API_KEY;
 
     const prisma = deps.prisma ?? defaultPrisma;
     const voyage = deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });

@@ -1,20 +1,29 @@
 import type { Server } from 'node:http';
 
-import { loadServerEnv } from '@search-hub/config-env';
 import { logger } from '@search-hub/logger';
 import { createServer } from './app.js';
 
-import { closeSessionStore } from './session/store.js';
+import { initSessionStore, closeSessionStore } from './session/store.js';
+import { env } from './config/env.js';
 
-const env = loadServerEnv();
-const app = createServer();
+let server: Server | null = null;
 
-const server: Server = app.listen(env.PORT, () => {
-    logger.info({ env: env.NODE_ENV, port: env.PORT }, 'api listening');
-});
+async function bootstrap() {
+    await initSessionStore();
 
-server.on('error', (err) => {
-    logger.error({ err }, 'Failed to start server:');
+    const app = createServer();
+    server = app.listen(env.PORT, () => {
+        logger.info({ env: env.NODE_ENV, port: env.PORT }, 'api listening');
+    });
+
+    server.on('error', (err) => {
+        logger.error({ err }, 'Failed to start server:');
+        process.exit(1);
+    });
+}
+
+bootstrap().catch((err: Error) => {
+    logger.error({ err }, 'Failed to bootstrap api server');
     process.exit(1);
 });
 
@@ -25,8 +34,8 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
 
 let isShuttingDown = false;
 
-const closeServer = async (httpServer: Server) => {
-    if (!httpServer.listening) {
+const closeServer = async (httpServer: Server | null) => {
+    if (!httpServer || !httpServer.listening) {
         return;
     }
 

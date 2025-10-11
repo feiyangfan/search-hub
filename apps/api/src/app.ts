@@ -1,4 +1,6 @@
 import express from 'express';
+import type { Request, Response } from 'express';
+
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -12,10 +14,8 @@ import { buildRoutes } from './routes/routes.js';
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
 
-import type { Request, Response } from 'express';
-
-import { redisStore, initSessionStore } from './session/store.js';
-await initSessionStore();
+import { redisStore } from './session/store.js';
+import { env } from './config/env.js';
 
 const openapiDoc = JSON.parse(
     readFileSync('openapi/openapi.json', 'utf-8')
@@ -35,15 +35,13 @@ export function createServer(): express.Express {
 
     app.use(
         session({
-            secret: process.env.SESSION_SECRET
-                ? process.env.SESSION_SECRET
-                : 'dev',
+            secret: env.SESSION_SECRET,
             resave: false,
             saveUninitialized: false,
             store: redisStore,
             cookie: {
                 httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
+                secure: env.NODE_ENV === 'production',
                 sameSite: 'lax',
                 maxAge: 1000 * 60 * 60 * 24, // 1 day
             },

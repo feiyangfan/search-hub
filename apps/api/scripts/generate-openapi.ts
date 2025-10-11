@@ -1,12 +1,11 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { buildOpenApi } from '@search-hub/schemas';
-import { loadServerEnv } from '@search-hub/config-env';
+import { env } from '../src/config/env.js';
 
 /**
  * PUBLIC_BASE_URL is for the server URL that appears in the spec.
  * In dev we default to http://localhost:3000 (your API port).
  */
-const env = loadServerEnv();
 const base = env.BASE_URL ?? 'http://localhost:3000';
 
 const doc = buildOpenApi(base);

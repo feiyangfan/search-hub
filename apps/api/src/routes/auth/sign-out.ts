@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { env } from '../../config/env.js';
 
 export function signOutRoutes() {
     const router = Router();
@@ -11,7 +12,7 @@ export function signOutRoutes() {
             res.clearCookie('connect.sid', {
                 httpOnly: true,
                 sameSite: 'lax',
-                secure: process.env.NODE_ENV === 'production',
+                secure: env.NODE_ENV === 'production',
             });
             res.status(204).end();
         });

@@ -1,8 +1,6 @@
 import { Queue } from 'bullmq';
 import { JOBS, IndexDocumentJob } from '@search-hub/schemas';
-import { loadServerEnv } from '@search-hub/config-env';
-
-const env = loadServerEnv();
+import { env } from './config/env.js';
 
 const REDIS_URL = env.REDIS_URL ?? 'redis://localhost:6379';
 

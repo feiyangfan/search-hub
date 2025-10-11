@@ -71,7 +71,7 @@
 
 ### `packages/config/env` — Typed env loader
 
-* **Role**: Parse environment variables with Zod (`loadServerEnv()`), fail fast when something is missing.
+* **Role**: Parse environment variables with Zod (`loadApiEnv()`), fail fast when something is missing.
 * **Why needed**: Avoid “undefined env” bugs at runtime.
 * **How it helps**: Each app has a clear, typed config surface; `.env.example` documents everything.
 

@@ -3,8 +3,10 @@ import { logger } from '@search-hub/logger';
 import { createClient, RedisClientType } from 'redis';
 import { RedisStore } from 'connect-redis';
 
+import { env } from '../config/env.js';
+
 export const redisClient: RedisClientType = createClient({
-    url: process.env.REDIS_URL,
+    url: env.REDIS_URL,
 });
 redisClient.on('error', (err: Error) =>
     logger.error(
