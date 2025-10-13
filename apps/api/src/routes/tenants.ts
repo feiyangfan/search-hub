@@ -1,36 +1,46 @@
-import { Router, type Request } from 'express';
-import { type z } from 'zod';
+import { Router } from 'express';
 
-import { CreateTenantRequest } from '@search-hub/schemas';
+import {
+    CreateTenantPayload,
+    type CreateTenantPayload as CreateTenantPayloadBody,
+} from '@search-hub/schemas';
 import { prisma } from '@search-hub/db';
 
 import { validateBody } from '../middleware/validateMiddleware.js';
-import type { RequestWithValidatedBody } from './types.js';
+import type { AuthenticatedRequestWithBody } from './types.js';
+import { db } from '@search-hub/db';
 
 export function tenantRoutes() {
     const router = Router();
 
     router.post(
         '/',
-        validateBody(CreateTenantRequest),
-        async (req: Request, res, next) => {
+        validateBody(CreateTenantPayload),
+        async (req, res, next) => {
             try {
-                const body = (
-                    req as RequestWithValidatedBody<
-                        z.infer<typeof CreateTenantRequest>
-                    >
-                ).validated.body;
+                const reqWithUser =
+                    req as AuthenticatedRequestWithBody<CreateTenantPayloadBody>;
 
-                const name = body.name.trim();
-                if (!name)
-                    return res.status(400).json({ error: 'name is required' });
-
+                const { body } = reqWithUser.validated;
                 const existing = await prisma.tenant.findFirst({
-                    where: { name },
+                    where: { name: body.name },
                 });
-                if (existing) return res.status(200).json(existing);
 
-                const tenant = await prisma.tenant.create({ data: { name } });
+                if (existing)
+                    return res.status(409).json({
+                        error: {
+                            code: 'TENANT_NAME_EXISTS',
+                            message:
+                                'A tenant with the same name already exists.',
+                        },
+                    });
+
+                const userId = reqWithUser.session.userId;
+                const tenant = await db.tenant.createWithOwner({
+                    name: body.name,
+                    ownerId: userId,
+                });
+
                 res.status(201).json(tenant);
             } catch (err) {
                 next(err);

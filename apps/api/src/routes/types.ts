@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import type { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 
 export interface RequestWithValidatedBody<TBody> extends Request {
     validated: {
@@ -13,3 +14,9 @@ export interface RequestWithValidatedQuery<TQuery> extends Request {
         body?: unknown;
     };
 }
+
+export type AuthenticatedRequestWithBody<TBody> =
+    RequestWithValidatedBody<TBody> & AuthenticatedRequest;
+
+export type AuthenticatedRequestWithQuery<TQuery> =
+    RequestWithValidatedQuery<TQuery> & AuthenticatedRequest;

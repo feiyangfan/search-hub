@@ -9,7 +9,7 @@ export const Tenant = z.object({
         description: 'Tenant ID',
         example: 'tenant123',
     }),
-    name: z.string().min(1).meta({
+    name: z.string().trim().min(1, 'Name is required').meta({
         description: 'Name of the tenant',
         example: 'Software Inc',
     }),
@@ -30,7 +30,7 @@ export const Tenant = z.object({
 export type Tenant = z.infer<typeof Tenant>;
 
 // Request schema for creating a tenant
-export const CreateTenantRequest = Tenant.omit({
+export const CreateTenantPayload = Tenant.omit({
     id: true,
     documents: true,
     memberships: true,
@@ -38,16 +38,11 @@ export const CreateTenantRequest = Tenant.omit({
     updatedAt: true,
 });
 
+export type CreateTenantPayload = z.infer<typeof CreateTenantPayload>;
+
 // Reponse schema for creating a tenant
-export const CreateTenantResponse = z.object({
-    id: Id.meta({
-        description: 'Tenant ID',
-        example: 'tenant123',
-    }),
-    name: z.string().min(1).meta({
-        description: 'Name of the tenant',
-        example: 'Software Inc',
-    }),
-    createdAt: IsoDate.optional(),
-    updatedAt: IsoDate.optional(),
+export const CreateTenantResponse = Tenant.omit({
+    memberships: true,
 });
+
+export type CreateTenantResponse = z.infer<typeof CreateTenantResponse>;

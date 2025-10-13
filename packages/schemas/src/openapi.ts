@@ -5,7 +5,7 @@ type OpenApiDocument = oas31.OpenAPIObject;
 import { ApiError } from './common.js';
 import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
-import { CreateTenantRequest, CreateTenantResponse } from './tenant.js';
+import { CreateTenantPayload, CreateTenantResponse } from './tenant.js';
 import { AuthPayload, AuthResponse } from './auth.js';
 
 /**
@@ -126,19 +126,11 @@ export function buildOpenApi(
                         required: true,
                         content: {
                             'application/json': {
-                                schema: CreateTenantRequest,
+                                schema: CreateTenantPayload,
                             },
                         },
                     },
                     responses: {
-                        200: {
-                            description: 'OK',
-                            content: {
-                                'application/json': {
-                                    schema: CreateTenantResponse,
-                                },
-                            },
-                        },
                         201: {
                             description: 'Created',
                             content: {
@@ -151,6 +143,20 @@ export function buildOpenApi(
                             description: 'Bad Request',
                             content: {
                                 'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        409: {
+                            description: 'Conflict',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
                             },
                         },
                     },

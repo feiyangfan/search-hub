@@ -55,6 +55,7 @@ export const authOptions: NextAuthOptions = {
     ],
     session: {
         strategy: 'jwt',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
     },
     pages: {
         signIn: '/auth/sign-in',
@@ -62,6 +63,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async session({ session, token, user }) {
+            // session.currentTenantId = token.currentTenantId
             return session;
         },
         async jwt({ token, user }) {

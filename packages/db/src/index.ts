@@ -47,13 +47,23 @@ export const db = {
         },
     },
     tenant: {
-        getOrCreate: async (name: string) => {
-            // placeholder find by name for now; later use slug or id
-            const found = await prisma.tenant.findFirst({ where: { name } });
-            if (found) return found;
-            return prisma.tenant.create({ data: { name } });
-        },
+        createWithOwner: async ({
+            name,
+            ownerId,
+        }: {
+            name: string;
+            ownerId: string;
+        }) =>
+            prisma.tenant.create({
+                data: {
+                    name,
+                    memberships: {
+                        create: { userId: ownerId, role: 'owner' },
+                    },
+                },
+            }),
     },
+
     document: {
         create: async (input: {
             tenantId: string;

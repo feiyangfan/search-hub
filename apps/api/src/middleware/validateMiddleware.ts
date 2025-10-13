@@ -3,8 +3,14 @@ import type { z } from 'zod';
 
 type ValidationTarget = 'query' | 'body';
 
-type ValidatedRequest = Request & {
-    validated?: Partial<Record<ValidationTarget, unknown>>;
+export type ValidatedRequest<
+    TBody = unknown,
+    TQuery = unknown
+> = Request & {
+    validated?: {
+        body?: TBody;
+        query?: TQuery;
+    };
 };
 
 const applyValidation = (

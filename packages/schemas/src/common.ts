@@ -29,12 +29,12 @@ export const Pagination = z.object({
 
 // standard API error response
 export const ApiError = z.object({
-    error: z.string().meta({
-        description: 'Error message',
-        example: 'Bad Request',
-    }),
-    code: z.string().optional().meta({
-        description: 'API Error format',
-        example: 'VALIDATION_ERROR',
+    error: z.object({
+        code: z.string(),
+        message: z.string(),
+        details: z.any().optional(),
+        requestId: z.union([z.string(), z.number()]).optional(),
     }),
 });
+
+// #TODO  #FIXME: Change ApiError Structure to match one in hte error middleware for all backend api routes!

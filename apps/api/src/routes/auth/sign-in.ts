@@ -20,9 +20,12 @@ export function signInRoutes() {
             const userRecord = await db.user.findByEmail(email);
 
             if (!userRecord || !userRecord.passwordHash) {
-                return res
-                    .status(401)
-                    .json({ message: 'Invalid email or password' });
+                return res.status(401).json({
+                    error: {
+                        code: 'INVALID_EMAIL_OR_PASSWORD',
+                        message: 'Invalid email or password',
+                    },
+                });
             }
 
             const isPasswordValid = await bcrypt.compare(
@@ -31,9 +34,12 @@ export function signInRoutes() {
             );
 
             if (!isPasswordValid) {
-                return res
-                    .status(401)
-                    .json({ message: 'Invalid email or password' });
+                return res.status(401).json({
+                    error: {
+                        code: 'INVALID_EMAIL_OR_PASSWORD',
+                        message: 'Invalid email or password',
+                    },
+                });
             }
 
             req.session.regenerate(function (err) {
