@@ -101,6 +101,51 @@ export const db = {
                 throw error;
             }
         },
+        deleteOwnedTenant: async ({
+            tenantId,
+            requesterId,
+        }: {
+            tenantId: string;
+            requesterId: string;
+        }) => {
+            const tenantMembership = await prisma.tenantMembership.findUnique({
+                where: {
+                    tenantId_userId: {
+                        tenantId: tenantId,
+                        userId: requesterId,
+                    },
+                },
+            });
+            if (tenantMembership?.role !== 'owner') {
+                throw Object.assign(
+                    new Error(
+                        'Only the tenant owner can delete the workspace.'
+                    ),
+                    {
+                        status: 403,
+                        code: 'TENANT_DELETE_FORBIDDEN',
+                        expose: true,
+                    }
+                );
+            }
+            await prisma.tenant.delete({
+                where: { id: tenantId },
+            });
+        },
+        findById: async (tenantId: string) => {
+            return prisma.tenant.findUnique({
+                where: {
+                    id: tenantId,
+                },
+            });
+        },
+        findByName: async (name: string) => {
+            return prisma.tenant.findUnique({
+                where: {
+                    name: name,
+                },
+            });
+        },
     },
 
     document: {

@@ -47,3 +47,8 @@ export const CreateTenantResponse = Tenant.omit({
 });
 
 export type CreateTenantResponse = z.infer<typeof CreateTenantResponse>;
+
+export const DeleteTenantPayload = z.object({
+    id: Id.meta({ description: 'Tenant ID to remove' }),
+});
+export type DeleteTenantPayload = z.infer<typeof DeleteTenantPayload>;

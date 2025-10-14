@@ -5,7 +5,11 @@ type OpenApiDocument = oas31.OpenAPIObject;
 import { ApiError } from './common.js';
 import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
-import { CreateTenantPayload, CreateTenantResponse } from './tenant.js';
+import {
+    CreateTenantPayload,
+    CreateTenantResponse,
+    DeleteTenantPayload,
+} from './tenant.js';
 import { AuthPayload, AuthResponse } from './auth.js';
 
 /**
@@ -106,6 +110,12 @@ export function buildOpenApi(
                                 'application/json': { schema: ApiError },
                             },
                         },
+                        401: {
+                            description: 'Unauthorized',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
                     },
                 },
             },
@@ -121,6 +131,12 @@ export function buildOpenApi(
                         },
                         400: {
                             description: 'Bad Request',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
@@ -161,6 +177,35 @@ export function buildOpenApi(
                         },
                         409: {
                             description: 'Conflict',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                    },
+                },
+                delete: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: DeleteTenantPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        204: {
+                            description: 'Success',
+                        },
+                        401: {
+                            description: 'Unauthorized',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden',
                             content: {
                                 'application/json': {
                                     schema: ApiError,
