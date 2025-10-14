@@ -59,6 +59,9 @@ export const db = {
         findByEmail: async (email: string) => {
             return prisma.user.findUnique({ where: { email } });
         },
+        findById: async (id: string) => {
+            return prisma.user.findUnique({ where: { id } });
+        },
     },
     tenant: {
         createWithOwner: async ({
