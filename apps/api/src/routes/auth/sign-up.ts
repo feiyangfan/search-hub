@@ -19,7 +19,7 @@ export function signUpRoutes() {
             const { email, password } = typedReq.validated.body;
 
             const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-            const user = await db.user.create(email, passwordHash);
+            const user = await db.user.create({ email, passwordHash });
 
             res.status(201).json({
                 user: UserProfile.parse(user),

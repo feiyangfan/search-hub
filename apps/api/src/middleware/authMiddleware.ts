@@ -21,7 +21,7 @@ export const authRequired: RequestHandler = async (req, res, next) => {
     }
 
     try {
-        const user = await db.user.findById(req.session.userId);
+        const user = await db.user.findById({ id: req.session.userId });
         if (!user) {
             return req.session.destroy((destroyErr) => {
                 if (destroyErr) {

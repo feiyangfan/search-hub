@@ -17,7 +17,7 @@ export function signInRoutes() {
             const typedReq = req as RequestWithValidatedBody<AuthPayloadType>;
             const { email, password } = typedReq.validated.body;
 
-            const userRecord = await db.user.findByEmail(email);
+            const userRecord = await db.user.findByEmail({ email });
 
             if (!userRecord || !userRecord.passwordHash) {
                 return res.status(401).json({

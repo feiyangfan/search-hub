@@ -4,22 +4,20 @@ import { Router } from 'express';
 import { documentRoutes } from './documents.js';
 import { tenantRoutes } from './tenants.js';
 import { searchRoutes } from './search.js';
-import { signUpRoutes } from './auth/sign-up.js';
-import { signInRoutes } from './auth/sign-in.js';
-import { signOutRoutes } from './auth/sign-out.js';
+import { userRoutes } from './users.js';
 
 import { authRequired } from '../middleware/authMiddleware.js';
+import { buildAuthRoutes } from './auth/index.js';
 
 export function buildRoutes() {
     const router = Router();
 
-    router.use('/v1/auth/sign-up', signUpRoutes());
-    router.use('/v1/auth/sign-in', signInRoutes());
-    router.use('/v1/auth/sign-out', signOutRoutes());
+    buildAuthRoutes(router);
 
     router.use('/v1/documents', authRequired, documentRoutes());
     router.use('/v1/tenants', authRequired, tenantRoutes());
     router.use('/v1', authRequired, searchRoutes());
+    router.use('/v1/users', authRequired, userRoutes());
 
     return router;
 }

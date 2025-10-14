@@ -25,3 +25,11 @@ export type User = z.infer<typeof User>;
 export const UserProfile = User.omit({
     passwordHash: true,
 });
+
+export const DeleteUserPayload = z.object({
+    id: Id.meta({
+        description: 'User ID to delete',
+        example: 'user123',
+    }),
+});
+export type DeleteUserPayload = z.infer<typeof DeleteUserPayload>;

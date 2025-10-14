@@ -26,7 +26,13 @@ if (env.NODE_ENV === 'development') {
 /** Repository-like helpers so handlers stay clean */
 export const db = {
     user: {
-        create: async (email: string, passwordHash: string) => {
+        create: async ({
+            email,
+            passwordHash,
+        }: {
+            email: string;
+            passwordHash: string;
+        }) => {
             try {
                 const found = await prisma.user.findUnique({
                     where: { email },
@@ -56,10 +62,61 @@ export const db = {
                 throw error;
             }
         },
-        findByEmail: async (email: string) => {
+        deleteSelf: async ({
+            userId,
+            requesterId,
+        }: {
+            userId: string;
+            requesterId: string;
+        }) => {
+            if (userId !== requesterId) {
+                throw Object.assign(
+                    new Error(
+                        'You do not have permission to delete this user.'
+                    ),
+                    {
+                        status: 403,
+                        code: 'USER_DELETE_FORBIDDEN',
+                        expose: true,
+                    }
+                );
+            }
+            const ownsTenant = await prisma.tenantMembership.findFirst({
+                where: { userId, role: 'owner' },
+                select: { tenantId: true },
+            });
+            if (ownsTenant) {
+                throw Object.assign(
+                    new Error(
+                        'Transfer or delete owned tenants before deleting the user.'
+                    ),
+                    {
+                        status: 409,
+                        code: 'USER_OWNS_TENANTS',
+                        expose: true,
+                    }
+                );
+            }
+            try {
+                await prisma.user.delete({ where: { id: userId } });
+            } catch (error) {
+                if (
+                    error instanceof Prisma.PrismaClientKnownRequestError &&
+                    error.code === 'P2025'
+                ) {
+                    throw Object.assign(new Error('User not found.'), {
+                        status: 404,
+                        code: 'USER_NOT_FOUND',
+                        expose: true,
+                    });
+                }
+                throw error;
+            }
+        },
+        findByEmail: async ({ email }: { email: string }) => {
             return prisma.user.findUnique({ where: { email } });
         },
-        findById: async (id: string) => {
+        findById: async ({ id }: { id: string }) => {
             return prisma.user.findUnique({ where: { id } });
         },
     },
@@ -128,9 +185,23 @@ export const db = {
                     }
                 );
             }
-            await prisma.tenant.delete({
-                where: { id: tenantId },
-            });
+            try {
+                await prisma.tenant.delete({
+                    where: { id: tenantId },
+                });
+            } catch (error) {
+                if (
+                    error instanceof Prisma.PrismaClientKnownRequestError &&
+                    error.code === 'P2025'
+                ) {
+                    throw Object.assign(new Error('Tenant not found.'), {
+                        status: 404,
+                        code: 'TENANT_NOT_FOUND',
+                        expose: true,
+                    });
+                }
+                throw error;
+            }
         },
         findById: async (tenantId: string) => {
             return prisma.tenant.findUnique({
