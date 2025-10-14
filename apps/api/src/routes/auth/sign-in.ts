@@ -45,6 +45,7 @@ export function signInRoutes() {
             req.session.regenerate(function (err) {
                 if (err) {
                     next(err);
+                    return;
                 }
                 req.session.userId = userRecord.id;
                 req.session.email = userRecord.email;

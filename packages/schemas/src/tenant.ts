@@ -43,6 +43,7 @@ export type CreateTenantPayload = z.infer<typeof CreateTenantPayload>;
 // Reponse schema for creating a tenant
 export const CreateTenantResponse = Tenant.omit({
     memberships: true,
+    documents: true,
 });
 
 export type CreateTenantResponse = z.infer<typeof CreateTenantResponse>;

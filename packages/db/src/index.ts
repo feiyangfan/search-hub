@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { loadDbEnv } from '@search-hub/config-env';
 
 const env = loadDbEnv();
@@ -27,20 +27,34 @@ if (env.NODE_ENV === 'development') {
 export const db = {
     user: {
         create: async (email: string, passwordHash: string) => {
-            const found = await prisma.user.findUnique({
-                where: { email },
-            });
-
-            if (found) {
-                throw Object.assign(new Error('User already exists'), {
-                    status: 409,
-                    code: 'USER_ALREADY_EXISTS',
-                    expose: true,
+            try {
+                const found = await prisma.user.findUnique({
+                    where: { email },
                 });
+
+                if (found) {
+                    throw Object.assign(new Error('User already exists'), {
+                        status: 409,
+                        code: 'USER_ALREADY_EXISTS',
+                        expose: true,
+                    });
+                }
+                return await prisma.user.create({
+                    data: { email, passwordHash },
+                });
+            } catch (error) {
+                if (
+                    error instanceof Prisma.PrismaClientKnownRequestError &&
+                    error.code === 'P2002'
+                ) {
+                    throw Object.assign(new Error('User already exists'), {
+                        status: 409,
+                        code: 'USER_ALREADY_EXISTS',
+                        expose: true,
+                    });
+                }
+                throw error;
             }
-            return await prisma.user.create({
-                data: { email, passwordHash },
-            });
         },
         findByEmail: async (email: string) => {
             return prisma.user.findUnique({ where: { email } });
@@ -53,15 +67,37 @@ export const db = {
         }: {
             name: string;
             ownerId: string;
-        }) =>
-            prisma.tenant.create({
-                data: {
-                    name,
-                    memberships: {
-                        create: { userId: ownerId, role: 'owner' },
+        }) => {
+            try {
+                const tenant = await prisma.tenant.create({
+                    data: {
+                        name,
+                        memberships: {
+                            create: { userId: ownerId, role: 'owner' },
+                        },
                     },
-                },
-            }),
+                });
+
+                return tenant;
+            } catch (error) {
+                if (
+                    error instanceof Prisma.PrismaClientKnownRequestError &&
+                    error.code === 'P2002'
+                ) {
+                    throw Object.assign(
+                        new Error(
+                            'A tenant with the same name already exists.'
+                        ),
+                        {
+                            status: 409,
+                            code: 'TENANT_NAME_EXISTS',
+                            expose: true,
+                        }
+                    );
+                }
+                throw error;
+            }
+        },
     },
 
     document: {

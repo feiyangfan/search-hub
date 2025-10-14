@@ -38,6 +38,14 @@ export function buildOpenApi(
                                 },
                             },
                         },
+                        409: {
+                            description: 'Conflict: User already exists',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
                     },
                 },
             },

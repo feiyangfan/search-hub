@@ -22,8 +22,10 @@ export function tenantRoutes() {
                     req as AuthenticatedRequestWithBody<CreateTenantPayloadBody>;
 
                 const { body } = reqWithUser.validated;
-                const existing = await prisma.tenant.findFirst({
-                    where: { name: body.name },
+                const existing = await prisma.tenant.findUnique({
+                    where: {
+                        name: body.name,
+                    },
                 });
 
                 if (existing)
