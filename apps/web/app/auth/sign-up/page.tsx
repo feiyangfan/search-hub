@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { signIn, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +15,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { signIn } from 'next-auth/react';
 
 type FieldErrors = {
     root?: string;
@@ -23,6 +24,15 @@ type FieldErrors = {
 };
 
 export default function SignUpPage() {
+    const { status } = useSession();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (status === 'authenticated') {
+            router.replace('/dashboard');
+        }
+    }, [status, router]);
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -79,7 +89,7 @@ export default function SignUpPage() {
                     password,
                     callbackUrl: '/dashboard',
                 });
-            } catch (error) {
+            } catch {
                 setFieldErrors({
                     root: 'Account created, but unable to sign in. Please try signing in manually.',
                 });

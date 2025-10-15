@@ -30,11 +30,13 @@ export default async function RootLayout({
 }>) {
     const session = await getServerSession(authOptions);
     const memberships =
-        (session?.user as { memberships?: Array<{ tenantId: string; role?: string }> })
-            ?.memberships ?? [];
+        (
+            session?.user as {
+                memberships?: Array<{ tenantName: string; role?: string }>;
+            }
+        )?.memberships ?? [];
     const workspaces = memberships.map((membership) => ({
-        id: membership.tenantId,
-        name: membership.tenantId,
+        name: membership.tenantName,
         role: membership.role,
     }));
 
@@ -46,7 +48,10 @@ export default async function RootLayout({
                 <SidebarProvider>
                     <div className="flex min-h-dvh w-full">
                         {session ? (
-                            <AppSidebar user={session.user} workspaces={workspaces} />
+                            <AppSidebar
+                                user={session.user}
+                                workspaces={workspaces}
+                            />
                         ) : null}
                         <SidebarInset>
                             <AppHeader session={session} />

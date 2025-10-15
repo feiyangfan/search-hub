@@ -1,33 +1,35 @@
+'use client';
+
 import Link from 'next/link';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getServerSession } from 'next-auth';
+import type { Session } from 'next-auth';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { UserProfileIcon } from './user-profile-icon';
-import { MenuIcon } from 'lucide-react';
-export async function AppHeader() {
-    const session = await getServerSession(authOptions);
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { NavActions } from '@/components/nav-action';
 
+interface AppHeaderProps {
+    session: Session | null;
+}
+
+export function AppHeader({ session }: AppHeaderProps) {
     const user = session?.user;
 
     return (
-        <div className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+        <header className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
             <div className="mx-auto flex h-14 items-center justify-between px-4">
-                <div className="pl-4">
-                    <Button variant="outline" size="icon" aria-label="Submit">
-                        <MenuIcon />
-                    </Button>
+                <div className="flex items-center gap-2">
+                    {user ? <SidebarTrigger className="-ml-2" /> : null}
                     <Link
                         href={user ? '/dashboard' : '/'}
-                        className="font-semibold pl-4"
+                        className="font-semibold"
                     >
                         Search Hub
                     </Link>
                 </div>
                 <nav className="flex items-center gap-3 text-sm pr-4">
                     {session ? (
-                        <UserProfileIcon user={user} />
+                        <NavActions />
                     ) : (
                         <Button asChild size="sm">
                             <Link href="/auth/sign-in">Sign in</Link>
@@ -36,6 +38,6 @@ export async function AppHeader() {
                 </nav>
             </div>
             <Separator />
-        </div>
+        </header>
     );
 }

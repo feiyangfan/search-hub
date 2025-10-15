@@ -1,4 +1,7 @@
-import { getProviders, signIn } from 'next-auth/react';
+import { getProviders } from 'next-auth/react';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { redirect } from 'next/navigation';
 import { SignInButtons } from './sign-in-buttons';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +16,10 @@ import {
 import { SignInForm } from './sign-in-form';
 
 export default async function SignInPage() {
+    const session = await getServerSession(authOptions);
+    if (session) {
+        redirect('/dashboard');
+    }
     const providers = await getProviders();
     if (!providers) return null;
 
