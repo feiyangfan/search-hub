@@ -36,5 +36,3 @@ export const ApiError = z.object({
         requestId: z.union([z.string(), z.number()]).optional(),
     }),
 });
-
-// #TODO  #FIXME: Change ApiError Structure to match one in hte error middleware for all backend api routes!

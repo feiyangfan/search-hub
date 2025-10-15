@@ -9,7 +9,7 @@ export const Tenant = z.object({
         description: 'Tenant ID',
         example: 'tenant123',
     }),
-    name: z.string().trim().min(1, 'Name is required').meta({
+    name: z.string().trim().min(1, 'Name is required').max(24).meta({
         description: 'Name of the tenant',
         example: 'Software Inc',
     }),

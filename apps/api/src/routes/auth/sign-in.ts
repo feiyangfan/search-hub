@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { AuthPayload, UserProfile } from '@search-hub/schemas';
+import { AuthPayload, UserProfileWithSummary } from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -17,7 +17,7 @@ export function signInRoutes() {
             const typedReq = req as RequestWithValidatedBody<AuthPayloadType>;
             const { email, password } = typedReq.validated.body;
 
-            const userRecord = await db.user.findByEmail({ email });
+            const userRecord = await db.user.findByEmailWithTenants({ email });
 
             if (!userRecord || !userRecord.passwordHash) {
                 return res.status(401).json({
@@ -42,6 +42,17 @@ export function signInRoutes() {
                 });
             }
 
+            const membershipSummaries = userRecord.memberships.map((m) => ({
+                tenantName: m.tenant?.name ?? 'Workspace',
+                role: m.role,
+            }));
+
+            const memberships = userRecord.memberships.map((m) => ({
+                tenantId: m.tenant?.id,
+                tenantName: m.tenant?.name,
+                role: m.role,
+            }));
+
             req.session.regenerate(function (err) {
                 if (err) {
                     next(err);
@@ -49,11 +60,16 @@ export function signInRoutes() {
                 }
                 req.session.userId = userRecord.id;
                 req.session.email = userRecord.email;
+                req.session.memberships = memberships;
 
                 req.session.save((err) => {
                     if (err) return next(err);
                     res.status(200).json({
-                        user: UserProfile.parse(userRecord),
+                        user: UserProfileWithSummary.parse({
+                            id: userRecord.id,
+                            email: userRecord.email,
+                            memberships: membershipSummaries,
+                        }),
                         message: 'User signed in',
                     });
                 });

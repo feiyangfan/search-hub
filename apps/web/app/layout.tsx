@@ -2,7 +2,11 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppHeader } from '@/components/app-header';
+import { AppSidebar } from '@/components/app-sidebar';
 import { AppToaster } from '@/components/app-toaster';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -19,21 +23,39 @@ export const metadata: Metadata = {
     description: 'Hybird search engine for all your needs.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    const session = await getServerSession(authOptions);
+    const memberships =
+        (session?.user as { memberships?: Array<{ tenantId: string; role?: string }> })
+            ?.memberships ?? [];
+    const workspaces = memberships.map((membership) => ({
+        id: membership.tenantId,
+        name: membership.tenantId,
+        role: membership.role,
+    }));
+
     return (
         <html lang="en">
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                <div className="flex min-h-dvh flex-col">
-                    <AppHeader />
-                    <main className="flex flex-1 flex-col">{children}</main>
-                    {/* <AppFooter /> */}
-                </div>
+                <SidebarProvider>
+                    <div className="flex min-h-dvh w-full">
+                        {session ? (
+                            <AppSidebar user={session.user} workspaces={workspaces} />
+                        ) : null}
+                        <SidebarInset>
+                            <AppHeader session={session} />
+                            <main className="flex flex-1 flex-col">
+                                {children}
+                            </main>
+                        </SidebarInset>
+                    </div>
+                </SidebarProvider>
                 <AppToaster />
             </body>
         </html>

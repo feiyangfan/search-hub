@@ -103,6 +103,58 @@ export class SearchHubClient {
         await this.ensureOk(res, 'signOut');
     }
 
+    /** DELETE /v1/users */
+    async deleteUser(): Promise<void> {
+        const url = `${this.baseUrl}/v1/users`;
+        const res = await this.fetcher(url, {
+            method: 'delete',
+            headers: {
+                ...this.defaultHeaders,
+            },
+        });
+        await this.ensureOk(res, 'userDeleteSelf');
+    }
+
+    /** POST /v1/tenant */
+    async createTenant(
+        body: paths['/v1/tenants']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/tenants']['post']['responses']['201']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/tenants`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: {
+                ...this.defaultHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.status !== 200 && res.status !== 201) {
+            const txt = await safeText(res);
+            throw new Error(
+                `createTenant failed: ${res.status} ${res.statusText} ${
+                    txt ?? ''
+                }`
+            );
+        }
+
+        return (await res.json()) as paths['/v1/tenants']['post']['responses']['201']['content']['application/json'];
+    }
+
+    /** DELETE /v1/tenants */
+    async deleteTenant() {
+        const url = `${this.baseUrl}/v1/tenants`;
+        const res = await this.fetcher(url, {
+            method: 'delete',
+            headers: {
+                ...this.defaultHeaders,
+            },
+        });
+        await this.ensureOk(res, 'tenantDeletion');
+    }
+
     /** GET /v1/search */
     async search(
         params: paths['/v1/search']['get']['parameters']['query']
@@ -151,34 +203,6 @@ export class SearchHubClient {
             );
         }
         return (await res.json()) as paths['/v1/documents']['post']['responses']['202']['content']['application/json'];
-    }
-
-    /** POST /v1/tenant */
-    async createTenant(
-        body: paths['/v1/tenants']['post']['requestBody']['content']['application/json']
-    ): Promise<
-        paths['/v1/tenants']['post']['responses']['201']['content']['application/json']
-    > {
-        const url = `${this.baseUrl}/v1/tenants`;
-        const res = await this.fetcher(url, {
-            method: 'POST',
-            headers: {
-                ...this.defaultHeaders,
-                'content-type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-
-        if (res.status !== 200 && res.status !== 201) {
-            const txt = await safeText(res);
-            throw new Error(
-                `createTenant failed: ${res.status} ${res.statusText} ${
-                    txt ?? ''
-                }`
-            );
-        }
-
-        return (await res.json()) as paths['/v1/tenants']['post']['responses']['201']['content']['application/json'];
     }
 }
 

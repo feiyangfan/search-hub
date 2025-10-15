@@ -43,7 +43,12 @@ export const authOptions: NextAuthOptions = {
                         password: password,
                     });
                     const user = res.user;
-                    return { id: user.id, email: user.email }; // add more fields if needed later
+                    return {
+                        id: user.id,
+                        email: user.email,
+                        name: user.email,
+                        memberships: user.memberships ?? [],
+                    };
                 } catch (error) {
                     if ((error as { status?: number }).status === 401) {
                         return null;
@@ -62,11 +67,20 @@ export const authOptions: NextAuthOptions = {
         signOut: '/auth/sign-out',
     },
     callbacks: {
-        async session({ session, token, user }) {
-            // session.currentTenantId = token.currentTenantId
+        async session({ session, token }) {
+            console.log(session);
+            if (session.user) {
+                (session.user as { memberships?: unknown[] }).memberships =
+                    (token as { memberships?: unknown[] }).memberships ?? [];
+            }
             return session;
         },
         async jwt({ token, user }) {
+            console.log(token);
+            if (user) {
+                token.memberships =
+                    (user as { memberships?: unknown[] }).memberships ?? [];
+            }
             return token;
         },
     },

@@ -24,6 +24,12 @@ if (env.NODE_ENV === 'development') {
 }
 
 /** Repository-like helpers so handlers stay clean */
+export interface UserTenant {
+    tenantId: string;
+    tenantName: string;
+    role: 'owner' | 'admin' | 'member';
+}
+
 export const db = {
     user: {
         create: async ({
@@ -118,6 +124,18 @@ export const db = {
         },
         findById: async ({ id }: { id: string }) => {
             return prisma.user.findUnique({ where: { id } });
+        },
+        findByEmailWithTenants: async ({ email }: { email: string }) => {
+            return prisma.user.findUnique({
+                where: { email },
+                include: {
+                    memberships: {
+                        include: {
+                            tenant: { select: { id: true, name: true } },
+                        },
+                    },
+                },
+            });
         },
     },
     tenant: {
@@ -216,6 +234,41 @@ export const db = {
                     name: name,
                 },
             });
+        },
+    },
+    tenantMembership: {
+        findByUserId: async ({ userId }: { userId: string }) => {
+            return prisma.tenantMembership.findMany({
+                where: {
+                    userId: userId,
+                },
+            });
+        },
+        findUserTenantsByUserId: async ({
+            userId,
+        }: {
+            userId: string;
+        }): Promise<UserTenant[]> => {
+            const memberships = await prisma.tenantMembership.findMany({
+                where: {
+                    userId: userId,
+                },
+                include: {
+                    tenant: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            });
+            return memberships
+                .filter((membership) => membership.tenant !== null)
+                .map((membership) => ({
+                    tenantId: membership.tenant.id,
+                    tenantName: membership.tenant.name,
+                    role: membership.role,
+                }));
         },
     },
 

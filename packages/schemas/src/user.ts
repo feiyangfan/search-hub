@@ -26,6 +26,15 @@ export const UserProfile = User.omit({
     passwordHash: true,
 });
 
+export const UserMembershipSummary = z.object({
+    tenantName: z.string(),
+    role: z.enum(['owner', 'admin', 'member']),
+});
+
+export const UserProfileWithSummary = UserProfile.extend({
+    memberships: z.array(UserMembershipSummary).default([]),
+});
+
 export const DeleteUserPayload = z.object({
     id: Id.meta({
         description: 'User ID to delete',
