@@ -20,6 +20,10 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { useToast } from '@/components/ui/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+
+import { TenantDeletionConfirmationDialog } from './tenant-deletion';
 
 type Workspace = {
     id?: string;
@@ -37,6 +41,7 @@ export function WorkspaceSwitcher({
     workspaces,
     activeTenantId,
 }: WorkspaceSwitcherProps) {
+    const { toast } = useToast();
     const { isMobile } = useSidebar();
     const router = useRouter();
     const [, startTransition] = React.useTransition();
@@ -74,7 +79,22 @@ export function WorkspaceSwitcher({
     }, [workspaces, activeTenantId, activeIndex]);
 
     const activeWorkspace = workspaces[activeIndex];
-    const ActiveLogo = activeWorkspace?.logo ?? DefaultWorkspaceIcon;
+    if (!activeWorkspace) {
+        return (
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <div className="flex items-center gap-2 p-3">
+                        <Skeleton className="size-8 rounded-lg" />
+                        <div className="flex-1 space-y-1.5">
+                            <Skeleton className="h-4 w-32 rounded" />
+                            <Skeleton className="h-3 w-24 rounded" />
+                        </div>
+                    </div>
+                </SidebarMenuItem>
+            </SidebarMenu>
+        );
+    }
+    const ActiveLogo = activeWorkspace.logo ?? DefaultWorkspaceIcon;
 
     return (
         <SidebarMenu>
@@ -134,11 +154,12 @@ export function WorkspaceSwitcher({
                                                     id: workspace.id,
                                                 }),
                                             });
+
+                                            router.refresh();
                                         } catch {
                                             // swallow to keep UX responsive; server refresh will re-sync
                                         } finally {
                                             setActiveIndex(index);
-                                            router.refresh();
                                         }
                                     });
                                 }}
@@ -164,6 +185,70 @@ export function WorkspaceSwitcher({
                                 </div>
                             </Link>
                         </DropdownMenuItem>
+                        {activeWorkspace?.role === 'owner' ? (
+                            <TenantDeletionConfirmationDialog
+                                workspaceName={activeWorkspace.name}
+                                onConfirm={() =>
+                                    startTransition(async () => {
+                                        try {
+                                            if (!activeWorkspace?.id) {
+                                                toast.error('Delete failed', {
+                                                    description:
+                                                        'Workspace id is missing. Please wait and try again.',
+                                                });
+                                                return;
+                                            }
+                                            const res = await fetch(
+                                                '/api/tenants',
+                                                {
+                                                    method: 'DELETE',
+                                                    headers: {
+                                                        'content-type':
+                                                            'application/json',
+                                                    },
+                                                    body: JSON.stringify({
+                                                        id: activeWorkspace.id,
+                                                    }),
+                                                }
+                                            );
+
+                                            if (!res.ok) {
+                                                const data = (await res
+                                                    .json()
+                                                    .catch(() => null)) as {
+                                                    error?: string;
+                                                } | null;
+                                                toast.error('Delete failed', {
+                                                    description:
+                                                        data?.error ??
+                                                        'Please try again.',
+                                                });
+                                                return;
+                                            }
+
+                                            toast.success('Workspace deleted', {
+                                                description: `${activeWorkspace.name} has been removed.`,
+                                            });
+
+                                            router.refresh();
+                                        } catch (err) {
+                                            toast.error('Delete failed', {
+                                                description:
+                                                    (
+                                                        err as {
+                                                            message?: string;
+                                                        }
+                                                    ).message ??
+                                                    'Please try again.',
+                                            });
+                                            router.refresh();
+                                        }
+                                    })
+                                }
+                            />
+                        ) : (
+                            ''
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </SidebarMenuItem>

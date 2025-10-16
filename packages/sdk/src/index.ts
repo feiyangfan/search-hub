@@ -144,13 +144,17 @@ export class SearchHubClient {
     }
 
     /** DELETE /v1/tenants */
-    async deleteTenant() {
+    async deleteTenant(
+        body: paths['/v1/tenants']['delete']['requestBody']['content']['application/json']
+    ): Promise<void> {
         const url = `${this.baseUrl}/v1/tenants`;
         const res = await this.fetcher(url, {
-            method: 'delete',
+            method: 'DELETE',
             headers: {
                 ...this.defaultHeaders,
+                'content-type': 'application/json',
             },
+            body: JSON.stringify(body),
         });
         await this.ensureOk(res, 'tenantDeletion');
     }
