@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         if (error && typeof error === 'object' && 'status' in error) {
             const status = (error as { status: number }).status;
             const upstreamBody = (error as { body?: unknown }).body;
-            console.log('upstream error', status, upstreamBody);
+
             return NextResponse.json(
                 upstreamBody ?? {
                     error: 'upstream_error',

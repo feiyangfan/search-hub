@@ -38,6 +38,7 @@ export default async function RootLayout({
         role: membership.role,
     }));
     const hasWorkspaces = workspaces.length > 0;
+    const activeTenantId = session?.activeTenantId;
 
     return (
         <html lang="en">
@@ -50,6 +51,7 @@ export default async function RootLayout({
                             <AppSidebar
                                 user={session.user}
                                 workspaces={workspaces}
+                                activeTenantId={activeTenantId}
                             />
                         ) : null}
                         <SidebarInset>

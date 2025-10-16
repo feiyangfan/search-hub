@@ -78,9 +78,10 @@ type WorkspaceOption = {
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
     user: Session['user'];
     workspaces?: WorkspaceOption[];
+    activeTenantId?: string;
 };
 
-export function AppSidebar({ user, workspaces, ...props }: AppSidebarProps) {
+export function AppSidebar({ user, workspaces, activeTenantId, ...props }: AppSidebarProps) {
     const navUser = {
         name: user?.name,
         email: user?.email,
@@ -91,7 +92,10 @@ export function AppSidebar({ user, workspaces, ...props }: AppSidebarProps) {
     return (
         <Sidebar collapsible="icon" className="border-r-0" {...props}>
             <SidebarHeader>
-                <WorkspaceSwitcher workspaces={workspaceItems} />
+                <WorkspaceSwitcher
+                    workspaces={workspaceItems}
+                    activeTenantId={activeTenantId}
+                />
                 <NavMain items={data.navMain} />
             </SidebarHeader>
             <SidebarContent>

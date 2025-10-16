@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronsUpDown, Plus, Briefcase } from 'lucide-react';
 
 import {
@@ -27,9 +28,51 @@ type Workspace = {
     role?: string;
 };
 
-export function WorkspaceSwitcher({ workspaces }: { workspaces: Workspace[] }) {
+interface WorkspaceSwitcherProps {
+    workspaces: Workspace[];
+    activeTenantId?: string;
+}
+
+export function WorkspaceSwitcher({
+    workspaces,
+    activeTenantId,
+}: WorkspaceSwitcherProps) {
     const { isMobile } = useSidebar();
-    const [activeIndex, setActiveIndex] = React.useState(0);
+    const router = useRouter();
+    const [, startTransition] = React.useTransition();
+    const [activeIndex, setActiveIndex] = React.useState(() => {
+        if (!workspaces.length) {
+            return 0;
+        }
+        if (!activeTenantId) {
+            return 0;
+        }
+        const initialIndex = workspaces.findIndex(
+            (workspace) => workspace.id === activeTenantId
+        );
+        return initialIndex >= 0 ? initialIndex : 0;
+    });
+
+    React.useEffect(() => {
+        if (!workspaces.length) {
+            setActiveIndex(0);
+            return;
+        }
+
+        if (!activeTenantId) {
+            setActiveIndex(0);
+            return;
+        }
+
+        const nextIndex = workspaces.findIndex(
+            (workspace) => workspace.id === activeTenantId
+        );
+
+        if (nextIndex >= 0 && nextIndex !== activeIndex) {
+            setActiveIndex(nextIndex);
+        }
+    }, [workspaces, activeTenantId, activeIndex]);
+
     const activeWorkspace = workspaces[activeIndex];
     const ActiveLogo = activeWorkspace?.logo ?? DefaultWorkspaceIcon;
 
@@ -68,7 +111,37 @@ export function WorkspaceSwitcher({ workspaces }: { workspaces: Workspace[] }) {
                         {workspaces.map((workspace, index) => (
                             <DropdownMenuItem
                                 key={workspace.id ?? workspace.name}
-                                onClick={() => setActiveIndex(index)}
+                                disabled={activeIndex === index}
+                                onClick={() => {
+                                    if (activeIndex === index) {
+                                        return;
+                                    }
+
+                                    if (!workspace.id) {
+                                        setActiveIndex(index);
+                                        return;
+                                    }
+
+                                    startTransition(async () => {
+                                        try {
+                                            await fetch('/api/tenants/active', {
+                                                method: 'POST',
+                                                headers: {
+                                                    'content-type':
+                                                        'application/json',
+                                                },
+                                                body: JSON.stringify({
+                                                    id: workspace.id,
+                                                }),
+                                            });
+                                        } catch {
+                                            // swallow to keep UX responsive; server refresh will re-sync
+                                        } finally {
+                                            setActiveIndex(index);
+                                            router.refresh();
+                                        }
+                                    });
+                                }}
                                 className="gap-2 p-2"
                             >
                                 <div className="flex size-6 items-center justify-center rounded-md border">

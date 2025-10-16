@@ -10,6 +10,7 @@ import {
     CreateTenantResponse,
     DeleteTenantPayload,
     TenantListResponse,
+    ActiveTenantPayload,
 } from './tenant.js';
 import { AuthPayload, AuthResponse } from './auth.js';
 
@@ -149,7 +150,8 @@ export function buildOpenApi(
                 get: {
                     responses: {
                         200: {
-                            description: 'List tenants the current user belongs to',
+                            description:
+                                'List tenants the current user belongs to',
                             content: {
                                 'application/json': {
                                     schema: TenantListResponse,
@@ -229,6 +231,47 @@ export function buildOpenApi(
                                 'application/json': {
                                     schema: ApiError,
                                 },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/tenants/active': {
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: ActiveTenantPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        204: {
+                            description: 'Success',
+                        },
+                        400: {
+                            description: 'Bad Request',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found',
+                            content: {
+                                'application/json': { schema: ApiError },
                             },
                         },
                     },

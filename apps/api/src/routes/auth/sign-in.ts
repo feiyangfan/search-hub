@@ -47,6 +47,7 @@ export function signInRoutes() {
             });
 
             const memberships = userTenants;
+            const primaryTenantId = memberships[0]?.tenantId ?? null;
 
             req.session.regenerate(function (err) {
                 if (err) {
@@ -56,6 +57,7 @@ export function signInRoutes() {
                 req.session.userId = userRecord.id;
                 req.session.email = userRecord.email;
                 req.session.memberships = memberships;
+                req.session.currentTenantId = primaryTenantId ?? undefined;
 
                 req.session.save((err) => {
                     if (err) return next(err);
@@ -66,6 +68,9 @@ export function signInRoutes() {
                             memberships: memberships,
                         }),
                         message: 'User signed in',
+                        session: {
+                            currentTenantId: primaryTenantId,
+                        },
                     });
                 });
             });

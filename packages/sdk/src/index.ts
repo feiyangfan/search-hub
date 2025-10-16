@@ -155,13 +155,28 @@ export class SearchHubClient {
         await this.ensureOk(res, 'tenantDeletion');
     }
 
+    /** POST /v1/tenants/active */
+    async setActiveTenant(
+        body: paths['/v1/tenants/active']['post']['requestBody']['content']['application/json']
+    ): Promise<void> {
+        const url = `${this.baseUrl}/v1/tenants/active`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: {
+                ...this.defaultHeaders,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (res.status !== 204) {
+            await this.ensureOk(res, 'setActiveTenant');
+        }
+    }
+
     /** GET /v1/tenants */
     async listTenants(): Promise<
-        {
-            tenantId: string;
-            tenantName: string;
-            role: 'owner' | 'admin' | 'member';
-        }[]
+        paths['/v1/tenants']['get']['responses']['200']['content']['application/json']
     > {
         const url = `${this.baseUrl}/v1/tenants`;
         const res = await this.fetcher(url, {
@@ -170,15 +185,7 @@ export class SearchHubClient {
         });
 
         await this.ensureOk(res, 'listTenants');
-        const data = (await res.json()) as {
-            tenants: {
-                tenantId: string;
-                tenantName: string;
-                role: 'owner' | 'admin' | 'member';
-            }[];
-        };
-
-        return data.tenants;
+        return (await res.json()) as paths['/v1/tenants']['get']['responses']['200']['content']['application/json'];
     }
 
     /** GET /v1/search */

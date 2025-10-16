@@ -36,6 +36,7 @@ export const authOptions: NextAuthOptions = {
                     let apiSessionCookie: string | undefined;
                     const client = new SearchHubClient({
                         baseUrl: apiBase,
+                        // Custom fetcher so we can capture the connect.sid cookie set by the API.
                         fetcher: async (input, init) => {
                             const response = await fetch(input, {
                                 ...init,
@@ -66,6 +67,7 @@ export const authOptions: NextAuthOptions = {
                     });
 
                     const user = res.user;
+                    const memberships = user.memberships ?? [];
 
                     return {
                         id: user.id,
@@ -73,6 +75,11 @@ export const authOptions: NextAuthOptions = {
                         name: user.email,
                         memberships: user.memberships ?? [],
                         apiSessionCookie,
+                        // Prefer the API-selected tenant; fall back to the first membership when none selected.
+                        currentTenantId:
+                            (res.session?.currentTenantId as
+                                | string
+                                | undefined) ?? memberships[0]?.tenantId,
                     };
                 } catch {
                     return null;
@@ -90,8 +97,7 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async session({ session, token }) {
-            const apiSessionCookie = (token as { apiSessionCookie?: string })
-                .apiSessionCookie;
+            const apiSessionCookie = token.apiSessionCookie;
 
             if (session.user && apiSessionCookie) {
                 const client = new SearchHubClient({
@@ -100,15 +106,40 @@ export const authOptions: NextAuthOptions = {
                 });
 
                 try {
-                    const memberships = await client.listTenants();
+                    const { tenants, activeTenantId } =
+                        await client.listTenants();
 
-                    session.user.memberships = memberships;
-                    token.memberships = memberships;
+                    session.user.memberships = tenants;
+                    token.memberships = tenants;
+
+                    const memberships = tenants;
+                    // Ensure the resolved active tenant actually exists in the refreshed membership list.
+                    const membershipIds = new Set(
+                        memberships.map((m) => m.tenantId)
+                    );
+
+                    const candidate =
+                        activeTenantId ??
+                        token.activeTenantId ??
+                        memberships[0]?.tenantId;
+
+                    const resolvedActive =
+                        candidate && membershipIds.has(candidate)
+                            ? candidate
+                            : memberships[0]?.tenantId ?? undefined;
+
+                    session.activeTenantId = resolvedActive;
+                    token.activeTenantId = resolvedActive;
                 } catch {
                     session.user.memberships = token.memberships ?? [];
+                    if (!session.activeTenantId) {
+                        session.activeTenantId =
+                            token.activeTenantId ?? undefined;
+                    }
                 }
             } else if (session.user) {
                 session.user.memberships = token.memberships ?? [];
+                session.activeTenantId = token.activeTenantId ?? undefined;
             }
 
             session.apiSessionCookie = apiSessionCookie;
@@ -116,11 +147,12 @@ export const authOptions: NextAuthOptions = {
         },
         async jwt({ token, user }) {
             if (user) {
-                (token as { memberships?: unknown[] }).memberships =
-                    (user as { memberships?: unknown[] }).memberships ?? [];
-                (token as { apiSessionCookie?: string }).apiSessionCookie = (
-                    user as { apiSessionCookie?: string }
-                ).apiSessionCookie;
+                token.memberships = user.memberships ?? [];
+                token.apiSessionCookie = user.apiSessionCookie;
+                token.activeTenantId =
+                    user.currentTenantId ??
+                    token.activeTenantId ??
+                    user.memberships?.[0]?.tenantId;
             }
             return token;
         },

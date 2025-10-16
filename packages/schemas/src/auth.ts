@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { UserProfile } from './user';
+import { Id } from './common.js';
+import { UserProfileWithSummary } from './user';
 
 export const AuthPayload = z.object({
     email: z.email(),
@@ -9,8 +10,13 @@ export const AuthPayload = z.object({
 export type AuthPayload = z.infer<typeof AuthPayload>;
 
 export const AuthResponse = z.object({
-    user: UserProfile,
+    user: UserProfileWithSummary,
     message: z.string(),
+    session: z
+        .object({
+            currentTenantId: Id.nullable().optional(),
+        })
+        .optional(),
 });
 
 export type AuthResponse = z.infer<typeof AuthResponse>;

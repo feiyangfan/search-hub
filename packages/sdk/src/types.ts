@@ -52,29 +52,13 @@ export interface paths {
                                 /** @default [] */
                                 memberships: {
                                     /**
-                                     * @description Membership ID
-                                     * @example abc123
-                                     */
-                                    id: string;
-                                    /**
-                                     * @description Tenant ID referencing the workspace
-                                     * @example abc123
-                                     */
-                                    tenantId: string;
-                                    /**
                                      * @description A unique identifier string
                                      * @example abc123
                                      */
-                                    userId: string;
-                                    /**
-                                     * @default member
-                                     * @enum {string}
-                                     */
+                                    tenantId: string;
+                                    tenantName: string;
+                                    /** @enum {string} */
                                     role: "owner" | "admin" | "member";
-                                    /** Format: date-time */
-                                    createdAt?: string;
-                                    /** Format: date-time */
-                                    updatedAt?: string;
                                 }[];
                                 /** Format: date-time */
                                 createdAt?: string;
@@ -82,6 +66,29 @@ export interface paths {
                                 updatedAt?: string;
                             };
                             message: string;
+                            session?: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                currentTenantId?: string | null;
+                            };
+                        };
+                    };
+                };
+                /** @description Conflict: User already exists */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
                         };
                     };
                 };
@@ -141,29 +148,13 @@ export interface paths {
                                 /** @default [] */
                                 memberships: {
                                     /**
-                                     * @description Membership ID
-                                     * @example abc123
-                                     */
-                                    id: string;
-                                    /**
-                                     * @description Tenant ID referencing the workspace
-                                     * @example abc123
-                                     */
-                                    tenantId: string;
-                                    /**
                                      * @description A unique identifier string
                                      * @example abc123
                                      */
-                                    userId: string;
-                                    /**
-                                     * @default member
-                                     * @enum {string}
-                                     */
+                                    tenantId: string;
+                                    tenantName: string;
+                                    /** @enum {string} */
                                     role: "owner" | "admin" | "member";
-                                    /** Format: date-time */
-                                    createdAt?: string;
-                                    /** Format: date-time */
-                                    updatedAt?: string;
                                 }[];
                                 /** Format: date-time */
                                 createdAt?: string;
@@ -171,6 +162,13 @@ export interface paths {
                                 updatedAt?: string;
                             };
                             message: string;
+                            session?: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                currentTenantId?: string | null;
+                            };
                         };
                     };
                 };
@@ -292,16 +290,28 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /**
-                             * @description Error message
-                             * @example Bad Request
-                             */
-                            error: string;
-                            /**
-                             * @description API Error format
-                             * @example VALIDATION_ERROR
-                             */
-                            code?: string;
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
                         };
                     };
                 };
@@ -395,16 +405,28 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /**
-                             * @description Error message
-                             * @example Bad Request
-                             */
-                            error: string;
-                            /**
-                             * @description API Error format
-                             * @example VALIDATION_ERROR
-                             */
-                            code?: string;
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
                         };
                     };
                 };
@@ -425,7 +447,65 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List tenants the current user belongs to */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            tenants: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                tenantId: string;
+                                /**
+                                 * @description Name of the tenant
+                                 * @example Software Inc
+                                 */
+                                tenantName: string;
+                                /**
+                                 * @default member
+                                 * @enum {string}
+                                 */
+                                role: "owner" | "admin" | "member";
+                            }[];
+                            /**
+                             * @description A unique identifier string
+                             * @example abc123
+                             */
+                            activeTenantId?: string | null;
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         put?: never;
         post: {
             parameters: {
@@ -446,30 +526,6 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /**
-                             * @description Tenant ID
-                             * @example tenant123
-                             */
-                            id: string;
-                            /**
-                             * @description Name of the tenant
-                             * @example Software Inc
-                             */
-                            name: string;
-                            /** Format: date-time */
-                            createdAt?: string;
-                            /** Format: date-time */
-                            updatedAt?: string;
-                        };
-                    };
-                };
                 /** @description Created */
                 201: {
                     headers: {
@@ -501,16 +557,210 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /**
-                             * @description Error message
-                             * @example Bad Request
-                             */
-                            error: string;
-                            /**
-                             * @description API Error format
-                             * @example VALIDATION_ERROR
-                             */
-                            code?: string;
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Tenant ID to remove
+                         * @example abc123
+                         */
+                        id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenants/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description Tenant ID
+                         * @example tenant123
+                         */
+                        id: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Success */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
                         };
                     };
                 };
