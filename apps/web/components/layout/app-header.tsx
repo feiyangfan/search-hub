@@ -6,7 +6,7 @@ import type { Session } from 'next-auth';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { NavActions } from '@/components/nav-action';
+import { NavActions } from '@/components/navigation/nav-action';
 
 interface AppHeaderProps {
     session: Session | null;

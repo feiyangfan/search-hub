@@ -16,17 +16,17 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 import { Minus } from 'lucide-react';
 
-interface TenantDeletionConfirmationDialogProps {
+interface WorkspaceDeletionConfirmationDialogProps {
     workspaceName: string;
     onConfirm: () => void;
     disabled?: boolean;
 }
 
-export function TenantDeletionConfirmationDialog({
+export function WorkspaceDeletionConfirmationDialog({
     workspaceName,
     onConfirm,
     disabled,
-}: TenantDeletionConfirmationDialogProps) {
+}: WorkspaceDeletionConfirmationDialogProps) {
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>

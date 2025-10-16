@@ -3,10 +3,10 @@
 import * as React from 'react';
 import { Group, Home, Search, Sparkles } from 'lucide-react';
 
-import { NavFavorites } from '@/components/nav-favorites';
-import { NavMain } from '@/components/nav-main';
-import { NavDocuments } from '@/components/nav-documents';
-import { WorkspaceSwitcher } from '@/components/workspace-switcher';
+import { NavFavorites } from '@/components/navigation/nav-favorites';
+import { NavMain } from '@/components/navigation/nav-main';
+import { NavDocuments } from '@/components/navigation/nav-documents';
+import { WorkspaceSwitcher } from '@/components/navigation/workspace-switcher';
 import {
     Sidebar,
     SidebarContent,
@@ -14,7 +14,7 @@ import {
     SidebarHeader,
     SidebarRail,
 } from '@/components/ui/sidebar';
-import { NavUser } from './nav-user';
+import { NavUser } from '../navigation/nav-user';
 
 import type { Session } from 'next-auth';
 
@@ -81,7 +81,12 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
     activeTenantId?: string;
 };
 
-export function AppSidebar({ user, workspaces, activeTenantId, ...props }: AppSidebarProps) {
+export function AppSidebar({
+    user,
+    workspaces,
+    activeTenantId,
+    ...props
+}: AppSidebarProps) {
     const navUser = {
         name: user?.name,
         email: user?.email,

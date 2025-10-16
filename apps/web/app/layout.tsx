@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { AppHeader } from '@/components/app-header';
-import { AppSidebar } from '@/components/app-sidebar';
-import { AppToaster } from '@/components/app-toaster';
+import { AppHeader } from '@/components/layout/app-header';
+import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AppToaster } from '@/components/layout/app-toaster';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';

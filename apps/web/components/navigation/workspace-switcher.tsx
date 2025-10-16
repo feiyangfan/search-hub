@@ -23,7 +23,7 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { TenantDeletionConfirmationDialog } from './tenant-deletion';
+import { WorkspaceDeletionConfirmationDialog } from '../workspace/workspace-deletion';
 
 type Workspace = {
     id?: string;
@@ -186,7 +186,7 @@ export function WorkspaceSwitcher({
                             </Link>
                         </DropdownMenuItem>
                         {activeWorkspace?.role === 'owner' ? (
-                            <TenantDeletionConfirmationDialog
+                            <WorkspaceDeletionConfirmationDialog
                                 workspaceName={activeWorkspace.name}
                                 onConfirm={() =>
                                     startTransition(async () => {

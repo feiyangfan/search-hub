@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { EmptyStateCreateWorkspace } from '@/components/empty-state-create-workspace';
+import { EmptyStateCreateWorkspace } from '@/components/workspace/empty-state-create-workspace';
 
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 
-import { CreateWorkspaceCard } from '@/components/create-workspace-card';
+import { CreateWorkspaceCard } from './create-workspace-card';
 
 type CreateWorkspacePanelProps = {
     className?: string;

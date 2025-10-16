@@ -1,6 +1,6 @@
 import { MoreHorizontal, Plus } from 'lucide-react';
 
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import { Collapsible } from '@/components/ui/collapsible';
 import {
     SidebarGroup,

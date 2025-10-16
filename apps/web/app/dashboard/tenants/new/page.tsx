@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { CreateWorkspacePanel } from '@/components/create-workspace-panel';
+import { CreateWorkspacePanel } from '@/components/workspace/create-workspace-panel';
 
 export default async function TenantOnboardingPage() {
     const session = await getServerSession(authOptions);
@@ -18,8 +18,9 @@ export default async function TenantOnboardingPage() {
                     Create a new workspace
                 </h1>
                 <p className="text-muted-foreground mt-1 text-base">
-                    Workspaces keep your content, search history, and permissions organised.
-                    Use this form to add another workspace for your team.
+                    Workspaces keep your content, search history, and
+                    permissions organised. Use this form to add another
+                    workspace for your team.
                 </p>
             </div>
             <CreateWorkspacePanel className="shadow-lg" />
