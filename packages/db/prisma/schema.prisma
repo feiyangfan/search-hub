@@ -18,7 +18,7 @@ enum JobStatus {
 // ---- models ----
 model Tenant {
   id           String             @id @default(cuid())
-  name         String             @unique
+  name         String             
   memberships  TenantMembership[]
   documents    Document[]
   jobs         IndexJob[]
