@@ -15,7 +15,7 @@
         "prisma:reset": "pnpm --filter @search-hub/db prisma:reset",
         "openapi:genapi": "pnpm --filter api generate",
         "openapi:gensdk": "pnpm --filter @search-hub/sdk generate",
-        "openapi:genall": "pnpm run gen:api && pnpm run gen:sdk",
+        "openapi:genall": "pnpm run openapi:genapi && pnpm run openapi:gensdk",
         "build": "turbo run build",
         "docker": "docker compose -f infra/docker-compose.yml up -d",
         "dev": "turbo run dev --parallel",

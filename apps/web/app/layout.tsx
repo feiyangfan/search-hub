@@ -29,16 +29,15 @@ export default async function RootLayout({
     children: React.ReactNode;
 }>) {
     const session = await getServerSession(authOptions);
-    const memberships =
-        (
-            session?.user as {
-                memberships?: Array<{ tenantName: string; role?: string }>;
-            }
-        )?.memberships ?? [];
+
+    const memberships = session?.user.memberships ?? [];
+
     const workspaces = memberships.map((membership) => ({
+        id: membership.tenantId,
         name: membership.tenantName,
         role: membership.role,
     }));
+    const hasWorkspaces = workspaces.length > 0;
 
     return (
         <html lang="en">
@@ -47,14 +46,17 @@ export default async function RootLayout({
             >
                 <SidebarProvider>
                     <div className="flex min-h-dvh w-full">
-                        {session ? (
+                        {session && hasWorkspaces ? (
                             <AppSidebar
                                 user={session.user}
                                 workspaces={workspaces}
                             />
                         ) : null}
                         <SidebarInset>
-                            <AppHeader session={session} />
+                            <AppHeader
+                                session={session}
+                                showSidebarTrigger={hasWorkspaces}
+                            />
                             <main className="flex flex-1 flex-col">
                                 {children}
                             </main>

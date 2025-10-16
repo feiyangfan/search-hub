@@ -14,6 +14,21 @@ import { db } from '@search-hub/db';
 export function tenantRoutes() {
     const router = Router();
 
+    router.get('/', async (req, res, next) => {
+        try {
+            const { userId } = req.session;
+            if (!userId) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+
+            const tenants = await db.tenant.listForUser({ userId });
+
+            res.json({ tenants });
+        } catch (error) {
+            next(error);
+        }
+    });
+
     router.post(
         '/',
         validateBody(CreateTenantPayload),

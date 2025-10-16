@@ -53,54 +53,17 @@ const data = {
             url: '#',
             emoji: '📊',
         },
-        {
-            name: 'Family Recipe Collection & Meal Planning',
-            url: '#',
-            emoji: '🍳',
-        },
     ],
     documents: [
         {
             name: 'Personal Life Management',
             emoji: '🏠',
-            pages: [
-                {
-                    name: 'Daily Journal & Reflection',
-                    url: '#',
-                    emoji: '📔',
-                },
-                {
-                    name: 'Health & Wellness Tracker',
-                    url: '#',
-                    emoji: '🍏',
-                },
-                {
-                    name: 'Personal Growth & Learning Goals',
-                    url: '#',
-                    emoji: '🌟',
-                },
-            ],
+            pages: [],
         },
         {
             name: 'Professional Development',
             emoji: '💼',
-            pages: [
-                {
-                    name: 'Career Objectives & Milestones',
-                    url: '#',
-                    emoji: '🎯',
-                },
-                {
-                    name: 'Skill Acquisition & Training Log',
-                    url: '#',
-                    emoji: '🧠',
-                },
-                {
-                    name: 'Networking Contacts & Events',
-                    url: '#',
-                    emoji: '🤝',
-                },
-            ],
+            pages: [],
         },
     ],
 };

@@ -125,18 +125,6 @@ export const db = {
         findById: async ({ id }: { id: string }) => {
             return prisma.user.findUnique({ where: { id } });
         },
-        findByEmailWithTenants: async ({ email }: { email: string }) => {
-            return prisma.user.findUnique({
-                where: { email },
-                include: {
-                    memberships: {
-                        include: {
-                            tenant: { select: { id: true, name: true } },
-                        },
-                    },
-                },
-            });
-        },
     },
     tenant: {
         createWithOwner: async ({
@@ -234,6 +222,31 @@ export const db = {
                     name: name,
                 },
             });
+        },
+        listForUser: async ({
+            userId,
+        }: {
+            userId: string;
+        }): Promise<UserTenant[]> => {
+            const memberships = await prisma.tenantMembership.findMany({
+                where: { userId },
+                include: {
+                    tenant: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+                },
+            });
+
+            return memberships
+                .filter((membership) => membership.tenant !== null)
+                .map((membership) => ({
+                    tenantId: membership.tenant.id,
+                    tenantName: membership.tenant.name,
+                    role: membership.role,
+                }));
         },
     },
     tenantMembership: {

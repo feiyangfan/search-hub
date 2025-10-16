@@ -17,7 +17,7 @@ export function signInRoutes() {
             const typedReq = req as RequestWithValidatedBody<AuthPayloadType>;
             const { email, password } = typedReq.validated.body;
 
-            const userRecord = await db.user.findByEmailWithTenants({ email });
+            const userRecord = await db.user.findByEmail({ email });
 
             if (!userRecord || !userRecord.passwordHash) {
                 return res.status(401).json({
@@ -42,16 +42,11 @@ export function signInRoutes() {
                 });
             }
 
-            const membershipSummaries = userRecord.memberships.map((m) => ({
-                tenantName: m.tenant?.name ?? 'Workspace',
-                role: m.role,
-            }));
+            const userTenants = await db.tenant.listForUser({
+                userId: userRecord.id,
+            });
 
-            const memberships = userRecord.memberships.map((m) => ({
-                tenantId: m.tenant?.id,
-                tenantName: m.tenant?.name,
-                role: m.role,
-            }));
+            const memberships = userTenants;
 
             req.session.regenerate(function (err) {
                 if (err) {
@@ -68,7 +63,7 @@ export function signInRoutes() {
                         user: UserProfileWithSummary.parse({
                             id: userRecord.id,
                             email: userRecord.email,
-                            memberships: membershipSummaries,
+                            memberships: memberships,
                         }),
                         message: 'User signed in',
                     });

@@ -10,16 +10,22 @@ import { NavActions } from '@/components/nav-action';
 
 interface AppHeaderProps {
     session: Session | null;
+    showSidebarTrigger?: boolean;
 }
 
-export function AppHeader({ session }: AppHeaderProps) {
+export function AppHeader({
+    session,
+    showSidebarTrigger = true,
+}: AppHeaderProps) {
     const user = session?.user;
 
     return (
         <header className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
             <div className="mx-auto flex h-14 items-center justify-between px-4">
                 <div className="flex items-center gap-2">
-                    {user ? <SidebarTrigger className="-ml-2" /> : null}
+                    {user && showSidebarTrigger ? (
+                        <SidebarTrigger className="-ml-2" />
+                    ) : null}
                     <Link
                         href={user ? '/dashboard' : '/'}
                         className="font-semibold"
@@ -37,6 +43,7 @@ export function AppHeader({ session }: AppHeaderProps) {
                     )}
                 </nav>
             </div>
+
             <Separator />
         </header>
     );

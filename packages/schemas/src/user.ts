@@ -27,6 +27,7 @@ export const UserProfile = User.omit({
 });
 
 export const UserMembershipSummary = z.object({
+    tenantId: Id,
     tenantName: z.string(),
     role: z.enum(['owner', 'admin', 'member']),
 });

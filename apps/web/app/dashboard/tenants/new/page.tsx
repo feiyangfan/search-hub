@@ -1,12 +1,16 @@
-import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { CreateWorkspacePanel } from '@/components/create-workspace-panel';
 
-export default function TenantOnboardingPage() {
+export default async function TenantOnboardingPage() {
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+        redirect('/auth/sign-in');
+    }
+
     return (
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10 lg:px-0">
             <div>
@@ -14,51 +18,11 @@ export default function TenantOnboardingPage() {
                     Create a new workspace
                 </h1>
                 <p className="text-muted-foreground mt-1 text-base">
-                    Set up a tenant so your team can capture documents, run
-                    searches, and manage permissions together.
+                    Workspaces keep your content, search history, and permissions organised.
+                    Use this form to add another workspace for your team.
                 </p>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Workspace details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="name">Workspace name</Label>
-                        <Input
-                            id="name"
-                            placeholder="Acme Search Ops"
-                            autoComplete="organization"
-                            disabled
-                        />
-                        <p className="text-muted-foreground text-xs">
-                            {/* eslint-disable-next-line max-len */}
-                            This is just a placeholder form. Wire it to the
-                            tenant creation API when ready.
-                        </p>
-                    </div>
-
-                    <Separator />
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="slug">Workspace slug</Label>
-                        <Input
-                            id="slug"
-                            placeholder="acme-search-ops"
-                            autoComplete="off"
-                            disabled
-                        />
-                        <p className="text-muted-foreground text-xs">
-                            Slug will appear in URLs and API requests.
-                        </p>
-                    </div>
-
-                    <Button type="button" disabled className="w-full sm:w-auto">
-                        Create workspace
-                    </Button>
-                </CardContent>
-            </Card>
+            <CreateWorkspacePanel className="shadow-lg" />
         </div>
     );
 }

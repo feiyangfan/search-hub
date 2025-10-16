@@ -155,6 +155,32 @@ export class SearchHubClient {
         await this.ensureOk(res, 'tenantDeletion');
     }
 
+    /** GET /v1/tenants */
+    async listTenants(): Promise<
+        {
+            tenantId: string;
+            tenantName: string;
+            role: 'owner' | 'admin' | 'member';
+        }[]
+    > {
+        const url = `${this.baseUrl}/v1/tenants`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'listTenants');
+        const data = (await res.json()) as {
+            tenants: {
+                tenantId: string;
+                tenantName: string;
+                role: 'owner' | 'admin' | 'member';
+            }[];
+        };
+
+        return data.tenants;
+    }
+
     /** GET /v1/search */
     async search(
         params: paths['/v1/search']['get']['parameters']['query']

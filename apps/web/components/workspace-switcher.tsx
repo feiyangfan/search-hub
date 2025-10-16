@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/sidebar';
 
 type Workspace = {
+    id?: string;
     name: string;
     logo?: React.ElementType;
     role?: string;
@@ -28,42 +29,9 @@ type Workspace = {
 
 export function WorkspaceSwitcher({ workspaces }: { workspaces: Workspace[] }) {
     const { isMobile } = useSidebar();
-    const hasWorkspaces = workspaces.length > 0;
-    const [activeWorkspace, setActiveWorkspace] = React.useState<
-        Workspace | undefined
-    >(hasWorkspaces ? workspaces[0] : undefined);
-
-    React.useEffect(() => {
-        if (hasWorkspaces) {
-            setActiveWorkspace(workspaces[0]);
-        }
-    }, [hasWorkspaces, workspaces]);
-
+    const [activeIndex, setActiveIndex] = React.useState(0);
+    const activeWorkspace = workspaces[activeIndex];
     const ActiveLogo = activeWorkspace?.logo ?? DefaultWorkspaceIcon;
-
-    if (!hasWorkspaces || !activeWorkspace) {
-        return (
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild size="lg">
-                        <Link href="/dashboard/tenants/new">
-                            <div className="bg-sidebar-primary/80 text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-lg">
-                                <Plus className="size-4" />
-                            </div>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-medium">
-                                    Create workspace
-                                </span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                    Start by adding your first workspace
-                                </span>
-                            </div>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        );
-    }
 
     return (
         <SidebarMenu>
@@ -99,8 +67,8 @@ export function WorkspaceSwitcher({ workspaces }: { workspaces: Workspace[] }) {
                         </DropdownMenuLabel>
                         {workspaces.map((workspace, index) => (
                             <DropdownMenuItem
-                                key={workspace.name}
-                                onClick={() => setActiveWorkspace(workspace)}
+                                key={workspace.id ?? workspace.name}
+                                onClick={() => setActiveIndex(index)}
                                 className="gap-2 p-2"
                             >
                                 <div className="flex size-6 items-center justify-center rounded-md border">

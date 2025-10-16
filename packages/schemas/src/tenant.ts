@@ -30,12 +30,8 @@ export const Tenant = z.object({
 export type Tenant = z.infer<typeof Tenant>;
 
 // Request schema for creating a tenant
-export const CreateTenantPayload = Tenant.omit({
-    id: true,
-    documents: true,
-    memberships: true,
-    createdAt: true,
-    updatedAt: true,
+export const CreateTenantPayload = z.object({
+    name: Tenant.shape.name,
 });
 
 export type CreateTenantPayload = z.infer<typeof CreateTenantPayload>;
@@ -47,6 +43,20 @@ export const CreateTenantResponse = Tenant.omit({
 });
 
 export type CreateTenantResponse = z.infer<typeof CreateTenantResponse>;
+
+export const TenantSummary = z.object({
+    tenantId: Id,
+    tenantName: Tenant.shape.name,
+    role: TenantMembership.shape.role,
+});
+
+export type TenantSummary = z.infer<typeof TenantSummary>;
+
+export const TenantListResponse = z.object({
+    tenants: z.array(TenantSummary),
+});
+
+export type TenantListResponse = z.infer<typeof TenantListResponse>;
 
 export const DeleteTenantPayload = z.object({
     id: Id.meta({ description: 'Tenant ID to remove' }),

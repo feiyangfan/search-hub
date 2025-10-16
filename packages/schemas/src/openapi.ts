@@ -9,6 +9,7 @@ import {
     CreateTenantPayload,
     CreateTenantResponse,
     DeleteTenantPayload,
+    TenantListResponse,
 } from './tenant.js';
 import { AuthPayload, AuthResponse } from './auth.js';
 
@@ -145,6 +146,24 @@ export function buildOpenApi(
                 },
             },
             '/v1/tenants': {
+                get: {
+                    responses: {
+                        200: {
+                            description: 'List tenants the current user belongs to',
+                            content: {
+                                'application/json': {
+                                    schema: TenantListResponse,
+                                },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
                 post: {
                     requestBody: {
                         required: true,
