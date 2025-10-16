@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { signIn, useSession } from 'next-auth/react';
+import { SessionProvider, signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ type FieldErrors = {
     confirmPassword?: string;
 };
 
-export default function SignUpPage() {
+function SignUpContent() {
     const { status } = useSession();
     const router = useRouter();
 
@@ -208,5 +208,13 @@ export default function SignUpPage() {
                 </CardFooter>
             </Card>
         </div>
+    );
+}
+
+export default function SignUpPage() {
+    return (
+        <SessionProvider>
+            <SignUpContent />
+        </SessionProvider>
     );
 }
