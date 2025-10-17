@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Id } from './common.js';
-import { UserProfileWithSummary } from './user';
+import { UserProfileWithSummary } from './user.js';
 
 export const AuthPayload = z.object({
     email: z.email(),
