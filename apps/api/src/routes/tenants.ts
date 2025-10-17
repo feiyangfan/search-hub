@@ -47,8 +47,14 @@ export function tenantRoutes() {
                     name: body.name,
                     ownerId: userId,
                 });
-
-                res.status(201).json(tenant);
+                reqWithUser.session.currentTenantId = tenant.id;
+                reqWithUser.session.save((err) => {
+                    if (err) {
+                        next(err);
+                        return;
+                    }
+                    res.status(201).json(tenant);
+                });
             } catch (err) {
                 next(err);
             }

@@ -1,6 +1,6 @@
 import { db as defaultDb } from '@search-hub/db';
 import {
-    CreateDocumentRequest,
+    CreateDocumentRequestType,
     IndexDocumentJobSchema,
     JOBS,
     type IndexDocumentJob,
@@ -8,7 +8,6 @@ import {
 import { indexQueue as defaultIndexQueue } from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
 import type { Logger } from 'pino';
-import type { z } from 'zod';
 
 const DEFAULT_QUEUE_OPTIONS = {
     attempts: 3,
@@ -28,8 +27,35 @@ export interface DocumentServiceDependencies {
 
 export interface DocumentService {
     createAndQueueDocument(
-        body: z.infer<typeof CreateDocumentRequest>
-    ): Promise<{ documentId: string; jobId: string; tenantId: string }>; // maybe extend later
+        body: CreateDocumentRequestType,
+        context: { userId: string; tenantId: string }
+    ): Promise<{ documentId: string; jobId: string; tenantId: string }>;
+
+    getDocumentDetails(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<DocumentDetails | null>;
+}
+
+interface DocumentDetails {
+    id: string;
+    title: string;
+    tenantId: string;
+    content: string | null;
+    source: string;
+    sourceUrl: string | null;
+    metadata: unknown;
+    createdById: string;
+    updatedById: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isFavorite: boolean;
+    commands: {
+        id: string;
+        body: unknown;
+        createdAt: Date;
+        userId: string;
+    }[];
 }
 
 export function createDocumentService(
@@ -40,22 +66,26 @@ export function createDocumentService(
     const logger = deps.logger ?? defaultLogger;
 
     async function createAndQueueDocument(
-        body: z.infer<typeof CreateDocumentRequest>
+        body: CreateDocumentRequestType,
+        context: { userId: string; tenantId: string }
     ): Promise<{ documentId: string; jobId: string; tenantId: string }> {
         logger.info('document.create.start');
+        const title = body.title?.trim() || 'Untitled document';
 
-        // Create DB record before enqueue so we can remediate mismatched jobs later.
         const doc = await db.document.create({
-            tenantId: body.tenantId,
-            title: body.title,
-            source: body.source,
-            mimeType: body.mimeType,
+            tenantId: context.tenantId,
+            title,
+            source: body.source ?? 'editor',
+            sourceUrl: body.sourceUrl,
             content: body.content,
+            metadata: body.metadata,
+            createdById: context.userId,
+            updatedById: context.userId,
         });
 
         logger.info({ documentId: doc.id }, 'document.create.succeeded');
 
-        await db.job.enqueueIndex(body.tenantId, doc.id);
+        await db.job.enqueueIndex(context.tenantId, doc.id);
 
         const jobPayload: IndexDocumentJob = IndexDocumentJobSchema.parse({
             tenantId: doc.tenantId,
@@ -75,10 +105,54 @@ export function createDocumentService(
             'queue.enqueue.succeeded'
         );
 
-        return { documentId: doc.id, jobId: String(job.id), tenantId: doc.tenantId };
+        return {
+            documentId: doc.id,
+            jobId: String(job.id),
+            tenantId: doc.tenantId,
+        };
+    }
+
+    async function getDocumentDetails(
+        documentId: string,
+        context: { userId: string; tenantId: string }
+    ) {
+        const doc = await db.document.getById({
+            documentId,
+            userId: context.userId,
+            tenantId: context.tenantId,
+        });
+
+        if (!doc) {
+            return null;
+        }
+
+        const isFavorite =
+            Array.isArray(doc.favorites) && doc.favorites.length > 0;
+
+        return {
+            id: doc.id,
+            title: doc.title,
+            tenantId: doc.tenantId,
+            content: doc.content,
+            source: doc.source,
+            sourceUrl: doc.sourceUrl,
+            metadata: doc.metadata,
+            createdById: doc.createdById,
+            updatedById: doc.updatedById,
+            createdAt: doc.createdAt,
+            updatedAt: doc.updatedAt,
+            isFavorite: isFavorite,
+            commands: doc.commands.map((command) => ({
+                id: command.id,
+                body: command.body,
+                createdAt: command.createdAt,
+                userId: command.userId,
+            })),
+        };
     }
 
     return {
         createAndQueueDocument,
+        getDocumentDetails,
     };
 }

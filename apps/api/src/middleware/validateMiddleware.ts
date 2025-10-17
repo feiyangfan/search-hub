@@ -1,15 +1,17 @@
 import type { Request, RequestHandler } from 'express';
 import type { z } from 'zod';
 
-type ValidationTarget = 'query' | 'body';
+type ValidationTarget = 'query' | 'body' | 'params';
 
 export type ValidatedRequest<
     TBody = unknown,
-    TQuery = unknown
+    TQuery = unknown,
+    TParams = unknown
 > = Request & {
     validated?: {
         body?: TBody;
         query?: TQuery;
+        params?: TParams;
     };
 };
 
@@ -38,3 +40,6 @@ export const validateQuery = (schema: z.ZodType) =>
 
 export const validateBody = (schema: z.ZodType) =>
     applyValidation(schema, 'body');
+
+export const validateParams = (schema: z.ZodType) =>
+    applyValidation(schema, 'params');

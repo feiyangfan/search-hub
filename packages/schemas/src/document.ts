@@ -1,50 +1,108 @@
 import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
 
-// Metadata for a document
-export const DocumentMeta = z.object({
+export const DocumentSource = z
+    .enum(['editor', 'url'])
+    .describe('How the document was created/imported');
+
+export const DocumentMetadata = z
+    .record(z.string(), z.any())
+    .describe('Arbitrary document metadata such as tags or ingestion details');
+
+export const DocumentSchema = z.object({
     id: Id.optional().meta({
-        description: 'document Id, assigned by the server',
-        example: 'doc123',
+        description: 'Document identifier assigned by the server',
+        example: 'doc_123',
     }),
     tenantId: Id.meta({
-        description: 'Tenant ID to scope the search',
-        example: 'tenant123',
+        description: 'Owning tenant identifier',
+        example: 'tenant_123',
     }),
-    title: z.string().min(1).meta({
-        description: 'Title of the document, provided by the user',
-        example: 'My Document',
+    title: z
+        .string()
+        .min(1)
+        .meta({ description: 'Document title', example: 'Launch plan' }),
+    source: DocumentSource.default('editor').meta({
+        description: 'Creation source',
     }),
-    source: z.enum(['upload', 'url', 'api']).default('upload').meta({
-        description: 'source of the document',
-        example: 'upload',
+    sourceUrl: z.url().optional().nullable().meta({
+        description: 'Original URL when the document was generated from a link',
     }),
-    mimeType: z.string().optional().meta({
-        description: 'MIME type of the document',
-        example: 'application/pdf',
+    content: z
+        .string()
+        .optional()
+        .meta({ description: 'Markdown or raw document body' }),
+    metadata: DocumentMetadata.optional().default({}).meta({
+        description: 'Additional metadata such as tags or ingestion info',
     }),
-    content: z.string().optional().meta({
-        description: 'Document content',
-        example: 'Test content',
+    createdById: Id.optional().meta({
+        description: 'User who created the document',
+    }),
+    updatedById: Id.optional().meta({
+        description: 'User who last updated the document',
     }),
     createdAt: IsoDate.optional(),
     updatedAt: IsoDate.optional(),
 });
 
-// Client payload to create a document, without id and timestamps(managed by the server)
-export const CreateDocumentRequest = DocumentMeta.omit({
+export const CreateDocumentRequest = DocumentSchema.pick({
+    tenantId: true,
+    title: true,
+    source: true,
+    sourceUrl: true,
+    content: true,
+    metadata: true,
+}).partial({
+    tenantId: true,
+    title: true,
+    source: true,
+    sourceUrl: true,
+    content: true,
+    metadata: true,
+});
+
+export const CreateDocumentResponse = DocumentSchema.pick({
     id: true,
+    tenantId: true,
+    title: true,
+    source: true,
+    sourceUrl: true,
+    content: true,
+    metadata: true,
+    createdById: true,
+    updatedById: true,
     createdAt: true,
     updatedAt: true,
 });
 
-// Response after creating a document
-export const CreateDocumentResponse = z.object({
-    id: Id.meta({
-        description: 'document Id, assigned by the server',
-        example: 'doc123',
-    }),
-    status: z
-        .enum(['indexed', 'queued', 'failed', 'processing'])
-        .default('queued'),
+export const GetDocumentDetailsParams = z.object({
+    id: Id,
 });
+
+export const DocumentFavorite = z.object({
+    id: Id,
+    documentId: Id,
+    userId: Id,
+    createdAt: IsoDate,
+});
+
+export const DocumentCommandPayload = z
+    .record(z.string(), z.any())
+    .describe('Structured representation of an inline document command');
+
+export const DocumentCommand = z.object({
+    id: Id,
+    documentId: Id,
+    userId: Id,
+    body: DocumentCommandPayload,
+    createdAt: IsoDate,
+});
+
+export type DocumentSourceType = z.infer<typeof DocumentSource>;
+export type DocumentMetadataType = z.infer<typeof DocumentMetadata>;
+export type DocumentRecord = z.infer<typeof DocumentSchema>;
+export type CreateDocumentRequestType = z.infer<typeof CreateDocumentRequest>;
+export type CreateDocumentResponseType = z.infer<typeof CreateDocumentResponse>;
+export type DocumentFavoriteRecord = z.infer<typeof DocumentFavorite>;
+export type DocumentCommandRecord = z.infer<typeof DocumentCommand>;
+export type GetDocumentDetailsParamsType = z.infer<typeof GetDocumentDetailsParams>;

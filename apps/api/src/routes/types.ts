@@ -15,6 +15,12 @@ export interface RequestWithValidatedQuery<TQuery> extends Request {
     };
 }
 
+export interface RequestWithValidatedParams<TParams> extends Request {
+    validated: {
+        params: TParams;
+    };
+}
+
 export type AuthenticatedRequestWithBody<TBody> =
     RequestWithValidatedBody<TBody> & AuthenticatedRequest;
 

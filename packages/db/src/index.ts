@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { loadDbEnv } from '@search-hub/config-env';
+import { DocumentSourceType } from '@search-hub/schemas';
 
 const env = loadDbEnv();
 /**
@@ -216,13 +217,6 @@ export const db = {
                 },
             });
         },
-        findByName: async (name: string) => {
-            return prisma.tenant.findUnique({
-                where: {
-                    name: name,
-                },
-            });
-        },
         listForUser: async ({
             userId,
         }: {
@@ -286,14 +280,52 @@ export const db = {
     },
 
     document: {
-        create: async (input: {
+        create: async ({
+            tenantId,
+            title,
+            source = 'editor',
+            sourceUrl,
+            content,
+            metadata,
+            createdById,
+            updatedById,
+        }: {
             tenantId: string;
             title: string;
-            source: string;
-            mimeType?: string | null;
+            source?: DocumentSourceType;
+            sourceUrl?: string | null;
             content?: string | null;
+            metadata?: Prisma.InputJsonValue | null;
+            createdById: string;
+            updatedById: string;
         }) => {
-            return prisma.document.create({ data: input });
+            const data: Prisma.DocumentCreateInput = {
+                title,
+                source,
+                tenant: {
+                    connect: { id: tenantId },
+                },
+                createdBy: {
+                    connect: { id: createdById },
+                },
+                updatedBy: {
+                    connect: { id: updatedById },
+                },
+            };
+
+            if (sourceUrl !== undefined) {
+                data.sourceUrl = sourceUrl ?? undefined;
+            }
+
+            if (content !== undefined) {
+                data.content = content ?? undefined;
+            }
+
+            if (metadata !== undefined) {
+                data.metadata = metadata ?? Prisma.JsonNull;
+            }
+
+            return prisma.document.create({ data });
         },
         findUnique: async (documentId: string) => {
             return prisma.document.findUnique({
@@ -306,8 +338,85 @@ export const db = {
                 },
             });
         },
-        getById: async (documentId: string) => {
-            return prisma.document.findUnique({ where: { id: documentId } });
+        getById: async ({
+            documentId,
+            userId,
+            tenantId,
+        }: {
+            documentId: string;
+            userId: string;
+            tenantId: string;
+        }) => {
+            return prisma.document.findFirst({
+                where: {
+                    id: documentId,
+                    tenantId,
+                },
+                include: {
+                    favorites: {
+                        where: { userId },
+                        select: { id: true },
+                    },
+                    commands: {
+                        orderBy: { createdAt: 'asc' },
+                    },
+                },
+            });
+        },
+        listForTenant: async ({
+            tenantId,
+            userId,
+            limit = 20,
+            offset = 0,
+            favoritesOnly = false,
+        }: {
+            tenantId: string;
+            userId: string;
+            limit?: number;
+            offset?: number;
+            favoritesOnly?: boolean;
+        }) => {
+            const where: Prisma.DocumentWhereInput = {
+                tenantId,
+                ...(favoritesOnly
+                    ? {
+                          favorites: {
+                              some: {
+                                  userId,
+                              },
+                          },
+                      }
+                    : {}),
+            };
+
+            const [items, total] = await prisma.$transaction([
+                prisma.document.findMany({
+                    where,
+                    orderBy: { updatedAt: 'desc' },
+                    skip: offset,
+                    take: limit,
+                    select: {
+                        id: true,
+                        title: true,
+                        updatedAt: true,
+                        favorites: {
+                            where: { userId },
+                            select: { id: true },
+                        },
+                    },
+                }),
+                prisma.document.count({ where }),
+            ]);
+
+            return {
+                items: items.map((item) => ({
+                    id: item.id,
+                    title: item.title,
+                    updatedAt: item.updatedAt,
+                    isFavorite: item.favorites.length > 0,
+                })),
+                total,
+            };
         },
         updateTitle: async (documentId: string, title: string) => {
             return prisma.document.update({

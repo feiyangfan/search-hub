@@ -36,6 +36,10 @@ model User {
   updatedAt    DateTime           @updatedAt
 
   memberships TenantMembership[]
+  createdDocuments Document[]      @relation("DocumentCreatedBy")
+  updatedDocuments Document[]      @relation("DocumentUpdatedBy")
+  favoriteDocuments DocumentFavorite[]
+  documentCommands DocumentCommand[]
 }
 
 model TenantMembership {
@@ -60,21 +64,34 @@ enum TenantRole {
   member
 }
 
+enum DocumentSource {
+  editor
+  url
+}
 
 model Document {
   id           String   @id @default(cuid())
-  tenantId     String // viewbility 
+  tenantId     String   // viewbility 
   title        String
-  source       String // "upload" | "url" | "api" (string for now; convert to enum later if stable)
+  source       DocumentSource @default(editor)
+  sourceUrl    String?
+  
   content      String?
-  mimeType     String?
+  metadata     Json?          @default("{}")
   searchVector Unsupported("tsvector") @default(dbgenerated("''::tsvector"))
-  // future: size, checksum, storageKey, tags, etc.
+
+  createdById String
+  updatedById String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("DocumentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy User   @relation("DocumentUpdatedBy", fields: [updatedById], references: [id], onDelete: Cascade)
+
+  favorites DocumentFavorite[]
+  commands  DocumentCommand[]
   jobs       IndexJob[]
   chunks     DocumentChunk[]     
   indexState DocumentIndexState?
@@ -84,6 +101,35 @@ model Document {
   @@index([title])
   @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
   @@index([searchVector], type: Gin, map: "Document_searchVector_idx")
+}
+
+// Favorites
+model DocumentFavorite {
+  id          String   @id @default(cuid())
+  documentId  String  
+  userId      String
+  createdAt   DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+  @@index([userId])
+}
+
+// command
+model DocumentCommand {
+  id          String @id @default(cuid())
+  documentId  String 
+  userId      String
+  body       Json
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([userId])
 }
 
 model DocumentChunk {
