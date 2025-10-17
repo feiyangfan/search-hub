@@ -4,6 +4,7 @@ import {
     IndexDocumentJobSchema,
     JOBS,
     type IndexDocumentJob,
+    type DeleteDocumentResponseType,
 } from '@search-hub/schemas';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
@@ -35,6 +36,11 @@ export interface DocumentService {
         documentId: string,
         context: { tenantId: string; userId: string }
     ): Promise<DocumentDetails | null>;
+
+    deleteDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<DeleteDocumentResponseType>;
 }
 
 interface DocumentDetails {
@@ -151,8 +157,37 @@ export function createDocumentService(
         };
     }
 
+    async function deleteDocument(
+        documentId: string,
+        context: { userId: string; tenantId: string }
+    ): Promise<DeleteDocumentResponseType> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership || membership.role === 'member') {
+            return { status: 'forbidden' };
+        }
+
+        const document = await db.document.findUnique(documentId);
+
+        if (!document || document.tenantId !== context.tenantId) {
+            return { status: 'not_found' };
+        }
+
+        await db.document.deleteById({
+            documentId,
+            tenantId: context.tenantId,
+        });
+
+        return { status: 'success' };
+    }
+
     return {
         createAndQueueDocument,
         getDocumentDetails,
+        deleteDocument,
     };
 }

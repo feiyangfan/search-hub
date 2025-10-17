@@ -277,6 +277,22 @@ export const db = {
                     role: membership.role,
                 }));
         },
+        findMembershipByUserIdAndTenantId: async ({
+            userId,
+            tenantId,
+        }: {
+            userId: string;
+            tenantId: string;
+        }) => {
+            return await prisma.tenantMembership.findUnique({
+                where: {
+                    tenantId_userId: {
+                        userId: userId,
+                        tenantId: tenantId,
+                    },
+                },
+            });
+        },
     },
 
     document: {
@@ -360,6 +376,20 @@ export const db = {
                     commands: {
                         orderBy: { createdAt: 'asc' },
                     },
+                },
+            });
+        },
+        deleteById: async ({
+            documentId,
+            tenantId,
+        }: {
+            documentId: string;
+            tenantId: string;
+        }) => {
+            return prisma.document.delete({
+                where: {
+                    id: documentId,
+                    tenantId,
                 },
             });
         },

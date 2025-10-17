@@ -98,6 +98,12 @@ export const DocumentCommand = z.object({
     createdAt: IsoDate,
 });
 
+export const DeleteDocumentResponse = z.union([
+    z.object({ status: z.literal('success') }),
+    z.object({ status: z.literal('forbidden') }),
+    z.object({ status: z.literal('not_found') }),
+]);
+
 export type DocumentSourceType = z.infer<typeof DocumentSource>;
 export type DocumentMetadataType = z.infer<typeof DocumentMetadata>;
 export type DocumentRecord = z.infer<typeof DocumentSchema>;
@@ -106,3 +112,4 @@ export type CreateDocumentResponseType = z.infer<typeof CreateDocumentResponse>;
 export type DocumentFavoriteRecord = z.infer<typeof DocumentFavorite>;
 export type DocumentCommandRecord = z.infer<typeof DocumentCommand>;
 export type GetDocumentDetailsParamsType = z.infer<typeof GetDocumentDetailsParams>;
+export type DeleteDocumentResponseType = z.infer<typeof DeleteDocumentResponse>;

@@ -142,5 +142,65 @@ export function documentRoutes(
         }
     );
 
+    router.delete(
+        '/:id',
+        validateParams(GetDocumentDetailsParams),
+        async (req, res, next) => {
+            try {
+                const { userId } = req.session ?? {};
+                const activeTenantId = req.session?.currentTenantId;
+
+                if (!userId) {
+                    return res.status(401).json({
+                        error: {
+                            code: 'UNAUTHORIZED',
+                            message: 'Authentication required.',
+                        },
+                    });
+                }
+
+                if (!activeTenantId) {
+                    return res.status(400).json({
+                        error: {
+                            code: 'TENANT_MISSING',
+                            message: 'No active tenant selected.',
+                        },
+                    });
+                }
+
+                const requestWithParams =
+                    req as RequestWithValidatedParams<GetDocumentDetailsParamsType>;
+                const { id: documentId } = requestWithParams.validated.params;
+
+                const result = await service.deleteDocument(documentId, {
+                    userId,
+                    tenantId: activeTenantId,
+                });
+
+                if (result.status === 'forbidden') {
+                    return res.status(403).json({
+                        error: {
+                            code: 'DOCUMENT_DELETE_FORBIDDEN',
+                            message: 'You do not have permission to delete this document.',
+                        },
+                    });
+                }
+
+                if (result.status === 'not_found') {
+                    return res.status(404).json({
+                        error: {
+                            code: 'DOCUMENT_NOT_FOUND',
+                            message: 'Document not found.',
+                        },
+                    });
+                }
+
+                res.status(204).end();
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
+
     return router;
 }
