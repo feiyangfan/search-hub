@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Group, Home, Search, Sparkles } from 'lucide-react';
+import { Group, Home, Search, Sparkles, FilePlus } from 'lucide-react';
 
 import { NavFavorites } from '@/components/navigation/nav-favorites';
 import { NavMain } from '@/components/navigation/nav-main';
@@ -30,6 +30,11 @@ const defaultWorkspaces = [
 const data = {
     navMain: [
         {
+            title: 'New document',
+            url: '/dashboard/documents/new',
+            icon: FilePlus,
+        },
+        {
             title: 'Search',
             url: '#',
             icon: Search,
@@ -41,9 +46,8 @@ const data = {
         },
         {
             title: 'Home',
-            url: '#',
+            url: '/dashboard',
             icon: Home,
-            isActive: true,
         },
     ],
 
