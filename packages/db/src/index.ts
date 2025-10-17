@@ -393,7 +393,7 @@ export const db = {
                 },
             });
         },
-        listForTenant: async ({
+        listTenantDocuments: async ({
             tenantId,
             userId,
             limit = 20,
@@ -532,18 +532,6 @@ export const db = {
                     },
                 });
             });
-        },
-        listByTenant: async (tenantId: string, limit = 10, offset = 0) => {
-            const [items, total] = await Promise.all([
-                prisma.document.findMany({
-                    where: { tenantId },
-                    orderBy: { createdAt: 'desc' },
-                    take: limit,
-                    skip: offset,
-                }),
-                prisma.document.count({ where: { tenantId } }),
-            ]);
-            return { items, total };
         },
     },
     documentIndexState: {

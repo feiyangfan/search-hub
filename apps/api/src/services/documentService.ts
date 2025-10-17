@@ -5,6 +5,7 @@ import {
     JOBS,
     type IndexDocumentJob,
     type DeleteDocumentResponseType,
+    type UpdateDocumentTitlePayloadType,
 } from '@search-hub/schemas';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
@@ -41,6 +42,20 @@ export interface DocumentService {
         documentId: string,
         context: { tenantId: string; userId: string }
     ): Promise<DeleteDocumentResponseType>;
+
+    getDocumentList(context: {
+        tenantId: string;
+        userId: string;
+        limit?: number;
+        offset?: number;
+        favoritesOnly?: boolean;
+    }): Promise<DocumentListResult>;
+
+    updateDocumentTitle(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: UpdateDocumentTitlePayloadType
+    ): Promise<UpdateDocumentTitleResult>;
 }
 
 interface DocumentDetails {
@@ -63,6 +78,24 @@ interface DocumentDetails {
         userId: string;
     }[];
 }
+
+interface DocumentListItem {
+    id: string;
+    title: string;
+    updatedAt: Date;
+    isFavorite: boolean;
+}
+
+interface DocumentListResult {
+    items: DocumentListItem[];
+    total: number;
+}
+
+type UpdateDocumentTitleResult =
+    | { status: 'success'; document: { id: string; title: string } }
+    | { status: 'forbidden' }
+    | { status: 'not_found' }
+    | { status: 'invalid' };
 
 export function createDocumentService(
     deps: DocumentServiceDependencies = {}
@@ -157,6 +190,28 @@ export function createDocumentService(
         };
     }
 
+    async function getDocumentList({
+        tenantId,
+        userId,
+        limit,
+        offset,
+        favoritesOnly,
+    }: {
+        tenantId: string;
+        userId: string;
+        limit?: number;
+        offset?: number;
+        favoritesOnly?: boolean;
+    }): Promise<DocumentListResult> {
+        return db.document.listTenantDocuments({
+            tenantId,
+            userId,
+            limit,
+            offset,
+            favoritesOnly,
+        });
+    }
+
     async function deleteDocument(
         documentId: string,
         context: { userId: string; tenantId: string }
@@ -185,9 +240,49 @@ export function createDocumentService(
         return { status: 'success' };
     }
 
+    async function updateDocumentTitle(
+        documentId: string,
+        context: { userId: string; tenantId: string },
+        payload: UpdateDocumentTitlePayloadType
+    ): Promise<UpdateDocumentTitleResult> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            return { status: 'forbidden' };
+        }
+
+        const document = await db.document.findUnique(documentId);
+
+        if (!document || document.tenantId !== context.tenantId) {
+            return { status: 'not_found' };
+        }
+
+        const title = payload.title.trim();
+
+        if (!title) {
+            return { status: 'invalid' };
+        }
+
+        const updated = await db.document.updateTitle(documentId, title);
+
+        return {
+            status: 'success',
+            document: {
+                id: updated.id,
+                title: updated.title,
+            },
+        };
+    }
+
     return {
         createAndQueueDocument,
         getDocumentDetails,
+        getDocumentList,
         deleteDocument,
+        updateDocumentTitle,
     };
 }

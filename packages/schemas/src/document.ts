@@ -79,6 +79,16 @@ export const GetDocumentDetailsParams = z.object({
     id: Id,
 });
 
+export const GetDocumentListParams = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    offset: z.coerce.number().int().min(0).default(0),
+    favoritesOnly: z.coerce.boolean().default(false),
+});
+
+export const UpdateDocumentTitlePayload = z.object({
+    title: z.string().trim().min(1, 'Title is required'),
+});
+
 export const DocumentFavorite = z.object({
     id: Id,
     documentId: Id,
@@ -111,5 +121,11 @@ export type CreateDocumentRequestType = z.infer<typeof CreateDocumentRequest>;
 export type CreateDocumentResponseType = z.infer<typeof CreateDocumentResponse>;
 export type DocumentFavoriteRecord = z.infer<typeof DocumentFavorite>;
 export type DocumentCommandRecord = z.infer<typeof DocumentCommand>;
-export type GetDocumentDetailsParamsType = z.infer<typeof GetDocumentDetailsParams>;
+export type GetDocumentDetailsParamsType = z.infer<
+    typeof GetDocumentDetailsParams
+>;
+export type GetDocumentListParamsType = z.infer<typeof GetDocumentListParams>;
+export type UpdateDocumentTitlePayloadType = z.infer<
+    typeof UpdateDocumentTitlePayload
+>;
 export type DeleteDocumentResponseType = z.infer<typeof DeleteDocumentResponse>;
