@@ -173,4 +173,10 @@ With these pieces in place the API balances correctness (Zod + Prisma), resilien
 - Centralising auth checks in middleware stopped me from shipping unprotected routes more than once.
 - The SDK error helper (`ensureOk`) saved countless debugging cycles by surfacing the actual upstream response body.
 
+### Recent hardening takeaways
+- Tenant-scoped routes must confirm the session user belongs to the tenant before touching Prisma—validate membership up front, not after the write.
+- Unique constraints (`@@unique`/`@unique`) are only half the story; always catch Prisma `P2002` in the repository layer and translate it to a 409 so handlers stay clean.
+- When `req.session.regenerate` fails, return immediately. Otherwise the handler continues on a broken session and can double-send responses.
+- Keep responses aligned with the shared Zod contract. If the handler shape changes, update the schema (and OpenAPI) at the same time so SDKs stay in lockstep.
+
 These notes capture the real bumps and fixes from building the auth stack. Next time I forget why something is wired the way it is, this is the breadcrumb trail.

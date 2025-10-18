@@ -220,7 +220,82 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    favoritesOnly?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            documents: {
+                                items: {
+                                    /**
+                                     * @description A unique identifier string
+                                     * @example abc123
+                                     */
+                                    id: string;
+                                    /**
+                                     * @description Document title
+                                     * @example Launch plan
+                                     */
+                                    title: string;
+                                    /** Format: date-time */
+                                    updatedAt?: string;
+                                    /** @description Indicator whether the document is marked as favorite by the user */
+                                    isFavorite: boolean;
+                                }[];
+                                total: number;
+                            };
+                        };
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                                details?: unknown;
+                                requestId?: string | number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         put?: never;
         post: {
             parameters: {
@@ -233,32 +308,35 @@ export interface paths {
                 content: {
                     "application/json": {
                         /**
-                         * @description Tenant ID to scope the search
-                         * @example tenant123
+                         * @description Owning tenant identifier
+                         * @example tenant_123
                          */
-                        tenantId: string;
+                        tenantId?: string;
                         /**
-                         * @description Title of the document, provided by the user
-                         * @example My Document
+                         * @description Document title
+                         * @example Launch plan
                          */
-                        title: string;
+                        title?: string;
                         /**
-                         * @description source of the document
-                         * @default upload
-                         * @example upload
+                         * @description Creation source
+                         * @default editor
                          * @enum {string}
                          */
-                        source?: "upload" | "url" | "api";
+                        source?: "editor" | "url";
                         /**
-                         * @description MIME type of the document
-                         * @example application/pdf
+                         * Format: uri
+                         * @description Original URL when the document was generated from a link
                          */
-                        mimeType?: string;
-                        /**
-                         * @description Document content
-                         * @example Test content
-                         */
+                        sourceUrl?: string | null;
+                        /** @description Markdown or raw document body */
                         content?: string;
+                        /**
+                         * @description Additional metadata such as tags or ingestion info
+                         * @default {}
+                         */
+                        metadata?: {
+                            [key: string]: unknown;
+                        };
                     };
                 };
             };
@@ -271,15 +349,54 @@ export interface paths {
                     content: {
                         "application/json": {
                             /**
-                             * @description document Id, assigned by the server
-                             * @example doc123
+                             * @description Document identifier assigned by the server
+                             * @example doc_123
                              */
-                            id: string;
+                            id?: string;
                             /**
-                             * @default queued
+                             * @description Owning tenant identifier
+                             * @example tenant_123
+                             */
+                            tenantId: string;
+                            /**
+                             * @description Document title
+                             * @example Launch plan
+                             */
+                            title: string;
+                            /**
+                             * @description Creation source
+                             * @default editor
                              * @enum {string}
                              */
-                            status: "indexed" | "queued" | "failed" | "processing";
+                            source: "editor" | "url";
+                            /**
+                             * Format: uri
+                             * @description Original URL when the document was generated from a link
+                             */
+                            sourceUrl?: string | null;
+                            /** @description Markdown or raw document body */
+                            content?: string;
+                            /**
+                             * @description Additional metadata such as tags or ingestion info
+                             * @default {}
+                             */
+                            metadata: {
+                                [key: string]: unknown;
+                            };
+                            /**
+                             * @description User who created the document
+                             * @example abc123
+                             */
+                            createdById?: string;
+                            /**
+                             * @description User who last updated the document
+                             * @example abc123
+                             */
+                            updatedById?: string;
+                            /** Format: date-time */
+                            createdAt?: string;
+                            /** Format: date-time */
+                            updatedAt?: string;
                         };
                     };
                 };

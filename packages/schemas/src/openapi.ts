@@ -3,7 +3,12 @@ import type { oas31 } from 'zod-openapi';
 
 type OpenApiDocument = oas31.OpenAPIObject;
 import { ApiError } from './common.js';
-import { CreateDocumentRequest, CreateDocumentResponse } from './document.js';
+import {
+    CreateDocumentRequest,
+    CreateDocumentResponse,
+    GetDocumentListParams,
+    GetDocumentListResponse,
+} from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import {
     CreateTenantPayload,
@@ -88,6 +93,31 @@ export function buildOpenApi(
             },
 
             '/v1/documents': {
+                get: {
+                    requestParams: { query: GetDocumentListParams },
+                    responses: {
+                        200: {
+                            description: 'OK',
+                            content: {
+                                'application/json': {
+                                    schema: GetDocumentListResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
                 post: {
                     requestBody: {
                         required: true,

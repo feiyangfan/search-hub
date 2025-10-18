@@ -79,11 +79,35 @@ export const GetDocumentDetailsParams = z.object({
     id: Id,
 });
 
+export const DocumentListItem = z.object({
+    id: Id,
+    title: DocumentSchema.shape.title,
+    updatedAt: DocumentSchema.shape.updatedAt,
+    isFavorite: z.boolean().meta({
+        description:
+            'Indicator whether the document is marked as favorite by the user',
+    }),
+});
+export type DocumentListItemType = z.infer<typeof DocumentListItem>;
+
+export const DocumentListResult = z.object({
+    items: z.array(DocumentListItem),
+    total: z.coerce.number().int().min(0),
+});
+export type DocumentListResultType = z.infer<typeof DocumentListResult>;
+
 export const GetDocumentListParams = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
     favoritesOnly: z.coerce.boolean().default(false),
 });
+
+export const GetDocumentListResponse = z.object({
+    documents: DocumentListResult,
+});
+export type GetDocumentListResponseType = z.infer<
+    typeof GetDocumentListResponse
+>;
 
 export const UpdateDocumentTitlePayload = z.object({
     title: z.string().trim().min(1, 'Title is required'),

@@ -6,6 +6,7 @@ import {
     type IndexDocumentJob,
     type DeleteDocumentResponseType,
     type UpdateDocumentTitlePayloadType,
+    type DocumentListResultType,
 } from '@search-hub/schemas';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
@@ -49,7 +50,7 @@ export interface DocumentService {
         limit?: number;
         offset?: number;
         favoritesOnly?: boolean;
-    }): Promise<DocumentListResult>;
+    }): Promise<DocumentListResultType>;
 
     updateDocumentTitle(
         documentId: string,
@@ -77,18 +78,6 @@ interface DocumentDetails {
         createdAt: Date;
         userId: string;
     }[];
-}
-
-interface DocumentListItem {
-    id: string;
-    title: string;
-    updatedAt: Date;
-    isFavorite: boolean;
-}
-
-interface DocumentListResult {
-    items: DocumentListItem[];
-    total: number;
 }
 
 type UpdateDocumentTitleResult =
@@ -202,14 +191,21 @@ export function createDocumentService(
         limit?: number;
         offset?: number;
         favoritesOnly?: boolean;
-    }): Promise<DocumentListResult> {
-        return db.document.listTenantDocuments({
+    }): Promise<DocumentListResultType> {
+        const { items, total } = await db.document.listTenantDocuments({
             tenantId,
             userId,
             limit,
             offset,
             favoritesOnly,
         });
+        return {
+            items: items.map((item) => ({
+                ...item,
+                updatedAt: item.updatedAt.toISOString(),
+            })),
+            total,
+        };
     }
 
     async function deleteDocument(

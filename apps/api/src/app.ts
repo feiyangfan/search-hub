@@ -48,6 +48,23 @@ export function createServer(): express.Express {
         })
     );
 
+    app.use((req, _res, next) => {
+        const { userId, currentTenantId } = req.session ?? {};
+
+        req.log?.debug(
+            {
+                hasSession: Boolean(req.session),
+                userId,
+                currentTenantId,
+                path: req.originalUrl,
+                method: req.method,
+            },
+            'session_snapshot'
+        );
+
+        next();
+    });
+
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
 
     app.get('/health', (_req, res) => {

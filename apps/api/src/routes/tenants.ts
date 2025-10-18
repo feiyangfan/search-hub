@@ -18,7 +18,7 @@ export function tenantRoutes() {
 
     router.get('/', async (req, res, next) => {
         try {
-            const { userId } = req.session;
+            const { userId } = req.session ?? {};
             if (!userId) {
                 return res.status(401).json({ error: 'Unauthorized' });
             }

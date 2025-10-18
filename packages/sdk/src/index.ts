@@ -192,29 +192,6 @@ export class SearchHubClient {
         return (await res.json()) as paths['/v1/tenants']['get']['responses']['200']['content']['application/json'];
     }
 
-    /** GET /v1/search */
-    async search(
-        params: paths['/v1/search']['get']['parameters']['query']
-    ): Promise<
-        paths['/v1/search']['get']['responses']['200']['content']['application/json']
-    > {
-        const searchParams = new URLSearchParams();
-        Object.entries(params).forEach(([key, value]) => {
-            if (value === undefined || value === null) {
-                return;
-            }
-            searchParams.append(key, String(value));
-        });
-        const qs = searchParams.toString();
-        const url = `${this.baseUrl}/v1/search${qs ? `?${qs}` : ''}`;
-        const res = await this.fetcher(url, {
-            method: 'GET',
-            headers: this.defaultHeaders,
-        });
-        await this.ensureOk(res, 'search');
-        return (await res.json()) as paths['/v1/search']['get']['responses']['200']['content']['application/json'];
-    }
-
     /** POST /v1/document */
     async createDocument(
         body: paths['/v1/documents']['post']['requestBody']['content']['application/json']
@@ -240,6 +217,55 @@ export class SearchHubClient {
             );
         }
         return (await res.json()) as paths['/v1/documents']['post']['responses']['202']['content']['application/json'];
+    }
+
+    /** GET /v1/documents */
+    async listDocuments(
+        params: paths['/v1/documents']['get']['parameters']['query'] = {}
+    ): Promise<
+        paths['/v1/documents']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+
+        Object.entries(params).forEach(([key, value]) => {
+            if (value === undefined || value === null) {
+                return;
+            }
+            searchParams.set(key, String(value));
+        });
+
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/documents${qs ? `?${qs}` : ''}`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'listDocuments');
+        return (await res.json()) as paths['/v1/documents']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/search */
+    async search(
+        params: paths['/v1/search']['get']['parameters']['query']
+    ): Promise<
+        paths['/v1/search']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value === undefined || value === null) {
+                return;
+            }
+            searchParams.append(key, String(value));
+        });
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search${qs ? `?${qs}` : ''}`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'search');
+        return (await res.json()) as paths['/v1/search']['get']['responses']['200']['content']['application/json'];
     }
 }
 
