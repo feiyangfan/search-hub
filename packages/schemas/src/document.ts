@@ -96,10 +96,17 @@ export const DocumentListResult = z.object({
 });
 export type DocumentListResultType = z.infer<typeof DocumentListResult>;
 
+const favoritesOnlyParam = z
+    .union([z.boolean(), z.literal('true'), z.literal('false')])
+    .transform((value) =>
+        typeof value === 'string' ? value === 'true' : value
+    )
+    .optional();
+
 export const GetDocumentListParams = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
-    favoritesOnly: z.coerce.boolean().default(false),
+    favoritesOnly: favoritesOnlyParam.default(false),
 });
 
 export const GetDocumentListResponse = z.object({

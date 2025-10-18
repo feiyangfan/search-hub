@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/sidebar';
 import { NavUser } from '../navigation/nav-user';
 
+import { useDocuments } from '@/hooks/use-documents';
+
 import type { Session } from 'next-auth';
 
 // This is sample data.
@@ -98,6 +100,11 @@ export function AppSidebar({
     };
     const workspaceItems = workspaces ?? defaultWorkspaces;
 
+    const { status, items } = useDocuments();
+    console.log('docs', items);
+    const documents = items ?? [];
+    const isLoading = status === 'loading';
+
     return (
         <Sidebar collapsible="icon" className="border-r-0" {...props}>
             <SidebarHeader>
@@ -109,7 +116,7 @@ export function AppSidebar({
             </SidebarHeader>
             <SidebarContent>
                 <NavFavorites favorites={data.favorites} />
-                <NavDocuments documents={data.documents} />
+                <NavDocuments documents={documents} isLoading={isLoading} />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser user={navUser} />

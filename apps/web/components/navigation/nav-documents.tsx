@@ -10,18 +10,19 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function NavDocuments({
     documents,
+    isLoading,
 }: {
     documents: {
-        name: string;
-        emoji: React.ReactNode;
-        pages: {
-            name: string;
-            emoji: React.ReactNode;
-        }[];
+        id: string;
+        title: string;
+        updatedAt?: string | undefined;
+        isFavorite: boolean;
     }[];
+    isLoading: boolean;
 }) {
     return (
         <SidebarGroup>
@@ -36,26 +37,38 @@ export function NavDocuments({
                 </Button>
             </SidebarGroupLabel>
             <SidebarGroupContent>
-                <SidebarMenu>
-                    {documents.map((document) => (
-                        <Collapsible key={document.name}>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild>
-                                    <a href="#">
-                                        <span>{document.emoji}</span>
-                                        <span>{document.name}</span>
-                                    </a>
+                {isLoading ? (
+                    <SidebarMenu>
+                        {[1, 2, 3].map((key) => (
+                            <SidebarMenuItem key={key}>
+                                <SidebarMenuButton>
+                                    <Skeleton className="h-4 w-36" />
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                        </Collapsible>
-                    ))}
-                    <SidebarMenuItem>
-                        <SidebarMenuButton className="text-sidebar-foreground/70">
-                            <MoreHorizontal />
-                            <span>More</span>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
+                        ))}
+                    </SidebarMenu>
+                ) : (
+                    <SidebarMenu>
+                        {documents.map((document) => (
+                            <Collapsible key={document.title}>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton asChild>
+                                        <a href="#">
+                                            {/* <span>{document.emoji}</span> */}
+                                            <span>{document.title}</span>
+                                        </a>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            </Collapsible>
+                        ))}
+                        <SidebarMenuItem>
+                            <SidebarMenuButton className="text-sidebar-foreground/70">
+                                <MoreHorizontal />
+                                <span>More</span>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                )}
             </SidebarGroupContent>
         </SidebarGroup>
     );

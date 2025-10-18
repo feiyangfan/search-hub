@@ -33,7 +33,7 @@ export function AppHeader({
                         Search Hub
                     </Link>
                 </div>
-                <nav className="flex items-center gap-3 text-sm pr-4">
+                {/* <nav className="flex items-center gap-3 text-sm pr-4">
                     {session ? (
                         <NavActions />
                     ) : (
@@ -41,7 +41,7 @@ export function AppHeader({
                             <Link href="/auth/sign-in">Sign in</Link>
                         </Button>
                     )}
-                </nav>
+                </nav> */}
             </div>
 
             <Separator />

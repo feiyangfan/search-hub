@@ -69,6 +69,8 @@ export const authOptions: NextAuthOptions = {
                     const user = res.user;
                     const memberships = user.memberships ?? [];
 
+                    console.log('Session cookies', { apiSessionCookie });
+
                     return {
                         id: user.id,
                         email: user.email,

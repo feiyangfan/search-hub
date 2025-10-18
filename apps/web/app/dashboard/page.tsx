@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     return (
         <div className="space-y-10 px-6 pb-12">
             <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-semibold tracking-tight pt-4">
+                <h1 className="text-2xl font-semibold tracking-tight pt-">
                     Workspace dashboard
                 </h1>
                 <p className="text-muted-foreground text-sm">

@@ -225,7 +225,7 @@ export interface paths {
                 query?: {
                     limit?: number;
                     offset?: number;
-                    favoritesOnly?: boolean;
+                    favoritesOnly?: boolean | "true" | "false";
                 };
                 header?: never;
                 path?: never;
