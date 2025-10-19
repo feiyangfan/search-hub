@@ -1,51 +1,134 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DocumentListItemType } from '@search-hub/schemas';
 
 type Status = 'idle' | 'loading' | 'done' | 'error';
 
-export function useDocuments(params?: { favoritesOnly?: boolean }) {
+type UseDocumentsParams = {
+    favoritesOnly?: boolean;
+    limit?: number;
+};
+
+type DocumentsResponse = {
+    documents: { items: DocumentListItemType[]; total: number };
+};
+
+export function useDocuments({
+    favoritesOnly = false,
+    limit = 10,
+}: UseDocumentsParams = {}) {
     const [status, setStatus] = useState<Status>('idle');
     const [items, setItems] = useState<DocumentListItemType[]>([]);
     const [total, setTotal] = useState(0);
     const [error, setError] = useState<string>();
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [offset, setOffset] = useState(0);
+
+    const buildQuery = useCallback(
+        (nextOffset: number) => {
+            const qs = new URLSearchParams();
+            qs.set('limit', String(limit));
+            qs.set('offset', String(nextOffset));
+            if (favoritesOnly) {
+                qs.set('favoritesOnly', 'true');
+            }
+            return qs.toString();
+        },
+        [favoritesOnly, limit]
+    );
 
     useEffect(() => {
         const controller = new AbortController();
-        const qs = new URLSearchParams();
-        if (params?.favoritesOnly) qs.set('favoritesOnly', 'true');
 
-        setStatus('loading');
-        fetch(`/api/documents${qs.size ? `?${qs}` : ''}`, {
-            signal: controller.signal,
-            credentials: 'include',
-        })
-            .then(async (res) => {
+        async function fetchInitial() {
+            setStatus('loading');
+            setError(undefined);
+            try {
+                const res = await fetch(
+                    `/api/documents?${buildQuery(0)}`,
+                    {
+                        signal: controller.signal,
+                        credentials: 'include',
+                    }
+                );
                 if (!res.ok) {
                     throw new Error(await res.text());
                 }
-                return res.json();
-            })
-            .then(
-                (body: {
-                    documents: { items: DocumentListItemType[]; total: number };
-                }) => {
-                    console.log('body', body);
-                    setItems(body.documents.items);
-                    setTotal(body.documents.total);
-                    setStatus('done');
-                    setError(undefined);
+                const body = (await res.json()) as DocumentsResponse;
+                setItems(body.documents.items);
+                setTotal(body.documents.total);
+                setOffset(body.documents.items.length);
+                setStatus('done');
+            } catch (err) {
+                if ((err as Error).name === 'AbortError') {
+                    return;
                 }
-            )
-            .catch((err) => {
-                if (err.name === 'AbortError') return;
+                setItems([]);
+                setTotal(0);
                 setStatus('error');
-                setError(err.message ?? 'Failed to load documents');
-            });
+                setError(
+                    (err as Error).message ?? 'Failed to load documents'
+                );
+            }
+        }
 
-        return () => controller.abort();
-    }, [params?.favoritesOnly]);
+        setItems([]);
+        setTotal(0);
+        setOffset(0);
+        fetchInitial();
 
-    return { status, items, total, error };
+        return () => {
+            controller.abort();
+        };
+    }, [buildQuery]);
+
+    const hasMore = useMemo(
+        () => items.length < total,
+        [items.length, total]
+    );
+
+    const loadMore = useCallback(async () => {
+        if (isLoadingMore || status === 'loading' || !hasMore) {
+            return;
+        }
+
+        setIsLoadingMore(true);
+        try {
+            const res = await fetch(
+                `/api/documents?${buildQuery(offset)}`,
+                {
+                    credentials: 'include',
+                }
+            );
+            if (!res.ok) {
+                throw new Error(await res.text());
+            }
+            const body = (await res.json()) as DocumentsResponse;
+            setItems((prev) => [...prev, ...body.documents.items]);
+            setTotal(body.documents.total);
+            setOffset((prevOffset) => prevOffset + body.documents.items.length);
+            setError(undefined);
+            setStatus('done');
+        } catch (err) {
+            if ((err as Error).name === 'AbortError') {
+                return;
+            }
+            setError(
+                (err as Error).message ?? 'Failed to load documents'
+            );
+        } finally {
+            setIsLoadingMore(false);
+        }
+    }, [buildQuery, hasMore, isLoadingMore, offset, status]);
+
+    return {
+        status,
+        items,
+        total,
+        error,
+        loadMore,
+        hasMore,
+        isLoadingMore,
+    };
 }

@@ -131,8 +131,8 @@ export default function NewDocumentLandingPage() {
                     <CardHeader>
                         <CardTitle>Need a different entry point?</CardTitle>
                         <CardDescription>
-                            We&apos;ll add more inputs such as file uploads, AI
-                            summaries, and templates.
+                            I&apos;ll add more inputs such as file uploads and
+                            templates.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm text-muted-foreground">
@@ -142,7 +142,7 @@ export default function NewDocumentLandingPage() {
                         </p>
                         <p>
                             Have feedback? Drop ideas in the feedback command
-                            palette or ping the team directly.
+                            palette or ping me directly.
                         </p>
                     </CardContent>
                 </Card>
@@ -164,10 +164,7 @@ export default function NewDocumentLandingPage() {
                                 &bull; Apply templates for recurring document
                                 types.
                             </li>
-                            <li>
-                                &bull; AI-assisted note generation and
-                                summaries.
-                            </li>
+
                             <li>
                                 &bull; Version history and scheduled publishing.
                             </li>

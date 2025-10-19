@@ -21,7 +21,7 @@ export function AppHeader({
 
     return (
         <header className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-            <div className="mx-auto flex h-14 items-center justify-between px-4">
+            <div className="mx-auto flex h-12 items-center justify-between px-4">
                 <div className="flex items-center gap-2">
                     {user && showSidebarTrigger ? (
                         <SidebarTrigger className="-ml-2" />

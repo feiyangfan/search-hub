@@ -17,6 +17,7 @@ import {
 import { NavUser } from '../navigation/nav-user';
 
 import { useDocuments } from '@/hooks/use-documents';
+import { useToast } from '@/components/ui/use-toast';
 
 import type { Session } from 'next-auth';
 
@@ -32,6 +33,11 @@ const defaultWorkspaces = [
 const data = {
     navMain: [
         {
+            title: 'Home',
+            url: '/dashboard',
+            icon: Home,
+        },
+        {
             title: 'New document',
             url: '/dashboard/documents/new',
             icon: FilePlus,
@@ -45,11 +51,6 @@ const data = {
             title: 'Ask AI',
             url: '#',
             icon: Sparkles,
-        },
-        {
-            title: 'Home',
-            url: '/dashboard',
-            icon: Home,
         },
     ],
 
@@ -93,6 +94,7 @@ export function AppSidebar({
     activeTenantId,
     ...props
 }: AppSidebarProps) {
+    const { toast } = useToast();
     const navUser = {
         name: user?.name,
         email: user?.email,
@@ -100,10 +102,22 @@ export function AppSidebar({
     };
     const workspaceItems = workspaces ?? defaultWorkspaces;
 
-    const { status, items } = useDocuments();
-    console.log('docs', items);
-    const documents = items ?? [];
+    const { status, items, loadMore, hasMore, isLoadingMore, error } =
+        useDocuments({
+            limit: 5,
+        });
+    const documents = items;
     const isLoading = status === 'loading';
+    const lastErrorRef = React.useRef<string | null>(null);
+
+    React.useEffect(() => {
+        if (error && lastErrorRef.current !== error) {
+            toast.error('Unable to load documents', { description: error });
+            lastErrorRef.current = error;
+        } else if (!error && lastErrorRef.current) {
+            lastErrorRef.current = null;
+        }
+    }, [error, toast]);
 
     return (
         <Sidebar collapsible="icon" className="border-r-0" {...props}>
@@ -116,7 +130,13 @@ export function AppSidebar({
             </SidebarHeader>
             <SidebarContent>
                 <NavFavorites favorites={data.favorites} />
-                <NavDocuments documents={documents} isLoading={isLoading} />
+                <NavDocuments
+                    documents={documents}
+                    isLoading={isLoading}
+                    hasMore={hasMore}
+                    onLoadMore={loadMore}
+                    isLoadingMore={isLoadingMore}
+                />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser user={navUser} />
