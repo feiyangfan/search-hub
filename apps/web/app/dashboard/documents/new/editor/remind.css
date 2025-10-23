@@ -1,0 +1,59 @@
+.pm-remind {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(0, 0, 0, .12);
+    padding: 2px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    user-select: text;
+    font-family: inherit;
+    gap: 6px;
+}
+
+.pm-remind__icon {
+    opacity: 0.8;
+}
+
+.pm-remind__content {
+    white-space: pre-wrap;
+}
+
+/* ensure the content area is focusable and shows caret */
+.pm-remind__content[contenteditable], .pm-remind__content {
+    display: inline-block;
+    min-width: 1ch;
+    outline: none;
+    caret-color: auto; /* inherit default caret color */
+}
+
+/* visible focus ring when editing inside the pill */
+.pm-remind__content:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+    border-radius: 4px;
+}
+
+.pm-remind-scheduled {
+    background: #eef6ff; /* light blue */
+    border-color: #b6d9ff;
+}
+
+.pm-remind-overdue {
+    background: #ffecec; /* light red */
+    border-color: #ffb3b3;
+}
+
+.pm-remind-done {
+    background: #eefaf0; /* light green */
+    border-color: #b7e5c4;
+    text-decoration: line-through;
+}
+
+.pm-remind__hint {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.85;
+    margin-left: 6px;
+    color: rgba(60, 60, 60, 0.8);
+}
