@@ -21,11 +21,13 @@
 }
 
 /* ensure the content area is focusable and shows caret */
-.pm-remind__content[contenteditable], .pm-remind__content {
+.pm-remind__content[contenteditable],
+.pm-remind__content {
     display: inline-block;
     min-width: 1ch;
     outline: none;
-    caret-color: auto; /* inherit default caret color */
+    caret-color: auto;
+    /* inherit default caret color */
 }
 
 /* visible focus ring when editing inside the pill */
@@ -35,17 +37,20 @@
 }
 
 .pm-remind-scheduled {
-    background: #eef6ff; /* light blue */
+    background: #eef6ff;
+    /* light blue */
     border-color: #b6d9ff;
 }
 
 .pm-remind-overdue {
-    background: #ffecec; /* light red */
+    background: #ffecec;
+    /* light red */
     border-color: #ffb3b3;
 }
 
 .pm-remind-done {
-    background: #eefaf0; /* light green */
+    background: #eefaf0;
+    /* light green */
     border-color: #b7e5c4;
     text-decoration: line-through;
 }

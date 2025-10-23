@@ -2,12 +2,12 @@
 
 import * as React from 'react';
 
-import { EditorHeader } from '@/components/editor/editor-header';
+import { EditorHeader } from '@/components/document-editor/editor-header';
 import {
-    CrepeMarkdownEditor,
-    type CrepeMarkdownEditorHandle,
+    DocumentEditor,
+    type DocumentEditorHandle,
     type ViewMode,
-} from '@/components/editor/editor';
+} from '@/components/document-editor/editor';
 import {
     remindNodeSchema,
     remindBracketInputRule,
@@ -16,10 +16,10 @@ import {
     remindAutoParseProse,
     removeEmptyRemindProse,
     remindBackspaceDeleteProse,
-} from './milkdown-remind';
+} from '@/components/document-editor/milkdown-remind';
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import type { Node as PMNode } from 'prosemirror-model';
-import './remind.css';
+import '@/components/document-editor/remind.css';
 import {
     Sheet,
     SheetTrigger,
@@ -30,6 +30,12 @@ import {
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 const INITIAL_MARKDOWN = `# Document Editor
 
@@ -40,6 +46,9 @@ Here are two sample reminders embedded as bracket syntax so they render as remin
 - [[remind: Call Alice in 1 hour]]
 - [[remind: Submit report | status=done]]
 `;
+
+// #TODO EXTRACTB EDITOR PAGE
+//
 
 export default function NewDocumentEditorPage() {
     const [viewMode, setViewMode] = React.useState<ViewMode>('wysiwyg');
@@ -52,10 +61,68 @@ export default function NewDocumentEditorPage() {
             whenText: string;
             whenISO: string | null;
             status: 'scheduled' | 'overdue' | 'done';
+            id?: string | null;
         }>
     >([]);
 
-    const editorRef = React.useRef<CrepeMarkdownEditorHandle | null>(null);
+    const editorRef = React.useRef<DocumentEditorHandle | null>(null);
+
+    const commandsDropdown = React.useMemo(() => {
+        return (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                        Reminders
+                        <Badge variant="outline" className="h-5 text-xs">
+                            {reminders.length}
+                        </Badge>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                    {reminders.length === 0 ? (
+                        <DropdownMenuItem disabled>
+                            No reminders
+                        </DropdownMenuItem>
+                    ) : (
+                        reminders.map((r, idx) => (
+                            <DropdownMenuItem
+                                key={r.id ?? `${r.from}-${idx}`}
+                                asChild
+                            >
+                                <button
+                                    type="button"
+                                    className="w-full text-left"
+                                    onClick={() => {
+                                        setTimeout(() => {
+                                            const fn =
+                                                editorRef.current?.jumpTo;
+                                            if (typeof fn === 'function') {
+                                                // prefer id-based jump; fallback to numeric pos
+                                                (fn as any)(r.id ?? r.from);
+                                            }
+                                        }, 50);
+                                    }}
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="text-sm">
+                                            {r.whenText || 'Reminder'}
+                                        </span>
+                                        {r.whenISO ? (
+                                            <span className="text-xs text-muted-foreground">
+                                                {new Date(
+                                                    r.whenISO
+                                                ).toLocaleString()}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                </button>
+                            </DropdownMenuItem>
+                        ))
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        );
+    }, [reminders]);
 
     const handleToggleView = React.useCallback(() => {
         editorRef.current?.toggleView();
@@ -77,24 +144,18 @@ export default function NewDocumentEditorPage() {
                     onToggleView={handleToggleView}
                     toggleDisabled={false}
                     onFavoriteToggle={undefined}
+                    commandsDropdown={
+                        viewMode === 'wysiwyg' ? commandsDropdown : undefined
+                    }
                     actions={[
                         { label: 'View document history', href: '#' },
                         { label: 'Open ingestion queue', href: '#' },
                         // 'Insert remind' removed from header actions
                     ]}
-                    headerRight={
-                        <div className="flex items-center">
-                            <SheetTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                    Metadata
-                                </Button>
-                            </SheetTrigger>
-                        </div>
-                    }
                 />
                 <div className="flex flex-1 flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-center">
                     <main className="relative rounded-lg border border-border bg-background shadow-sm lg:max-w-[60rem] lg:flex-grow">
-                        <CrepeMarkdownEditor
+                        <DocumentEditor
                             ref={editorRef}
                             initialMarkdown={markdownSource}
                             onMarkdownChange={setMarkdownSource}
@@ -122,6 +183,7 @@ export default function NewDocumentEditorPage() {
                                                     | 'scheduled'
                                                     | 'overdue'
                                                     | 'done';
+                                                id?: string | null;
                                             }> = [];
                                             doc.descendants(
                                                 (node: PMNode, pos: number) => {
@@ -168,6 +230,12 @@ export default function NewDocumentEditorPage() {
                                                                     ? 'done'
                                                                     : 'scheduled';
                                                             })(),
+                                                            id:
+                                                                (attrs.id as
+                                                                    | string
+                                                                    | null
+                                                                    | undefined) ??
+                                                                null,
                                                         });
                                                     }
                                                 }
@@ -179,79 +247,6 @@ export default function NewDocumentEditorPage() {
                             }}
                         />
                     </main>
-
-                    {/* SheetContent rendered in the right column */}
-                    <SheetContent side="right">
-                        <SheetHeader>
-                            <SheetTitle>Metadata</SheetTitle>
-                            <SheetDescription>
-                                Edit tags, commands, and metadata for this
-                                document.
-                            </SheetDescription>
-                        </SheetHeader>
-
-                        <div className="p-4">
-                            <section className="mb-6">
-                                <h3 className="mb-2 text-sm font-medium">
-                                    Tags
-                                </h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {/* placeholder tags until tagging is implemented */}
-                                    <span className="px-2 py-1 rounded bg-muted text-sm">
-                                        research
-                                    </span>
-                                    <span className="px-2 py-1 rounded bg-muted text-sm">
-                                        draft
-                                    </span>
-                                    <span className="px-2 py-1 rounded bg-muted text-sm">
-                                        todo
-                                    </span>
-                                </div>
-                            </section>
-
-                            <section>
-                                <h3 className="mb-2 text-sm font-medium">
-                                    Commands
-                                </h3>
-                                <div className="space-y-2">
-                                    <div className="flex flex-col gap-2">
-                                        {reminders.length === 0 ? (
-                                            <div className="text-sm text-muted-foreground">
-                                                No reminders yet
-                                            </div>
-                                        ) : (
-                                            reminders.map((r, i) => {
-                                                const variant =
-                                                    r.status === 'done'
-                                                        ? 'secondary'
-                                                        : 'default';
-                                                return (
-                                                    <Badge
-                                                        key={`${r.from}-${i}`}
-                                                        variant={
-                                                            variant as
-                                                                | 'default'
-                                                                | 'secondary'
-                                                                | 'destructive'
-                                                                | 'outline'
-                                                        }
-                                                        className="cursor-pointer"
-                                                        onClick={() =>
-                                                            editorRef.current?.jumpTo?.(
-                                                                r.from
-                                                            )
-                                                        }
-                                                    >
-                                                        {r.whenText}
-                                                    </Badge>
-                                                );
-                                            })
-                                        )}
-                                    </div>
-                                </div>
-                            </section>
-                        </div>
-                    </SheetContent>
                 </div>
             </div>
         </Sheet>

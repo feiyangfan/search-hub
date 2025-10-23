@@ -139,6 +139,23 @@ export const DocumentCommand = z.object({
     createdAt: IsoDate,
 });
 
+export const RemindCommandPayload = z
+    .object({
+        kind: z.literal('remind'),
+        whenText: z.string().optional().default(''), // raw user text
+        whenISO: z.string().nullable().optional(), // ISO string or null
+        status: z
+            .enum(['scheduled', 'overdue', 'done'])
+            .optional()
+            .default('scheduled'),
+
+        createdAt: IsoDate.optional(),
+        updatedAt: IsoDate.optional(),
+    })
+    .describe('Payload for an inline remind command');
+
+export type RemindCommandPayloadType = z.infer<typeof RemindCommandPayload>;
+
 export const DeleteDocumentResponse = z.union([
     z.object({ status: z.literal('success') }),
     z.object({ status: z.literal('forbidden') }),

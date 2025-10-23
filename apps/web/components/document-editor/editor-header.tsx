@@ -18,6 +18,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '../ui/badge';
 
 type EditorHeaderProps = {
     title: string;
@@ -33,6 +34,7 @@ type EditorHeaderProps = {
         onSelect?: () => void;
     }>;
     headerRight?: React.ReactNode;
+    commandsDropdown?: React.ReactNode;
 };
 
 export function EditorHeader({
@@ -45,6 +47,7 @@ export function EditorHeader({
     onFavoriteToggle,
     actions,
     headerRight,
+    commandsDropdown,
 }: EditorHeaderProps) {
     const handleFavoriteToggle = React.useCallback(() => {
         if (onFavoriteToggle) {
@@ -70,8 +73,7 @@ export function EditorHeader({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* custom header-right node (e.g. sheet trigger) */}
-                    {headerRight}
+                    {commandsDropdown}
                     {onToggleView ? (
                         <Button
                             variant="outline"
@@ -156,6 +158,11 @@ export function EditorHeader({
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
+            </div>
+            <div className="flex gap-2">
+                <Badge variant={'outline'} className="h-5 text-xs">
+                    TEST pretty long tag name
+                </Badge>
             </div>
         </div>
     );

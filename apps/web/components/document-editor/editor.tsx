@@ -16,7 +16,7 @@ import '@milkdown/crepe/theme/frame.css';
 
 export type ViewMode = 'wysiwyg' | 'markdown';
 
-export type CrepeMarkdownEditorHandle = {
+export type DocumentEditorHandle = {
     toggleView: () => void;
     getViewMode: () => ViewMode;
     getMarkdown: () => Promise<string | undefined>;
@@ -31,7 +31,7 @@ export type CrepeMarkdownEditorHandle = {
     jumpTo?: (pos: number) => void;
 };
 
-export type CrepeMarkdownEditorProps = {
+export type DocumentEditorProps = {
     initialMarkdown: string;
     onMarkdownChange?: (markdown: string) => void;
     onViewModeChange?: (mode: ViewMode) => void;
@@ -115,10 +115,10 @@ const baseMarkdownExtensions = [
     markdownAutoHeight,
 ];
 
-export const CrepeMarkdownEditor = React.forwardRef<
-    CrepeMarkdownEditorHandle,
-    CrepeMarkdownEditorProps
->(function CrepeMarkdownEditor(
+export const DocumentEditor = React.forwardRef<
+    DocumentEditorHandle,
+    DocumentEditorProps
+>(function DocumentEditor(
     {
         initialMarkdown,
         onMarkdownChange,
@@ -148,8 +148,6 @@ export const CrepeMarkdownEditor = React.forwardRef<
     const [viewMode, setViewMode] = React.useState<ViewMode>('wysiwyg');
     const [markdownSource, setMarkdownSource] =
         React.useState<string>(initialMarkdown);
-
-    const readBadges = React.useCallback(() => {}, []);
 
     const readReminders = React.useCallback(() => {
         const out: Array<{
@@ -194,7 +192,7 @@ export const CrepeMarkdownEditor = React.forwardRef<
     // expose imperative API
     React.useImperativeHandle(
         ref,
-        (): CrepeMarkdownEditorHandle => ({
+        (): DocumentEditorHandle => ({
             toggleView: () => handleToggleView(),
             getViewMode: () => viewMode,
             getMarkdown: async () => editorInstanceRef.current?.getMarkdown(),
@@ -226,6 +224,9 @@ export const CrepeMarkdownEditor = React.forwardRef<
                 const instance = editorInstanceRef.current;
                 if (!instance) return;
                 instance.editor.action((ctx) => {
+                    // debug: log jump requests
+                    // eslint-disable-next-line no-console
+                    console.debug('editor.jumpTo called', { pos });
                     const view = ctx.get(editorViewCtx);
                     const { doc } = view.state;
                     const target = Math.max(
@@ -341,7 +342,6 @@ export const CrepeMarkdownEditor = React.forwardRef<
                                     view.dispatch(tr.scrollIntoView());
                                     view.focus();
                                 } catch (e) {
-                                     
                                     console.warn('Slash Remind failed:', e);
                                 }
                             },
@@ -431,7 +431,6 @@ export const CrepeMarkdownEditor = React.forwardRef<
                 }
             });
         } catch (e) {
-             
             console.warn('Initial rehydrate remind failed:', e);
         }
 
@@ -463,7 +462,6 @@ export const CrepeMarkdownEditor = React.forwardRef<
                 lastSyncedMarkdownRef.current = value;
                 onRemindersChange?.(readReminders());
             } catch (e) {
-                 
                 console.warn('Live sync failed:', e);
             }
         }, 250);
@@ -491,7 +489,6 @@ export const CrepeMarkdownEditor = React.forwardRef<
                             milkdownSelectionRef.current = { from, to };
                         }
                     } catch (err) {
-                         
                         console.error('Failed to capture markdown source', err);
                     }
                 }
@@ -608,7 +605,6 @@ export const CrepeMarkdownEditor = React.forwardRef<
                                 }
                             }
                         } catch (e) {
-                             
                             console.warn('Rehydrate remind failed:', e);
                         }
                         onRemindersChange?.(readReminders());

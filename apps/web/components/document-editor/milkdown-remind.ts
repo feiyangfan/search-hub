@@ -40,6 +40,7 @@ function parseBracketMatch(match: RegExpExecArray): {
             if (!k || !v) continue;
             if (k.toLowerCase() === 'iso') attrs['whenISO'] = v;
             else if (k.toLowerCase() === 'status') attrs['status'] = v;
+            else if (k.toLowerCase() === 'id') attrs['id'] = v;
             else attrs[k] = v;
         }
     }
@@ -97,10 +98,12 @@ export const remindNodeSchema = $nodeSchema('remind', (_ctx) => ({
             ).toString();
             const iso = node.attrs['whenISO'];
             const status = node.attrs['status'] as RemindStatus | undefined;
+            const id = node.attrs['id'];
             const parts: string[] = [];
             if (iso) parts.push(`iso=${iso}`);
             if (status && status !== 'scheduled')
                 parts.push(`status=${status}`);
+            if (id) parts.push(`id=${id}`);
             const suffix = parts.length ? ` | ${parts.join(',')}` : '';
             state.addNode('text', undefined, undefined, {
                 value: `[[remind: ${whenText}${suffix}]]`,
@@ -121,6 +124,12 @@ export const remindBracketInputRule = $inputRule((ctx: Ctx) => {
     const type = remindNode.type(ctx);
     return new InputRule(REMIND_BRACKET_RE, (state, match, start, end) => {
         const { whenText, attrs } = parseBracketMatch(match as RegExpExecArray);
+        // ensure an id exists
+        if (!('id' in attrs) || !attrs.id) {
+            attrs.id = `r_${Date.now().toString(36)}_${Math.random()
+                .toString(36)
+                .slice(2, 8)}`;
+        }
         const content = whenText
             ? state.schema.text(whenText)
             : state.schema.text('\u00A0');
@@ -139,8 +148,15 @@ export const remindSlashInputRule = $inputRule((ctx: Ctx) => {
     return new InputRule(
         REMIND_SLASH_RE as unknown as RegExp,
         (state, _match, start, end) => {
+            const attrs: Record<string, unknown> = {
+                kind: 'remind',
+                whenText: '',
+                id: `r_${Date.now().toString(36)}_${Math.random()
+                    .toString(36)
+                    .slice(2, 8)}`,
+            };
             const content = state.schema.text('\u00A0');
-            const node = type.create({ kind: 'remind', whenText: '' }, content);
+            const node = type.create(attrs, content);
             let tr = state.tr.replaceWith(start, end, node);
             tr = tr.setSelection(TextSelection.create(tr.doc, start + 1));
             return tr;
@@ -241,12 +257,17 @@ export const remindAutoParseProse = $prose(
                         prevStatus !== nextStatus ||
                         node.attrs['whenText'] !== whenText
                     ) {
-                        tr = tr.setNodeMarkup(pos, undefined, {
+                        // preserve existing id attr if present
+                        const nextAttrs = {
                             ...node.attrs,
                             whenText,
                             whenISO: nextIso,
                             status: nextStatus,
-                        } as any);
+                        } as Record<string, unknown>;
+                        if ('id' in node.attrs && node.attrs.id) {
+                            nextAttrs.id = node.attrs.id;
+                        }
+                        tr = tr.setNodeMarkup(pos, undefined, nextAttrs as any);
                         changed = true;
                     }
                 });

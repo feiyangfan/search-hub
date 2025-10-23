@@ -10,7 +10,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 
-import { EditorHeader } from '@/components/editor/editor-header';
+import { EditorHeader } from '@/components/document-editor/editor-header';
 
 export default function DocumentEditorPlaceholderPage() {
     return (
