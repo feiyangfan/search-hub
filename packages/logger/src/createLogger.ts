@@ -1,5 +1,19 @@
 import pino from 'pino';
 import { loadApiEnv } from '@search-hub/config-env';
+import { getRequestContext } from './correlation.js';
+
+// Add context mixin to automatically include traceId and other context info
+const contextMixin = () => {
+    const context = getRequestContext();
+    return context
+        ? {
+              traceId: context.traceId,
+              userId: context.userId,
+              tenantId: context.tenantId,
+              sessionId: context.sessionId,
+          }
+        : {};
+};
 
 export function createLogger(service = 'api') {
     const env = loadApiEnv();
@@ -23,6 +37,7 @@ export function createLogger(service = 'api') {
         level,
         base: undefined,
         timestamp: pino.stdTimeFunctions.isoTime,
+        mixin: contextMixin,
         redact: {
             paths: [
                 'password',

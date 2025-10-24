@@ -8,6 +8,7 @@ import session from 'express-session';
 import { httpLogger } from '@search-hub/logger';
 import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware.js';
 import { createRateLimiter } from './middleware/rateLimitMiddleware.js';
+import { correlationMiddleware } from './middleware/correlationMiddleware.js';
 
 import { buildRoutes } from './routes/routes.js';
 
@@ -47,6 +48,9 @@ export function createServer(): express.Express {
             },
         })
     );
+
+    // Add correlation middleware AFTER session middleware
+    app.use(correlationMiddleware);
 
     app.use((req, _res, next) => {
         const { userId, currentTenantId } = req.session ?? {};
