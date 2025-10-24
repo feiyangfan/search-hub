@@ -6,6 +6,8 @@ import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 import { validateBody } from '../../middleware/validateMiddleware.js';
 import type { RequestWithValidatedBody } from '../types.js';
 
+import { logger } from '@search-hub/logger';
+
 import { db } from '@search-hub/db';
 import bcrypt from 'bcrypt';
 
@@ -45,6 +47,14 @@ export function signInRoutes() {
             const userTenants = await db.tenant.listForUser({
                 userId: userRecord.id,
             });
+
+            logger.debug(
+                {
+                    user: userRecord,
+                    userTenants: userTenants,
+                },
+                'sign in response'
+            );
 
             const memberships = userTenants;
             const primaryTenantId = memberships[0]?.tenantId ?? null;

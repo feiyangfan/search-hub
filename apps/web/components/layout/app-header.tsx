@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { NavActions } from '@/components/navigation/nav-action';
+import { signOut } from 'next-auth/react';
 
 interface AppHeaderProps {
     session: Session | null;
@@ -35,7 +36,7 @@ export function AppHeader({
                 </div>
                 {/* <nav className="flex items-center gap-3 text-sm pr-4">
                     {session ? (
-                        <NavActions />
+                        <Button onClick={() => signOut()}>sign out</Button>
                     ) : (
                         <Button asChild size="sm">
                             <Link href="/auth/sign-in">Sign in</Link>

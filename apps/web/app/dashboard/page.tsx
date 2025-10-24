@@ -16,6 +16,7 @@ export default async function DashboardPage() {
 
     const memberships =
         (session.user as { memberships?: unknown[] })?.memberships ?? [];
+    console.log('sessions', session);
 
     if (memberships.length === 0) {
         return <EmptyStateCreateWorkspace />;
