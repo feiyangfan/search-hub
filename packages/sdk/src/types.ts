@@ -76,18 +76,38 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Conflict: User already exists */
-                409: {
+                /** @description Bad Request - Validation error or user already exists */
+                400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error - Database or system error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -172,6 +192,60 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Bad Request - Validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Invalid credentials */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
             };
         };
         delete?: never;
@@ -204,6 +278,24 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+                /** @description Unauthorized - No active session */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
                 };
             };
         };
@@ -262,7 +354,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Bad Request */
+                /** @description Bad Request - Validation error */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -270,15 +362,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -286,10 +380,48 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden - Tenant access denied */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -400,7 +532,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Bad Request */
+                /** @description Bad Request - Validation error */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -408,15 +540,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -424,10 +558,48 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden - Tenant access denied */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -515,7 +687,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Bad Request */
+                /** @description Bad Request - Validation error */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -523,15 +695,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -539,10 +713,84 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden - Tenant access denied */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Too Many Requests - Rate limit exceeded */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Bad Gateway - AI service error */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -605,7 +853,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -613,10 +861,30 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -667,7 +935,7 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Bad Request */
+                /** @description Bad Request - Validation error or tenant name exists */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -675,15 +943,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -691,26 +961,30 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Conflict */
-                409: {
+                /** @description Internal Server Error */
+                500: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -743,7 +1017,7 @@ export interface paths {
                     };
                     content?: never;
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -751,15 +1025,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Forbidden */
+                /** @description Forbidden - Not authorized to delete this tenant */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -767,10 +1043,48 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Not Found - Tenant not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
@@ -817,7 +1131,7 @@ export interface paths {
                     };
                     content?: never;
                 };
-                /** @description Bad Request */
+                /** @description Bad Request - Validation error */
                 400: {
                     headers: {
                         [name: string]: unknown;
@@ -825,15 +1139,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Unauthorized */
+                /** @description Unauthorized - Authentication required */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -841,15 +1157,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Forbidden */
+                /** @description Forbidden - User not member of tenant */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -857,15 +1175,17 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };
                 };
-                /** @description Not Found */
+                /** @description Not Found - Tenant not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -873,10 +1193,30 @@ export interface paths {
                     content: {
                         "application/json": {
                             error: {
-                                code: string;
                                 message: string;
-                                details?: unknown;
-                                requestId?: string | number;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
                             };
                         };
                     };

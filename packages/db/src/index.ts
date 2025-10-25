@@ -2,8 +2,15 @@ import { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { loadDbEnv } from '@search-hub/config-env';
 import { DocumentSourceType } from '@search-hub/schemas';
+import {
+    DatabaseError,
+    TenantNotFoundError,
+    ValidationError,
+    AuthorizationError,
+    NotFoundError,
+} from '@search-hub/schemas';
 
-const env = loadDbEnv();
+const env: ReturnType<typeof loadDbEnv> = loadDbEnv();
 /**
  * Create a single PrismaClient instance.
  * In dev, Next/tsx hot reload can instantiate multiple times — guard with global.
@@ -41,31 +48,90 @@ export const db = {
             passwordHash: string;
         }) => {
             try {
+                // Optimistic check for better UX (faster response)
                 const found = await prisma.user.findUnique({
                     where: { email },
                 });
 
                 if (found) {
-                    throw Object.assign(new Error('User already exists'), {
-                        status: 409,
-                        code: 'USER_ALREADY_EXISTS',
-                        expose: true,
-                    });
+                    throw new ValidationError(
+                        'User with this email already exists',
+                        'email'
+                    );
                 }
+
                 return await prisma.user.create({
                     data: { email, passwordHash },
                 });
             } catch (error) {
-                if (
-                    error instanceof Prisma.PrismaClientKnownRequestError &&
-                    error.code === 'P2002'
-                ) {
-                    throw Object.assign(new Error('User already exists'), {
-                        status: 409,
-                        code: 'USER_ALREADY_EXISTS',
-                        expose: true,
-                    });
+                // Handle structured errors (re-throw as-is)
+                if (error instanceof ValidationError) {
+                    throw error;
                 }
+
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2002': {
+                            // Unique constraint violation (race condition)
+                            const target = error.meta?.target;
+                            if (
+                                Array.isArray(target) &&
+                                target.includes('email')
+                            ) {
+                                throw new ValidationError(
+                                    'User with this email already exists',
+                                    'email'
+                                );
+                            }
+                            if (
+                                typeof target === 'string' &&
+                                target.includes('email')
+                            ) {
+                                throw new ValidationError(
+                                    'User with this email already exists',
+                                    'email'
+                                );
+                            }
+                            // Fallback for other unique constraints
+                            throw new DatabaseError(
+                                'Unique constraint violation',
+                                'user_create',
+                                {
+                                    email: '[REDACTED]',
+                                    prismaCode: error.code,
+                                }
+                            );
+                        }
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'user_create',
+                                { prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to create user',
+                                'user_create',
+                                {
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'user_create',
+                        { originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
                 throw error;
             }
         },
@@ -76,55 +142,160 @@ export const db = {
             userId: string;
             requesterId: string;
         }) => {
-            if (userId !== requesterId) {
-                throw Object.assign(
-                    new Error(
-                        'You do not have permission to delete this user.'
-                    ),
-                    {
-                        status: 403,
-                        code: 'USER_DELETE_FORBIDDEN',
-                        expose: true,
-                    }
-                );
-            }
-            const ownsTenant = await prisma.tenantMembership.findFirst({
-                where: { userId, role: 'owner' },
-                select: { tenantId: true },
-            });
-            if (ownsTenant) {
-                throw Object.assign(
-                    new Error(
-                        'Transfer or delete owned tenants before deleting the user.'
-                    ),
-                    {
-                        status: 409,
-                        code: 'USER_OWNS_TENANTS',
-                        expose: true,
-                    }
-                );
-            }
             try {
+                // Authorization check - only users can delete themselves
+                if (userId !== requesterId) {
+                    throw new AuthorizationError(
+                        'You do not have permission to delete this user'
+                    );
+                }
+
+                // Business rule check - can't delete if they own tenants
+                const ownsTenant = await prisma.tenantMembership.findFirst({
+                    where: { userId, role: 'owner' },
+                    select: { tenantId: true },
+                });
+
+                if (ownsTenant) {
+                    throw new ValidationError(
+                        'Transfer or delete owned tenants before deleting the user',
+                        'tenantOwnership'
+                    );
+                }
+
                 await prisma.user.delete({ where: { id: userId } });
             } catch (error) {
+                // Handle structured errors (re-throw as-is)
                 if (
-                    error instanceof Prisma.PrismaClientKnownRequestError &&
-                    error.code === 'P2025'
+                    error instanceof AuthorizationError ||
+                    error instanceof ValidationError
                 ) {
-                    throw Object.assign(new Error('User not found.'), {
-                        status: 404,
-                        code: 'USER_NOT_FOUND',
-                        expose: true,
-                    });
+                    throw error;
                 }
+
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2025': // Record not found
+                            throw new NotFoundError('User', userId);
+
+                        case 'P2003': // Foreign key constraint violation
+                            throw new DatabaseError(
+                                'Cannot delete user with existing references',
+                                'user_delete',
+                                { userId, requesterId, prismaCode: error.code }
+                            );
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'user_delete',
+                                { userId, requesterId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to delete user',
+                                'user_delete',
+                                {
+                                    userId,
+                                    requesterId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'user_delete',
+                        { userId, requesterId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
                 throw error;
             }
         },
         findByEmail: async ({ email }: { email: string }) => {
-            return prisma.user.findUnique({ where: { email } });
+            try {
+                return await prisma.user.findUnique({ where: { email } });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'user_find_by_email',
+                                { email: '[REDACTED]', prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch user',
+                                'user_find_by_email',
+                                {
+                                    email: '[REDACTED]',
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'user_find_by_email',
+                        { email: '[REDACTED]', originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
         },
         findById: async ({ id }: { id: string }) => {
-            return prisma.user.findUnique({ where: { id } });
+            try {
+                return await prisma.user.findUnique({ where: { id } });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'user_find_by_id',
+                                { userId: id, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch user',
+                                'user_find_by_id',
+                                {
+                                    userId: id,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'user_find_by_id',
+                        { userId: id, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
         },
     },
     tenant: {
@@ -147,21 +318,77 @@ export const db = {
 
                 return tenant;
             } catch (error) {
-                if (
-                    error instanceof Prisma.PrismaClientKnownRequestError &&
-                    error.code === 'P2002'
-                ) {
-                    throw Object.assign(
-                        new Error(
-                            'A tenant with the same name already exists.'
-                        ),
-                        {
-                            status: 409,
-                            code: 'TENANT_NAME_EXISTS',
-                            expose: true,
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2002': {
+                            // Unique constraint violation
+                            // Check which constraint was violated
+                            const target = error.meta?.target;
+                            if (
+                                Array.isArray(target) &&
+                                target.includes('name')
+                            ) {
+                                throw new ValidationError(
+                                    'A tenant with this name already exists',
+                                    'name'
+                                );
+                            }
+                            // Also handle string target (some Prisma versions)
+                            if (
+                                typeof target === 'string' &&
+                                target.includes('name')
+                            ) {
+                                throw new ValidationError(
+                                    'A tenant with this name already exists',
+                                    'name'
+                                );
+                            }
+                            // Fallback for other unique constraints
+                            throw new DatabaseError(
+                                'Unique constraint violation',
+                                'tenant_create',
+                                { ownerId, name, prismaCode: error.code }
+                            );
                         }
+
+                        case 'P2003': // Foreign key constraint violation
+                            // This would happen if ownerId doesn't exist
+                            throw new ValidationError(
+                                'Invalid user ID provided',
+                                'ownerId'
+                            );
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tenant_create',
+                                { ownerId, name, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to create tenant',
+                                'tenant_create',
+                                {
+                                    ownerId,
+                                    name,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'tenant_create',
+                        { ownerId, name, originalMessage: error.message }
                     );
                 }
+
+                // Re-throw other errors (validation, etc.)
                 throw error;
             }
         },
@@ -172,75 +399,198 @@ export const db = {
             tenantId: string;
             requesterId: string;
         }) => {
-            const tenantMembership = await prisma.tenantMembership.findUnique({
-                where: {
-                    tenantId_userId: {
-                        tenantId: tenantId,
-                        userId: requesterId,
-                    },
-                },
-            });
-            if (tenantMembership?.role !== 'owner') {
-                throw Object.assign(
-                    new Error(
-                        'Only the tenant owner can delete the workspace.'
-                    ),
-                    {
-                        status: 403,
-                        code: 'TENANT_DELETE_FORBIDDEN',
-                        expose: true,
-                    }
-                );
-            }
             try {
+                const tenantMembership =
+                    await prisma.tenantMembership.findUnique({
+                        where: {
+                            tenantId_userId: {
+                                tenantId: tenantId,
+                                userId: requesterId,
+                            },
+                        },
+                    });
+
+                if (!tenantMembership) {
+                    throw new TenantNotFoundError(tenantId);
+                }
+
+                if (tenantMembership.role !== 'owner') {
+                    throw new AuthorizationError(
+                        'Only the tenant owner can delete the workspace'
+                    );
+                }
+
                 await prisma.tenant.delete({
                     where: { id: tenantId },
                 });
             } catch (error) {
+                // Handle structured errors (re-throw as-is)
                 if (
-                    error instanceof Prisma.PrismaClientKnownRequestError &&
-                    error.code === 'P2025'
+                    error instanceof TenantNotFoundError ||
+                    error instanceof AuthorizationError
                 ) {
-                    throw Object.assign(new Error('Tenant not found.'), {
-                        status: 404,
-                        code: 'TENANT_NOT_FOUND',
-                        expose: true,
-                    });
+                    throw error;
                 }
+
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2025': // Record not found during delete
+                            throw new TenantNotFoundError(tenantId);
+
+                        case 'P2003': // Foreign key constraint violation
+                            throw new DatabaseError(
+                                'Cannot delete tenant with existing references',
+                                'tenant_delete',
+                                {
+                                    tenantId,
+                                    requesterId,
+                                    prismaCode: error.code,
+                                }
+                            );
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tenant_delete',
+                                {
+                                    tenantId,
+                                    requesterId,
+                                    prismaCode: error.code,
+                                }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to delete tenant',
+                                'tenant_delete',
+                                {
+                                    tenantId,
+                                    requesterId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'tenant_delete',
+                        {
+                            tenantId,
+                            requesterId,
+                            originalMessage: error.message,
+                        }
+                    );
+                }
+
+                // Re-throw other errors
                 throw error;
             }
         },
         findById: async (tenantId: string) => {
-            return prisma.tenant.findUnique({
-                where: {
-                    id: tenantId,
-                },
-            });
+            try {
+                return await prisma.tenant.findUnique({
+                    where: {
+                        id: tenantId,
+                    },
+                });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tenant_find_by_id',
+                                { tenantId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch tenant',
+                                'tenant_find_by_id',
+                                {
+                                    tenantId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'tenant_find_by_id',
+                        { tenantId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors (validation, etc.)
+                throw error;
+            }
         },
         listForUser: async ({
             userId,
         }: {
             userId: string;
         }): Promise<UserTenant[]> => {
-            const memberships = await prisma.tenantMembership.findMany({
-                where: { userId },
-                include: {
-                    tenant: {
-                        select: {
-                            id: true,
-                            name: true,
+            try {
+                const memberships = await prisma.tenantMembership.findMany({
+                    where: { userId },
+                    include: {
+                        tenant: {
+                            select: { id: true, name: true },
                         },
                     },
-                },
-            });
+                });
 
-            return memberships
-                .filter((membership) => membership.tenant !== null)
-                .map((membership) => ({
-                    tenantId: membership.tenant.id,
-                    tenantName: membership.tenant.name,
-                    role: membership.role,
-                }));
+                return memberships
+                    .filter((membership) => membership.tenant !== null)
+                    .map((membership) => ({
+                        tenantId: membership.tenant.id,
+                        tenantName: membership.tenant.name,
+                        role: membership.role,
+                    }));
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tenant_list_query',
+                                { userId, prismaCode: error.code }
+                            );
+                        case 'P2025': // Record not found (shouldn't happen for this query)
+                            throw new TenantNotFoundError(userId);
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch tenant list',
+                                'tenant_list_query',
+                                {
+                                    userId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'tenant_list_query',
+                        { userId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors (validation, etc.)
+                throw error;
+            }
         },
     },
     tenantMembership: {
@@ -315,33 +665,107 @@ export const db = {
             createdById: string;
             updatedById: string;
         }) => {
-            const data: Prisma.DocumentCreateInput = {
-                title,
-                source,
-                tenant: {
-                    connect: { id: tenantId },
-                },
-                createdBy: {
-                    connect: { id: createdById },
-                },
-                updatedBy: {
-                    connect: { id: updatedById },
-                },
-            };
+            try {
+                const data: Prisma.DocumentCreateInput = {
+                    title,
+                    source,
+                    tenant: {
+                        connect: { id: tenantId },
+                    },
+                    createdBy: {
+                        connect: { id: createdById },
+                    },
+                    updatedBy: {
+                        connect: { id: updatedById },
+                    },
+                };
 
-            if (sourceUrl !== undefined) {
-                data.sourceUrl = sourceUrl ?? undefined;
+                if (sourceUrl !== undefined) {
+                    data.sourceUrl = sourceUrl ?? undefined;
+                }
+
+                if (content !== undefined) {
+                    data.content = content ?? undefined;
+                }
+
+                if (metadata !== undefined) {
+                    data.metadata = metadata ?? Prisma.JsonNull;
+                }
+
+                return await prisma.document.create({ data });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2002': // Unique constraint violation
+                            throw new DatabaseError(
+                                'Document with this identifier already exists',
+                                'document_create',
+                                { tenantId, title, prismaCode: error.code }
+                            );
+
+                        case 'P2003': {
+                            // Foreign key constraint violation
+                            {
+                                const target = error.meta?.field_name;
+                                if (typeof target === 'string') {
+                                    if (target.includes('tenantId')) {
+                                        throw new TenantNotFoundError(tenantId);
+                                    }
+                                    if (target.includes('createdById')) {
+                                        throw new ValidationError(
+                                            'Invalid creator user ID',
+                                            'createdById'
+                                        );
+                                    }
+                                    if (target.includes('updatedById')) {
+                                        throw new ValidationError(
+                                            'Invalid updater user ID',
+                                            'updatedById'
+                                        );
+                                    }
+                                }
+                            }
+                            // Fallback for other foreign key violations
+                            throw new DatabaseError(
+                                'Invalid reference in document creation',
+                                'document_create',
+                                { tenantId, title, prismaCode: error.code }
+                            );
+                        }
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'document_create',
+                                { tenantId, title, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to create document',
+                                'document_create',
+                                {
+                                    tenantId,
+                                    title,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'document_create',
+                        { tenantId, title, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
             }
-
-            if (content !== undefined) {
-                data.content = content ?? undefined;
-            }
-
-            if (metadata !== undefined) {
-                data.metadata = metadata ?? Prisma.JsonNull;
-            }
-
-            return prisma.document.create({ data });
         },
         findUnique: async (documentId: string) => {
             return prisma.document.findUnique({
@@ -406,47 +830,113 @@ export const db = {
             offset?: number;
             favoritesOnly?: boolean;
         }) => {
-            const where: Prisma.DocumentWhereInput = {
-                tenantId,
-                ...(favoritesOnly
-                    ? {
-                          favorites: {
-                              some: {
-                                  userId,
+            try {
+                const where: Prisma.DocumentWhereInput = {
+                    tenantId,
+                    ...(favoritesOnly
+                        ? {
+                              favorites: {
+                                  some: {
+                                      userId,
+                                  },
                               },
-                          },
-                      }
-                    : {}),
-            };
+                          }
+                        : {}),
+                };
 
-            const [items, total] = await prisma.$transaction([
-                prisma.document.findMany({
-                    where,
-                    orderBy: { updatedAt: 'desc' },
-                    skip: offset,
-                    take: limit,
-                    select: {
-                        id: true,
-                        title: true,
-                        updatedAt: true,
-                        favorites: {
-                            where: { userId },
-                            select: { id: true },
+                const [items, total] = await prisma.$transaction([
+                    prisma.document.findMany({
+                        where,
+                        orderBy: { updatedAt: 'desc' },
+                        skip: offset,
+                        take: limit,
+                        select: {
+                            id: true,
+                            title: true,
+                            updatedAt: true,
+                            favorites: {
+                                where: { userId },
+                                select: { id: true },
+                            },
                         },
-                    },
-                }),
-                prisma.document.count({ where }),
-            ]);
+                    }),
+                    prisma.document.count({ where }),
+                ]);
 
-            return {
-                items: items.map((item) => ({
-                    id: item.id,
-                    title: item.title,
-                    updatedAt: item.updatedAt,
-                    isFavorite: item.favorites.length > 0,
-                })),
-                total,
-            };
+                return {
+                    items: items.map((item) => ({
+                        id: item.id,
+                        title: item.title,
+                        updatedAt: item.updatedAt,
+                        isFavorite: item.favorites.length > 0,
+                    })),
+                    total,
+                };
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2003': {
+                            // Foreign key constraint violation
+                            // This could happen if tenantId or userId doesn't exist
+                            const target = error.meta?.field_name;
+                            if (typeof target === 'string') {
+                                if (target.includes('tenantId')) {
+                                    throw new TenantNotFoundError(tenantId);
+                                }
+                                if (target.includes('userId')) {
+                                    throw new ValidationError(
+                                        'Invalid user ID provided',
+                                        'userId'
+                                    );
+                                }
+                            }
+                            throw new DatabaseError(
+                                'Invalid reference in document query',
+                                'document_list',
+                                { tenantId, userId, prismaCode: error.code }
+                            );
+                        }
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'document_list',
+                                { tenantId, userId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch documents',
+                                'document_list',
+                                {
+                                    tenantId,
+                                    userId,
+                                    limit,
+                                    offset,
+                                    favoritesOnly,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'document_list',
+                        {
+                            tenantId,
+                            userId,
+                            originalMessage: error.message,
+                        }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
         },
         updateTitle: async (documentId: string, title: string) => {
             return prisma.document.update({

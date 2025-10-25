@@ -1,6 +1,10 @@
 import { Router } from 'express';
 
-import { AuthPayload, UserProfileWithSummary } from '@search-hub/schemas';
+import {
+    AuthPayload,
+    UserProfileWithSummary,
+    AuthenticationError,
+} from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -20,12 +24,7 @@ export function signInRoutes() {
             const userRecord = await db.user.findByEmail({ email });
 
             if (!userRecord || !userRecord.passwordHash) {
-                return res.status(401).json({
-                    error: {
-                        code: 'INVALID_EMAIL_OR_PASSWORD',
-                        message: 'Invalid email or password',
-                    },
-                });
+                throw new AuthenticationError('Invalid email or password');
             }
 
             const isPasswordValid = await bcrypt.compare(
@@ -34,12 +33,7 @@ export function signInRoutes() {
             );
 
             if (!isPasswordValid) {
-                return res.status(401).json({
-                    error: {
-                        code: 'INVALID_EMAIL_OR_PASSWORD',
-                        message: 'Invalid email or password',
-                    },
-                });
+                throw new AuthenticationError('Invalid email or password');
             }
 
             const userTenants = await db.tenant.listForUser({

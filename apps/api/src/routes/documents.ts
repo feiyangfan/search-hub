@@ -3,6 +3,7 @@ import { Router } from 'express';
 import {
     CreateDocumentRequest,
     CreateDocumentRequestType,
+    CrossTenantAccessError,
 } from '@search-hub/schemas';
 
 import { validateBody } from '../middleware/validateMiddleware.js';
@@ -17,6 +18,10 @@ import {
     type GetDocumentListParamsType,
     UpdateDocumentTitlePayload,
     type UpdateDocumentTitlePayloadType,
+    AuthorizationError,
+    TenantActiveMissingError,
+    DocumentAccessDeniedError,
+    DocumentNotFoundError,
 } from '@search-hub/schemas';
 import {
     validateParams,
@@ -42,21 +47,13 @@ export function documentRoutes(
                 const activeTenantId = req.session?.currentTenantId;
 
                 if (!userId) {
-                    return res.status(401).json({
-                        error: {
-                            code: 'UNAUTHORIZED',
-                            message: 'Authentication required.',
-                        },
-                    });
+                    throw new AuthorizationError('Authentication required.');
                 }
 
                 if (!activeTenantId) {
-                    return res.status(400).json({
-                        error: {
-                            code: 'TENANT_MISSING',
-                            message: 'No active tenant selected.',
-                        },
-                    });
+                    throw new TenantActiveMissingError(
+                        'No active tenant selected.'
+                    );
                 }
 
                 const requestWithQuery =
@@ -89,21 +86,13 @@ export function documentRoutes(
                 const activeTenantId = req.session?.currentTenantId;
 
                 if (!userId) {
-                    return res.status(401).json({
-                        error: {
-                            code: 'UNAUTHORIZED',
-                            message: 'Authentication required.',
-                        },
-                    });
+                    throw new AuthorizationError('Authentication required.');
                 }
 
                 if (!activeTenantId) {
-                    return res.status(400).json({
-                        error: {
-                            code: 'TENANT_MISSING',
-                            message: 'No active tenant selected.',
-                        },
-                    });
+                    throw new TenantActiveMissingError(
+                        'No active tenant selected.'
+                    );
                 }
 
                 const body = (
@@ -113,12 +102,7 @@ export function documentRoutes(
                 const reqTenantId = body.tenantId;
 
                 if (reqTenantId && reqTenantId !== activeTenantId) {
-                    return res.status(400).json({
-                        error: {
-                            code: 'CROSS_TENANTS_SUBMISSION',
-                            message: 'Tenant mismatch',
-                        },
-                    });
+                    throw new CrossTenantAccessError(reqTenantId, userId);
                 }
 
                 const payload = {
@@ -157,21 +141,13 @@ export function documentRoutes(
                 const activeTenantId = req.session?.currentTenantId;
 
                 if (!userId) {
-                    return res.status(401).json({
-                        error: {
-                            code: 'UNAUTHORIZED',
-                            message: 'Authentication required.',
-                        },
-                    });
+                    throw new AuthorizationError('Authentication required.');
                 }
 
                 if (!activeTenantId) {
-                    return res.status(400).json({
-                        error: {
-                            code: 'TENANT_MISSING',
-                            message: 'No active tenant selected.',
-                        },
-                    });
+                    throw new TenantActiveMissingError(
+                        'No active tenant selected.'
+                    );
                 }
 
                 const requestWithParams =
@@ -184,12 +160,7 @@ export function documentRoutes(
                 });
 
                 if (!document) {
-                    return res.status(404).json({
-                        error: {
-                            code: 'DOCUMENT_NOT_FOUND',
-                            message: 'Document not found.',
-                        },
-                    });
+                    throw new DocumentNotFoundError(documentId, activeTenantId);
                 }
 
                 res.status(200).json({ document });
@@ -208,21 +179,13 @@ export function documentRoutes(
                 const activeTenantId = req.session?.currentTenantId;
 
                 if (!userId) {
-                    return res.status(401).json({
-                        error: {
-                            code: 'UNAUTHORIZED',
-                            message: 'Authentication required.',
-                        },
-                    });
+                    throw new AuthorizationError('Authentication required.');
                 }
 
                 if (!activeTenantId) {
-                    return res.status(400).json({
-                        error: {
-                            code: 'TENANT_MISSING',
-                            message: 'No active tenant selected.',
-                        },
-                    });
+                    throw new TenantActiveMissingError(
+                        'No active tenant selected.'
+                    );
                 }
 
                 const requestWithParams =
@@ -235,22 +198,11 @@ export function documentRoutes(
                 });
 
                 if (result.status === 'forbidden') {
-                    return res.status(403).json({
-                        error: {
-                            code: 'DOCUMENT_DELETE_FORBIDDEN',
-                            message:
-                                'You do not have permission to delete this document.',
-                        },
-                    });
+                    throw new DocumentAccessDeniedError(documentId);
                 }
 
                 if (result.status === 'not_found') {
-                    return res.status(404).json({
-                        error: {
-                            code: 'DOCUMENT_NOT_FOUND',
-                            message: 'Document not found.',
-                        },
-                    });
+                    throw new DocumentNotFoundError(documentId, activeTenantId);
                 }
 
                 res.status(204).end();
@@ -270,21 +222,13 @@ export function documentRoutes(
                 const activeTenantId = req.session?.currentTenantId;
 
                 if (!userId) {
-                    return res.status(401).json({
-                        error: {
-                            code: 'UNAUTHORIZED',
-                            message: 'Authentication required.',
-                        },
-                    });
+                    throw new AuthorizationError('Authentication required.');
                 }
 
                 if (!activeTenantId) {
-                    return res.status(400).json({
-                        error: {
-                            code: 'TENANT_MISSING',
-                            message: 'No active tenant selected.',
-                        },
-                    });
+                    throw new TenantActiveMissingError(
+                        'No active tenant selected.'
+                    );
                 }
 
                 const requestWithParams =
@@ -305,22 +249,11 @@ export function documentRoutes(
                 );
 
                 if (result.status === 'forbidden') {
-                    return res.status(403).json({
-                        error: {
-                            code: 'DOCUMENT_UPDATE_FORBIDDEN',
-                            message:
-                                'You do not have permission to update this document.',
-                        },
-                    });
+                    throw new DocumentAccessDeniedError(documentId);
                 }
 
                 if (result.status === 'not_found') {
-                    return res.status(404).json({
-                        error: {
-                            code: 'DOCUMENT_NOT_FOUND',
-                            message: 'Document not found.',
-                        },
-                    });
+                    throw new DocumentNotFoundError(documentId, activeTenantId);
                 }
 
                 if (result.status === 'invalid') {

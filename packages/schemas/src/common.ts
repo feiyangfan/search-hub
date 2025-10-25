@@ -26,13 +26,3 @@ export const Pagination = z.object({
         example: 10,
     }),
 });
-
-// standard API error response
-export const ApiError = z.object({
-    error: z.object({
-        code: z.string(),
-        message: z.string(),
-        details: z.any().optional(),
-        requestId: z.union([z.string(), z.number()]).optional(),
-    }),
-});

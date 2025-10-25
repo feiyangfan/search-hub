@@ -13,7 +13,7 @@
         "prisma:migrateinitdev": "pnpm --filter @search-hub/db prisma:migratedevinit",
         "prisma:all": "pnpm --filter @search-hub/db prisma:generate && pnpm --filter @search-hub/db prisma:migratedev",
         "prisma:reset": "pnpm --filter @search-hub/db prisma:reset",
-        "openapi:genapi": "pnpm --filter api generate",
+        "openapi:genapi": "pnpm --filter api openapi:generate",
         "openapi:gensdk": "pnpm --filter @search-hub/sdk generate",
         "openapi:genall": "pnpm run openapi:genapi && pnpm run openapi:gensdk",
         "build": "turbo run build",

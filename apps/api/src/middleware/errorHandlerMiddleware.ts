@@ -1,216 +1,185 @@
-import type { Request } from 'express';
-import { ErrorRequestHandler } from 'express';
-import { STATUS_CODES } from 'node:http';
-import { ZodError } from 'zod';
-import { logger as fallbackLogger } from '@search-hub/logger';
-import type { Logger } from 'pino';
+import type { Request, Response, NextFunction } from 'express';
+import { logger, getRequestContext } from '@search-hub/logger';
+import { AppError, type ErrorType } from '@search-hub/schemas';
 
-type NormalizedError = Error &
-    Record<string, unknown> & {
-        status?: string | number;
-        statusCode?: number | string;
-        code?: string;
-        expose?: boolean;
-        details?: unknown;
-    };
-
-/** Check if the status is a http status */
-const isHttpStatus = (value: unknown): value is number => {
-    return (
-        typeof value === 'number' &&
-        Number.isInteger(value) &&
-        value >= 400 &&
-        value <= 599
-    );
-};
-
-/** Coerce status to number from string if possible */
-const coerceStatus = (value: unknown): number | undefined => {
-    if (isHttpStatus(value)) {
-        return value;
-    }
-
-    if (typeof value === 'string') {
-        const parsed = Number.parseInt(value, 10);
-        if (isHttpStatus(parsed)) {
-            return parsed;
-        }
-    }
-
-    return undefined;
-};
-
-const normalizeError = (error: unknown): NormalizedError => {
-    // If error already
-    if (error instanceof Error) {
-        return error as NormalizedError;
-    }
-
-    // If object, warp in Error
-    if (error && typeof error === 'object') {
-        const candidate = error as Record<string, unknown>;
-        const normalized = new Error(
-            typeof candidate.message === 'string' &&
-            candidate.message.trim().length > 0
-                ? candidate.message
-                : 'Unknown Error'
-        );
-        Object.assign(normalized, candidate);
-        return normalized as NormalizedError;
-    }
-
-    // Primitive string, convert to error
-    return new Error(
-        typeof error === 'string' && error.trim().length > 0
-            ? error
-            : 'Unknown Error'
-    ) as NormalizedError;
-};
-
-/** Check status/statusCode, if nothing present, default to 400 for ZodError and 500 for everything else*/
-const resolveStatus = (error: NormalizedError, isZodError: boolean): number => {
-    // If status in status
-    const statusFromStatus = coerceStatus(error.status);
-    // Otherwise if status in statusCode
-    const status = statusFromStatus ?? coerceStatus(error.statusCode);
-
-    if (typeof status === 'number') {
-        return status;
-    }
-
-    return isZodError ? 400 : 500;
-};
-
-const formatCodeFromStatus = (status: number): string => {
-    // A collection of all the standard HTTP response status codes,
-    // and the short description of each. For example, http.STATUS_CODES[404] === 'Not Found'.
-    const reason = STATUS_CODES[status] ?? 'Error';
-    // Map to screaming snake case
-    return reason.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
-};
-
-/** Return explicit code */
-const resolveCode = (
-    error: NormalizedError,
-    status: number,
-    isZodError: boolean
-): string => {
-    if (isZodError) {
-        return 'INVALID_REQUEST';
-    }
-
-    if (typeof error.code === 'string' && error.code.trim().length > 0) {
-        return error.code;
-    }
-
-    return formatCodeFromStatus(status);
-};
-
-/** Make message more explicit */
-const resolveMessage = (
-    error: NormalizedError,
-    status: number,
-    isZodError: boolean,
-    expose: boolean
-): string => {
-    // For validation error
-    if (isZodError) {
-        return 'Request validation failed';
-    }
-
-    // Only expose original error if expose is true or status < 500
+// Helper function to map native Node.js/Express errors to our error types
+function mapNativeError(error: Error): {
+    statusCode: number;
+    type: ErrorType;
+    code: string;
+    userMessage: string;
+    metadata: Record<string, unknown>;
+} {
+    // Handle specific error types
     if (
-        expose &&
-        typeof error.message === 'string' &&
-        error.message.trim().length > 0
+        error.name === 'ValidationError' ||
+        error.message.includes('validation')
     ) {
-        return error.message;
+        return {
+            statusCode: 400,
+            type: 'validation',
+            code: 'VALIDATION_ERROR',
+            userMessage: error.message,
+            metadata: { originalError: error.name },
+        };
     }
 
-    if (status >= 500) {
-        return 'Internal Server Error';
+    if (
+        error.name === 'UnauthorizedError' ||
+        error.message.includes('unauthorized')
+    ) {
+        return {
+            statusCode: 401,
+            type: 'authentication',
+            code: 'AUTH_ERROR',
+            userMessage: 'Authentication required',
+            metadata: { originalError: error.name },
+        };
     }
 
-    return STATUS_CODES[status] ?? 'Error';
-};
-
-const sanitizeDetails = (details: unknown): unknown => {
-    if (details instanceof Error) {
-        return { message: details.message };
+    if (
+        error.name === 'ForbiddenError' ||
+        error.message.includes('forbidden')
+    ) {
+        return {
+            statusCode: 403,
+            type: 'authorization',
+            code: 'AUTHZ_ERROR',
+            userMessage: 'Access denied',
+            metadata: { originalError: error.name },
+        };
     }
 
-    return details;
-};
-
-const resolveDetails = (
-    error: NormalizedError,
-    isZodError: boolean,
-    expose: boolean
-): unknown => {
-    if (!expose) {
-        return undefined;
+    if (error.name === 'NotFoundError' || error.message.includes('not found')) {
+        return {
+            statusCode: 404,
+            type: 'not_found',
+            code: 'NOT_FOUND',
+            userMessage: 'Resource not found',
+            metadata: { originalError: error.name },
+        };
     }
 
-    if (isZodError) {
-        return (error as unknown as ZodError).issues;
+    // Database/Connection errors
+    if (
+        error.name.includes('Connection') ||
+        error.message.includes('ECONNREFUSED')
+    ) {
+        return {
+            statusCode: 503,
+            type: 'database',
+            code: 'DB_CONNECTION_ERROR',
+            userMessage: 'Service temporarily unavailable',
+            metadata: { originalError: error.name },
+        };
     }
 
-    const details =
-        (error as Record<string, unknown>).details ??
-        (error as Record<string, unknown>).issues ??
-        (error as Record<string, unknown>).errors ??
-        undefined;
-
-    return sanitizeDetails(details);
-};
-
-export const errorHandlerMiddleware: ErrorRequestHandler = (
-    incomingError,
-    req,
-    res,
-    next
-) => {
-    if (incomingError === null) {
-        return next();
+    // Rate limiting
+    if (
+        error.message.includes('rate limit') ||
+        error.message.includes('too many requests')
+    ) {
+        return {
+            statusCode: 429,
+            type: 'rate_limit',
+            code: 'RATE_LIMIT',
+            userMessage: 'Too many requests',
+            metadata: { originalError: error.name },
+        };
     }
 
-    if (res.headersSent) {
-        return next(incomingError);
-    }
-
-    const error = normalizeError(incomingError);
-    const isZodError = error instanceof ZodError;
-
-    const status = resolveStatus(error, isZodError);
-    const expose = error.expose === true || status < 500;
-    const code = resolveCode(error, status, isZodError);
-    const message = resolveMessage(error, status, isZodError, expose);
-    const details = resolveDetails(error, isZodError, expose);
-
-    const requestId = (req as { id?: string | number }).id;
-    const responseBody = {
-        error: {
-            code,
-            message,
-            ...(details !== undefined ? { details } : {}),
-            ...(requestId ? { requestId } : {}),
-        },
+    // Default to internal error
+    return {
+        statusCode: 500,
+        type: 'internal',
+        code: 'INTERNAL_ERROR',
+        userMessage: 'Internal server error',
+        metadata: { originalError: error.name },
     };
+}
 
-    const log = (req as Request & { log?: Logger }).log ?? fallbackLogger;
-    const logLevel: 'error' | 'warn' = status > 500 ? 'error' : 'warn';
+export function errorHandlerMiddleware(
+    error: Error,
+    req: Request,
+    res: Response,
+    _next: NextFunction // eslint-disable-line @typescript-eslint/no-unused-vars
+): void {
+    // Extract context from correlation or request
+    const context = getRequestContext();
+    const traceId =
+        context?.traceId || (req.headers['x-trace-id'] as string) || 'unknown';
+    const userId = context?.userId || req.session?.userId;
+    const tenantId = context?.tenantId || req.session?.currentTenantId;
 
-    log[logLevel](
+    let statusCode = 500;
+    let errorType: ErrorType = 'internal';
+    let errorCode = 'INTERNAL_ERROR';
+    let metadata: Record<string, unknown> = {};
+    let userMessage = 'Internal server error';
+
+    // Handle AppError instances (our custom errors)
+    if (error instanceof AppError) {
+        statusCode = error.statusCode;
+        errorType = error.type;
+        errorCode = error.code;
+        metadata = error.context.metadata || {};
+        userMessage = error.message; // AppErrors are safe to expose
+    } else {
+        // Handle common Node.js/Express errors
+        const mappedError = mapNativeError(error);
+        statusCode = mappedError.statusCode;
+        errorType = mappedError.type;
+        errorCode = mappedError.code;
+        userMessage = mappedError.userMessage;
+        metadata = mappedError.metadata;
+    }
+
+    // Log with full context
+    logger.error(
         {
-            err: error,
-            status,
-            code,
-            requestId,
-            path: req.originalUrl,
-            method: req.method,
+            error: {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+                type: errorType,
+                code: errorCode,
+            },
+            request: {
+                method: req.method,
+                url: req.url,
+                path: req.path,
+                query: req.query,
+                userAgent: req.headers['user-agent'],
+                ip: req.ip,
+                referrer: req.headers.referer,
+            },
+            user: {
+                userId,
+                tenantId,
+                sessionId: context?.sessionId || req.sessionID,
+            },
+            metadata,
+            traceId,
         },
-        'request_failed'
+        'Request failed'
     );
 
-    res.status(status).json(responseBody);
-};
+    // TODO: Add metrics when metrics package is ready
+    // metrics.increment('errors.count', {
+    //     type: errorType,
+    //     code: errorCode,
+    //     statusCode: statusCode.toString(),
+    // });
+
+    // Return safe error to client
+    res.status(statusCode).json({
+        error: {
+            message: userMessage,
+            code: errorCode,
+            traceId,
+            ...(statusCode < 500 && Object.keys(metadata).length > 0
+                ? { details: metadata }
+                : {}),
+        },
+    });
+}

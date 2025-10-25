@@ -26,3 +26,5 @@ export type AuthenticatedRequestWithBody<TBody> =
 
 export type AuthenticatedRequestWithQuery<TQuery> =
     RequestWithValidatedQuery<TQuery> & AuthenticatedRequest;
+
+export type AuthenticatedGetRequest = AuthenticatedRequest;

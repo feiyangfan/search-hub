@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authRequired } from '../middleware/authMiddleware.js';
 
 import {
     CreateTenantPayload,
@@ -7,26 +8,32 @@ import {
     type DeleteTenantPayload as DeleteTenantPayloadBody,
     ActiveTenantPayload,
     type ActiveTenantPayload as ActiveTenantPayloadBody,
+    TenantNotFoundError,
+    TenantAccessDeniedError,
+    DatabaseError,
 } from '@search-hub/schemas';
 
 import { validateBody } from '../middleware/validateMiddleware.js';
-import type { AuthenticatedRequestWithBody } from './types.js';
+import type {
+    AuthenticatedRequestWithBody,
+    AuthenticatedGetRequest,
+} from './types.js';
 import { db } from '@search-hub/db';
 
 export function tenantRoutes() {
     const router = Router();
 
+    router.use(authRequired);
+
     router.get('/', async (req, res, next) => {
         try {
-            const { userId } = req.session ?? {};
-            if (!userId) {
-                return res.status(401).json({ error: 'Unauthorized' });
-            }
+            const authReq = req as AuthenticatedGetRequest;
+            const { userId } = authReq.session;
 
             const tenants = await db.tenant.listForUser({ userId });
             res.json({
                 tenants,
-                activeTenantId: req.session.currentTenantId ?? null,
+                activeTenantId: authReq.session.currentTenantId ?? null,
             });
         } catch (error) {
             next(error);
@@ -50,7 +57,13 @@ export function tenantRoutes() {
                 reqWithUser.session.currentTenantId = tenant.id;
                 reqWithUser.session.save((err) => {
                     if (err) {
-                        next(err);
+                        next(
+                            new DatabaseError(
+                                'Failed to save session',
+                                'session_save',
+                                { userId }
+                            )
+                        );
                         return;
                     }
                     res.status(201).json(tenant);
@@ -84,7 +97,13 @@ export function tenantRoutes() {
 
                     req.session.save((err: Error) => {
                         if (err) {
-                            next(err);
+                            next(
+                                new DatabaseError(
+                                    'Failed to save session',
+                                    'session_save',
+                                    { userId }
+                                )
+                            );
                             return;
                         }
                         res.status(204).end();
@@ -107,15 +126,12 @@ export function tenantRoutes() {
                     req as AuthenticatedRequestWithBody<ActiveTenantPayloadBody>;
                 const { body } = reqWithUser.validated;
                 const tenantId = body.id;
-                const userId = reqWithUser.session.userId;
 
-                if (!userId) {
-                    return res.status(401).json({ error: 'Unauthorized' });
-                }
+                const userId = reqWithUser.session.userId;
 
                 const tenant = await db.tenant.findById(tenantId);
                 if (!tenant) {
-                    return res.status(404).json({ error: 'Tenant not found' });
+                    throw new TenantNotFoundError(tenantId);
                 }
 
                 const memberships = await db.tenant.listForUser({ userId });
@@ -124,13 +140,23 @@ export function tenantRoutes() {
                 );
 
                 if (!membership) {
-                    return res.status(403).json({ error: 'Forbidden' });
+                    throw new TenantAccessDeniedError(
+                        tenantId,
+                        userId,
+                        'User is not a member of this tenant'
+                    );
                 }
 
                 reqWithUser.session.currentTenantId = tenantId;
                 reqWithUser.session.save((err) => {
                     if (err) {
-                        next(err);
+                        next(
+                            new DatabaseError(
+                                'Failed to save session',
+                                'session_save',
+                                { userId }
+                            )
+                        );
                         return;
                     }
                     res.status(204).end();

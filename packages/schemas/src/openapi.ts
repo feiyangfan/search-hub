@@ -2,7 +2,7 @@ import { createDocument } from 'zod-openapi';
 import type { oas31 } from 'zod-openapi';
 
 type OpenApiDocument = oas31.OpenAPIObject;
-import { ApiError } from './common.js';
+import { ApiError } from './errors.js';
 import {
     CreateDocumentRequest,
     CreateDocumentResponse,
@@ -49,8 +49,18 @@ export function buildOpenApi(
                                 },
                             },
                         },
-                        409: {
-                            description: 'Conflict: User already exists',
+                        400: {
+                            description:
+                                'Bad Request - Validation error or user already exists',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                        500: {
+                            description:
+                                'Internal Server Error - Database or system error',
                             content: {
                                 'application/json': {
                                     schema: ApiError,
@@ -79,6 +89,30 @@ export function buildOpenApi(
                                 },
                             },
                         },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized - Invalid credentials',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -87,6 +121,14 @@ export function buildOpenApi(
                     responses: {
                         204: {
                             description: 'Signed out successfully',
+                        },
+                        401: {
+                            description: 'Unauthorized - No active session',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
                         },
                     },
                 },
@@ -105,13 +147,26 @@ export function buildOpenApi(
                             },
                         },
                         400: {
-                            description: 'Bad Request',
+                            description: 'Bad Request - Validation error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Tenant access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
@@ -137,13 +192,26 @@ export function buildOpenApi(
                             },
                         },
                         400: {
-                            description: 'Bad Request',
+                            description: 'Bad Request - Validation error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Tenant access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
@@ -162,13 +230,39 @@ export function buildOpenApi(
                             },
                         },
                         400: {
-                            description: 'Bad Request',
+                            description: 'Bad Request - Validation error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Tenant access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        429: {
+                            description:
+                                'Too Many Requests - Rate limit exceeded',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        502: {
+                            description: 'Bad Gateway - AI service error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
@@ -189,7 +283,14 @@ export function buildOpenApi(
                             },
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
@@ -215,23 +316,23 @@ export function buildOpenApi(
                             },
                         },
                         400: {
-                            description: 'Bad Request',
+                            description:
+                                'Bad Request - Validation error or tenant name exists',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
-                        409: {
-                            description: 'Conflict',
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
-                                'application/json': {
-                                    schema: ApiError,
-                                },
+                                'application/json': { schema: ApiError },
                             },
                         },
                     },
@@ -250,17 +351,29 @@ export function buildOpenApi(
                             description: 'Success',
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         403: {
-                            description: 'Forbidden',
+                            description:
+                                'Forbidden - Not authorized to delete this tenant',
                             content: {
-                                'application/json': {
-                                    schema: ApiError,
-                                },
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tenant not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
                             },
                         },
                     },
@@ -281,25 +394,33 @@ export function buildOpenApi(
                             description: 'Success',
                         },
                         400: {
-                            description: 'Bad Request',
+                            description: 'Bad Request - Validation error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         401: {
-                            description: 'Unauthorized',
+                            description:
+                                'Unauthorized - Authentication required',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         403: {
-                            description: 'Forbidden',
+                            description:
+                                'Forbidden - User not member of tenant',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
                         },
                         404: {
-                            description: 'Not Found',
+                            description: 'Not Found - Tenant not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },

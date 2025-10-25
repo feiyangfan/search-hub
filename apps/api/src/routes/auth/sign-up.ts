@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { AuthPayload, UserProfile } from '@search-hub/schemas';
+import {
+    AuthPayload,
+    UserProfile,
+    ValidationError,
+    DatabaseError,
+} from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -18,13 +23,63 @@ export function signUpRoutes() {
             const typedReq = req as RequestWithValidatedBody<AuthPayloadType>;
             const { email, password } = typedReq.validated.body;
 
-            const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-            const user = await db.user.create({ email, passwordHash });
+            console.log('Sign-up attempt for email:', email);
 
-            res.status(201).json({
-                user: UserProfile.parse(user),
-                message: 'User created',
-            });
+            // Optimistic check - catches most duplicate attempts early
+            const existingUser = await db.user.findByEmail({ email });
+            if (existingUser) {
+                throw new ValidationError(
+                    'User with this email already exists',
+                    'email'
+                );
+            }
+
+            const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+            try {
+                const user = await db.user.create({ email, passwordHash });
+
+                res.status(201).json({
+                    user: UserProfile.parse(user),
+                    message: 'User created',
+                });
+            } catch (dbError: unknown) {
+                // Handle race condition - database constraint violation
+                if (
+                    dbError &&
+                    typeof dbError === 'object' &&
+                    'code' in dbError &&
+                    dbError.code === 'P2002' &&
+                    'meta' in dbError &&
+                    dbError.meta &&
+                    typeof dbError.meta === 'object' &&
+                    'target' in dbError.meta &&
+                    Array.isArray(dbError.meta.target) &&
+                    dbError.meta.target.includes('email')
+                ) {
+                    // Prisma unique constraint error for email field
+                    throw new ValidationError(
+                        'User with this email already exists',
+                        'email'
+                    );
+                }
+
+                // Re-throw other database errors as DatabaseError
+                const errorMessage =
+                    dbError instanceof Error
+                        ? dbError.message
+                        : 'Unknown database error';
+                const errorCode =
+                    dbError && typeof dbError === 'object' && 'code' in dbError
+                        ? String(dbError.code)
+                        : 'UNKNOWN';
+
+                throw new DatabaseError(
+                    `Failed to create user: ${errorMessage}`,
+                    'user_creation',
+                    { originalError: errorCode }
+                );
+            }
         } catch (error) {
             next(error);
         }
