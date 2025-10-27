@@ -8,6 +8,7 @@
     "author": "Feiyang Fan",
     "packageManager": "pnpm@10.15.1",
     "dependencies": {
+        "@search-hub/observability": "workspace:*",
         "@search-hub/ai": "workspace:*",
         "@search-hub/config-env": "workspace:*",
         "@search-hub/db": "workspace:*",

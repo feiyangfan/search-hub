@@ -6,6 +6,9 @@
         "strict": true,
         "noUncheckedIndexedAccess": true,
         "baseUrl": ".",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
         "paths": {
             "@search-hub/*": ["packages/*/src"],
             "@search-hub/config/*": ["packages/config/*/src"],

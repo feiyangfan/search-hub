@@ -1,9 +1,10 @@
 {
-  "extends": "../../../tsconfig.base.json",
-  "include": ["src"],
-  "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "types": ["node"]
-  }
+    "extends": "../../../tsconfig.base.json",
+    "include": ["src"],
+    "compilerOptions": {
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "types": ["node"],
+        "composite": true
+    }
 }

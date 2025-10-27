@@ -6,7 +6,7 @@
     "keywords": [],
     "author": "Feiyang Fan",
     "license": "ISC",
-    "packageManager": "pnpm@10.17.1",
+    "packageManager": "pnpm@10.19.0",
     "scripts": {
         "prisma:gen": "pnpm --filter @search-hub/db prisma:generate",
         "prisma:migratedev": "pnpm --filter @search-hub/db prisma:migratedev",

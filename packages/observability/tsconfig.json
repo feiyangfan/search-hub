@@ -1,0 +1,23 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "rootDir": "src",
+        "outDir": "./dist",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "composite": true, // enables project references
+        "skipLibCheck": true,
+        "module": "nodenext",
+        "moduleResolution": "NodeNext"
+    },
+    "include": ["src/**/*"],
+    "exclude": ["dist", "node_modules"],
+    "references": [
+        { "path": "../logger" },
+        { "path": "../ai" },
+        { "path": "../schemas" },
+        { "path": "../config/env" },
+        { "path": "../db" }
+    ]
+}
