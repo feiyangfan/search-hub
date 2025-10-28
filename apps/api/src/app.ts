@@ -9,8 +9,11 @@ import { httpLogger } from '@search-hub/logger';
 import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware.js';
 import { createRateLimiter } from './middleware/rateLimitMiddleware.js';
 import { correlationMiddleware } from './middleware/correlationMiddleware.js';
+import { authRequired } from './middleware/authMiddleware.js';
 
-import { buildRoutes } from './routes/routes.js';
+import { buildV1Routes } from './routes/routes.js';
+import { healthRoutes } from './routes/health.js';
+import { buildAuthRoutes } from './routes/auth/index.js';
 
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
@@ -49,36 +52,21 @@ export function createServer(): express.Express {
         })
     );
 
-    // Add correlation middleware AFTER session middleware
     app.use(correlationMiddleware);
 
-    app.use((req, _res, next) => {
-        const { userId, currentTenantId } = req.session ?? {};
-
-        req.log?.debug(
-            {
-                hasSession: Boolean(req.session),
-                userId,
-                currentTenantId,
-                path: req.originalUrl,
-                method: req.method,
-            },
-            'session_snapshot'
-        );
-
-        next();
-    });
-
+    // Public routes
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
+    app.use('/', healthRoutes());
+    app.use('/v1/auth', buildAuthRoutes());
 
-    app.get('/health', (_req, res) => {
-        _req.log.info('health_check');
-        res.status(200).json({ status: 'ok' });
-    });
-
+    // Rate limiter applied to all /v1 routes
     app.use('/v1', createRateLimiter());
 
-    app.use(buildRoutes());
+    // Protected routes
+    // Authenticate all requests to /v1
+    app.use('/v1', authRequired);
+
+    app.use('/v1', buildV1Routes());
 
     // error handler
     app.use((req: Request, res: Response) => {
