@@ -5,7 +5,10 @@ import {
     CreateDocumentRequestType,
     CrossTenantAccessError,
 } from '@search-hub/schemas';
-
+import {
+    AuthenticatedRequest,
+    authRequired,
+} from '../middleware/authMiddleware.js';
 import { validateBody } from '../middleware/validateMiddleware.js';
 import {
     createDocumentService,
@@ -18,7 +21,6 @@ import {
     type GetDocumentListParamsType,
     UpdateDocumentTitlePayload,
     type UpdateDocumentTitlePayloadType,
-    AuthorizationError,
     TenantActiveMissingError,
     DocumentAccessDeniedError,
     DocumentNotFoundError,
@@ -37,18 +39,17 @@ export function documentRoutes(
     service: DocumentService = createDocumentService()
 ) {
     const router = Router();
+    router.use(authRequired);
 
     router.get(
         '/',
         validateQuery(GetDocumentListParams),
         async (req, res, next) => {
             try {
-                const { userId } = req.session ?? {};
-                const activeTenantId = req.session?.currentTenantId;
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
 
-                if (!userId) {
-                    throw new AuthorizationError('Authentication required.');
-                }
+                const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
                     throw new TenantActiveMissingError(
@@ -82,12 +83,10 @@ export function documentRoutes(
         validateBody(CreateDocumentRequest),
         async (req, res, next) => {
             try {
-                const { userId } = req.session ?? {};
-                const activeTenantId = req.session?.currentTenantId;
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
 
-                if (!userId) {
-                    throw new AuthorizationError('Authentication required.');
-                }
+                const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
                     throw new TenantActiveMissingError(
@@ -137,12 +136,10 @@ export function documentRoutes(
         validateParams(GetDocumentDetailsParams),
         async (req, res, next) => {
             try {
-                const { userId } = req.session ?? {};
-                const activeTenantId = req.session?.currentTenantId;
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
 
-                if (!userId) {
-                    throw new AuthorizationError('Authentication required.');
-                }
+                const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
                     throw new TenantActiveMissingError(
@@ -175,12 +172,10 @@ export function documentRoutes(
         validateParams(GetDocumentDetailsParams),
         async (req, res, next) => {
             try {
-                const { userId } = req.session ?? {};
-                const activeTenantId = req.session?.currentTenantId;
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
 
-                if (!userId) {
-                    throw new AuthorizationError('Authentication required.');
-                }
+                const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
                     throw new TenantActiveMissingError(
@@ -218,12 +213,9 @@ export function documentRoutes(
         validateBody(UpdateDocumentTitlePayload),
         async (req, res, next) => {
             try {
-                const { userId } = req.session ?? {};
-                const activeTenantId = req.session?.currentTenantId;
-
-                if (!userId) {
-                    throw new AuthorizationError('Authentication required.');
-                }
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
+                const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
                     throw new TenantActiveMissingError(

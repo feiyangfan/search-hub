@@ -8,10 +8,10 @@ declare global {
     var __redis__: Redis | undefined;
 }
 
-const redis = globalThis.__redis__ ?? new Redis(REDIS_URL);
+export const redisClient = globalThis.__redis__ ?? new Redis(REDIS_URL);
 
 if (process.env.NODE_ENV !== 'production') {
-    globalThis.__redis__ = redis;
+    globalThis.__redis__ = redisClient;
 }
 
 export function createRateLimiter(): RequestHandler {
@@ -47,7 +47,7 @@ export function createRateLimiter(): RequestHandler {
         const now = Date.now();
 
         try {
-            const raws = await redis.eval(
+            const raws = await redisClient.eval(
                 script,
                 1,
                 key,
@@ -57,7 +57,11 @@ export function createRateLimiter(): RequestHandler {
             );
             const tokens = Number(raws);
             if (process.env.DEBUG_API_RATE_LIMIT) {
-                const snapshot = await redis.hmget(key, 'tokens', 'refill_at');
+                const snapshot = await redisClient.hmget(
+                    key,
+                    'tokens',
+                    'refill_at'
+                );
                 logger.debug(
                     { key, tokens: snapshot[0], refillAt: snapshot[1] },
                     'rate.limit.bucket'

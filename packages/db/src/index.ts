@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+export type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { loadDbEnv } from '@search-hub/config-env';
 import { DocumentSourceType } from '@search-hub/schemas';
