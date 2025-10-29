@@ -1,10 +1,18 @@
-import type { PrismaClient } from '@search-hub/db';
 import type { Redis } from 'ioredis'; // For the rate limiter
 import type { RedisClientType } from 'redis'; // For the session store
 
+// Use an interface that accepts any Prisma client (base or extended)
+// This is more flexible and works with Prisma's $extends API
+interface PrismaLike {
+    $queryRaw: <T = unknown>(
+        query: TemplateStringsArray,
+        ...values: unknown[]
+    ) => Promise<T>;
+}
+
 // 1. Define dependencies with their correct, distinct types.
 export interface HealthCheckDependencies {
-    db: PrismaClient;
+    db: PrismaLike;
     rateLimitRedis: Redis;
     sessionRedis: RedisClientType;
 }
