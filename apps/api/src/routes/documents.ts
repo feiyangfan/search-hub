@@ -5,6 +5,7 @@ import {
     CreateDocumentRequestType,
     CrossTenantAccessError,
 } from '@search-hub/schemas';
+import { metrics } from '@search-hub/observability';
 import {
     AuthenticatedRequest,
     authRequired,
@@ -123,6 +124,14 @@ export function documentRoutes(
                         tenantId: activeTenantId,
                     }
                 );
+
+                // Track document creation metrics
+                // Determine source type based on whether sourceUrl is provided
+                const sourceType = body.sourceUrl ? 'link' : 'editor';
+                metrics.documentsCreated.inc({
+                    tenant_id: activeTenantId,
+                    source_type: sourceType,
+                });
 
                 res.status(202).json({ id: documentId, status: 'queued' }); // 202 accepted since it's async work (queue)
             } catch (err) {

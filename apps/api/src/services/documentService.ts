@@ -8,6 +8,7 @@ import {
     type UpdateDocumentTitlePayloadType,
     type DocumentListResultType,
 } from '@search-hub/schemas';
+import { metrics } from '@search-hub/observability';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
 import type { Logger } from 'pino';
@@ -122,6 +123,12 @@ export function createDocumentService(
 
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
+        });
+
+        // Increment queue depth when job is added
+        metrics.queueDepth.inc({
+            queue_name: JOBS.INDEX_DOCUMENT,
+            tenant_id: doc.tenantId,
         });
 
         logger.info(

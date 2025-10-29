@@ -30,6 +30,7 @@ declare global {
         interface Request {
             id: ReqId;
             log: pino.Logger;
+            traceId?: string;
         }
     }
 }

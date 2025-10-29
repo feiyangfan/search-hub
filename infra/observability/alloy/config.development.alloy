@@ -1,0 +1,140 @@
+// ============================================================================
+// Grafana Alloy Configuration - Development Environment
+// ============================================================================
+// This config scrapes metrics from localhost and sends to Grafana Cloud.
+//
+// Setup:
+// 1. Set environment variables:
+//    export GCLOUD_HOSTED_METRICS_ID="<your-prometheus-user-id>"
+//    export GCLOUD_RW_API_KEY="<your-grafana-cloud-api-key>"
+//    export GCLOUD_FLEET_ID="<your-fleet-management-id>"
+//
+// 2. Copy to Alloy config location:
+//    cp infra/observability/alloy/config.development.alloy /opt/homebrew/etc/alloy/config.alloy
+//
+// 3. Start Alloy:
+//    brew services start alloy
+// ============================================================================
+
+// Optional: Fleet management for centralized config updates
+// Disable this if you prefer local-only config
+remotecfg {
+	url            = "https://fleet-management-prod-012.grafana.net"
+	id             = sys.env("GCLOUD_FLEET_ID")
+	poll_frequency = "60s"
+
+	basic_auth {
+		username = sys.env("GCLOUD_FLEET_USERNAME")
+		password = sys.env("GCLOUD_RW_API_KEY")
+	}
+}
+
+// ============================================================================
+// PROMETHEUS REMOTE WRITE - Send metrics to Grafana Cloud
+// ============================================================================
+prometheus.remote_write "metrics_hosted_prometheus" {
+   endpoint {
+      name = "hosted-prometheus"
+      url  = sys.env("GCLOUD_PROMETHEUS_URL") // e.g., https://prometheus-prod-XX.grafana.net/api/prom/push
+  
+      basic_auth {
+        username = sys.env("GCLOUD_HOSTED_METRICS_ID")
+        password = sys.env("GCLOUD_RW_API_KEY")
+      }
+      
+      // Queue config for reliability
+      queue_config {
+        capacity          = 10000
+        max_shards        = 10
+        min_shards        = 1
+        max_samples_per_send = 2000
+        batch_send_deadline  = "5s"
+      }
+   }
+}
+
+// ============================================================================
+// LOKI WRITE - Send logs to Grafana Cloud (future)
+// ============================================================================
+loki.write "grafana_cloud_loki" {
+	endpoint {
+		url = sys.env("GCLOUD_LOKI_URL") // e.g., https://logs-prod-XXX.grafana.net/loki/api/v1/push
+
+		basic_auth {
+			username = sys.env("GCLOUD_LOKI_USERNAME")
+			password = sys.env("GCLOUD_RW_API_KEY")
+		}
+	}
+}
+
+// ============================================================================
+// SCRAPE SEARCH HUB API METRICS
+// ============================================================================
+prometheus.scrape "search_hub_api" {
+  targets = [{
+    __address__ = "localhost:3000",
+    service     = "search-hub-api",
+    environment = "development",
+  }]
+
+  forward_to = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+
+  scrape_interval = "60s"
+  scrape_timeout  = "10s"
+  
+  // Optional: Add job label
+  job_name = "search-hub-api"
+}
+
+// ============================================================================
+// SCRAPE SEARCH HUB WORKER METRICS (when implemented)
+// ============================================================================
+// prometheus.scrape "search_hub_worker" {
+//   targets = [{
+//     __address__ = "localhost:3001",
+//     service     = "search-hub-worker",
+//     environment = "development",
+//   }]
+//
+//   forward_to = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+//
+//   scrape_interval = "60s"
+//   scrape_timeout  = "10s"
+// }
+
+// ============================================================================
+// LOG COLLECTION (future - when Pino logs need aggregation)
+// ============================================================================
+// loki.source.file "search_hub_logs" {
+//   targets = [
+//     {
+//       __path__ = "/Users/youruser/Projects/search-hub/logs/api.log",
+//       service  = "search-hub-api",
+//       environment = "development",
+//     },
+//   ]
+//
+//   forward_to = [loki.process.search_hub.receiver]
+// }
+//
+// loki.process "search_hub" {
+//   // Parse JSON logs
+//   stage.json {
+//     expressions = {
+//       level    = "level",
+//       traceId  = "traceId",
+//       tenantId = "tenantId",
+//     }
+//   }
+//
+//   // Extract labels
+//   stage.labels {
+//     values = {
+//       level    = "",
+//       traceId  = "",
+//       tenantId = "",
+//     }
+//   }
+//
+//   forward_to = [loki.write.grafana_cloud_loki.receiver]
+// }

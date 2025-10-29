@@ -6,6 +6,7 @@ import {
     AuthenticationError,
 } from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
+import { metrics } from '@search-hub/observability';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
 import type { RequestWithValidatedBody } from '../types.js';
@@ -24,6 +25,11 @@ export function signInRoutes() {
             const userRecord = await db.user.findByEmail({ email });
 
             if (!userRecord || !userRecord.passwordHash) {
+                // Track failed sign-in attempt
+                metrics.authAttempts.inc({
+                    method: 'sign-in',
+                    status: 'failure',
+                });
                 throw new AuthenticationError('Invalid email or password');
             }
 
@@ -33,6 +39,11 @@ export function signInRoutes() {
             );
 
             if (!isPasswordValid) {
+                // Track failed sign-in attempt
+                metrics.authAttempts.inc({
+                    method: 'sign-in',
+                    status: 'failure',
+                });
                 throw new AuthenticationError('Invalid email or password');
             }
 
@@ -55,6 +66,13 @@ export function signInRoutes() {
 
                 req.session.save((err) => {
                     if (err) return next(err);
+
+                    // Track successful sign-in
+                    metrics.authAttempts.inc({
+                        method: 'sign-in',
+                        status: 'success',
+                    });
+
                     res.status(200).json({
                         user: UserProfileWithSummary.parse({
                             id: userRecord.id,

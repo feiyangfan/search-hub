@@ -23,6 +23,7 @@
         "@search-hub/config-env": "workspace:*",
         "@search-hub/db": "workspace:*",
         "@search-hub/logger": "workspace:*",
+        "@search-hub/observability": "workspace:*",
         "@search-hub/schemas": "workspace:*"
     }
 }

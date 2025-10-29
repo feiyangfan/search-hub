@@ -4,6 +4,7 @@ import { logger as base } from '@search-hub/logger';
 import { chunkText, sha256 } from '@search-hub/schemas';
 import { createVoyageHelpers } from '@search-hub/ai';
 import { loadAiEnv, loadWorkerEnv } from '@search-hub/config-env';
+import { metrics } from '@search-hub/observability';
 import {
     JOBS,
     IndexDocumentJobSchema,
@@ -29,11 +30,41 @@ const connection = { url: REDIS_URL };
 
 // Optional: listen to queue-level events for observability
 const queueEvents = new QueueEvents(JOBS.INDEX_DOCUMENT, { connection });
+
 queueEvents.on('completed', ({ jobId }) => {
     logger.info({ jobId }, 'Index job completed');
+
+    // Decrease queue depth (job finished processing)
+    metrics.queueDepth.dec({
+        queue_name: JOBS.INDEX_DOCUMENT,
+        tenant_id: 'all',
+    });
+
+    // Track successful job completion
+    metrics.jobsProcessed.inc({
+        job_type: 'index_document',
+        result: 'success',
+    });
 });
+
 queueEvents.on('failed', ({ jobId, failedReason }) => {
     logger.error({ jobId, failedReason }, 'Index job failed');
+
+    // Decrease queue depth (job finished, even though it failed)
+    metrics.queueDepth.dec({
+        queue_name: JOBS.INDEX_DOCUMENT,
+        tenant_id: 'all',
+    });
+
+    // Track failed job
+    metrics.jobsProcessed.inc({
+        job_type: 'index_document',
+        result: 'failure',
+    });
+    metrics.jobsFailed.inc({
+        job_type: 'index_document',
+        error_code: 'processing_error',
+    });
 });
 
 // Processor function: does the actual work
@@ -41,11 +72,19 @@ type ProcessorResult =
     | { ok: true; reason: 'empty-content' | 'already-indexed' | 'no-chunks' }
     | { ok: true; documentId: string; chunks: number };
 
-const processor = async (job: Job<IndexDocumentJob>): Promise<ProcessorResult> => {
+const processor = async (
+    job: Job<IndexDocumentJob>
+): Promise<ProcessorResult> => {
+    // Start timing the job
+    const startTime = Date.now();
+
     // 1) Validate payload
     const { tenantId, documentId } = IndexDocumentJobSchema.parse(job.data);
 
     logger.info('processor started');
+
+    // Track active job (job is now being processed)
+    metrics.activeJobs.inc({ job_type: 'index_document', tenant_id: tenantId });
 
     // 2) Transition: queued -> processing
     const start = await db.job.startProcessing(tenantId, documentId);
@@ -179,6 +218,17 @@ const processor = async (job: Job<IndexDocumentJob>): Promise<ProcessorResult> =
             );
         }
 
+        // Track successful job duration
+        const duration = (Date.now() - startTime) / 1000;
+        metrics.jobDuration.observe(
+            {
+                job_type: 'index_document',
+                tenant_id: tenantId,
+                result: 'success',
+            },
+            duration
+        );
+
         // You could return metadata for logging/metrics
         return { ok: true, documentId, chunks: chunks.length };
     } catch (err: unknown) {
@@ -189,7 +239,25 @@ const processor = async (job: Job<IndexDocumentJob>): Promise<ProcessorResult> =
             { err: error, jobId: job.id, data: job.data },
             'Index job failed; marked as failed in DB'
         );
+
+        // Track failed job duration
+        const duration = (Date.now() - startTime) / 1000;
+        metrics.jobDuration.observe(
+            {
+                job_type: 'index_document',
+                tenant_id: tenantId,
+                result: 'failure',
+            },
+            duration
+        );
+
         throw error;
+    } finally {
+        // Always decrement active jobs counter (whether success or failure)
+        metrics.activeJobs.dec({
+            job_type: 'index_document',
+            tenant_id: tenantId,
+        });
     }
 };
 

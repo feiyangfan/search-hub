@@ -1,0 +1,196 @@
+// ============================================================================
+// Grafana Alloy Configuration - Production Environment
+// ============================================================================
+// This config uses service discovery and production-grade settings.
+//
+// Deployment:
+// - Run Alloy as sidecar container or separate service
+// - Set environment variables via secret management (AWS Secrets Manager, etc.)
+// - Use internal service names instead of localhost
+// ============================================================================
+
+// ============================================================================
+// PROMETHEUS REMOTE WRITE - Send metrics to Grafana Cloud
+// ============================================================================
+prometheus.remote_write "metrics_hosted_prometheus" {
+   endpoint {
+      name = "hosted-prometheus"
+      url  = sys.env("GCLOUD_PROMETHEUS_URL")
+  
+      basic_auth {
+        username = sys.env("GCLOUD_HOSTED_METRICS_ID")
+        password = sys.env("GCLOUD_RW_API_KEY")
+      }
+      
+      // Production queue config for high throughput
+      queue_config {
+        capacity             = 50000
+        max_shards           = 20
+        min_shards           = 2
+        max_samples_per_send = 5000
+        batch_send_deadline  = "5s"
+        
+        // Retry configuration
+        min_backoff = "1s"
+        max_backoff = "10s"
+      }
+      
+      // Metadata config
+      metadata_config {
+        send         = true
+        send_interval = "1m"
+      }
+   }
+}
+
+// ============================================================================
+// LOKI WRITE - Send logs to Grafana Cloud
+// ============================================================================
+loki.write "grafana_cloud_loki" {
+	endpoint {
+		url = sys.env("GCLOUD_LOKI_URL")
+
+		basic_auth {
+			username = sys.env("GCLOUD_LOKI_USERNAME")
+			password = sys.env("GCLOUD_RW_API_KEY")
+		}
+		
+		// Production batch settings
+		batch_size  = 1048576  // 1MB
+		batch_wait  = "1s"
+		max_retries = 5
+	}
+}
+
+// ============================================================================
+// SERVICE DISCOVERY - API Service
+// ============================================================================
+// Adjust based on your deployment platform:
+// - Kubernetes: Use prometheus.kubernetes.endpoints
+// - ECS: Use prometheus.ecs.tasks
+// - Render: Use static targets with internal URLs
+// - Docker Compose: Use service names
+
+prometheus.scrape "search_hub_api" {
+  // For Docker Compose / internal network
+  targets = [{
+    __address__ = "api:3000",  // Internal service name
+    service     = "search-hub-api",
+    environment = "production",
+    region      = sys.env("AWS_REGION") || "unknown",
+  }]
+  
+  // For Kubernetes (alternative)
+  // Use discovery.kubernetes instead and relabel
+
+  forward_to = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+
+  scrape_interval = "30s"  // More frequent in production
+  scrape_timeout  = "10s"
+  
+  job_name = "search-hub-api"
+  
+  // Production: Add high availability
+  honor_labels      = true
+  honor_timestamps  = true
+}
+
+// ============================================================================
+// SERVICE DISCOVERY - Worker Service
+// ============================================================================
+prometheus.scrape "search_hub_worker" {
+  targets = [{
+    __address__ = "worker:3001",  // Internal service name
+    service     = "search-hub-worker",
+    environment = "production",
+    region      = sys.env("AWS_REGION") || "unknown",
+  }]
+
+  forward_to = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  
+  job_name = "search-hub-worker"
+}
+
+// ============================================================================
+// LOG COLLECTION - Application Logs
+// ============================================================================
+// Adjust paths based on your log aggregation setup
+loki.source.file "search_hub_api_logs" {
+  targets = [
+    {
+      __path__    = "/var/log/search-hub/api.log",  // Or stdout with docker log driver
+      service     = "search-hub-api",
+      environment = "production",
+      region      = sys.env("AWS_REGION") || "unknown",
+    },
+  ]
+
+  forward_to = [loki.process.search_hub.receiver]
+}
+
+loki.source.file "search_hub_worker_logs" {
+  targets = [
+    {
+      __path__    = "/var/log/search-hub/worker.log",
+      service     = "search-hub-worker",
+      environment = "production",
+      region      = sys.env("AWS_REGION") || "unknown",
+    },
+  ]
+
+  forward_to = [loki.process.search_hub.receiver]
+}
+
+// ============================================================================
+// LOG PROCESSING - Parse Pino JSON logs
+// ============================================================================
+loki.process "search_hub" {
+  // Parse JSON structure
+  stage.json {
+    expressions = {
+      level     = "level",
+      message   = "msg",
+      traceId   = "traceId",
+      tenantId  = "tenantId",
+      userId    = "userId",
+      duration  = "duration",
+      statusCode = "statusCode",
+      error     = "err.message",
+    }
+  }
+
+  // Convert numeric level to string
+  stage.template {
+    source   = "level_name"
+    template = '{{ if eq .level "10" }}trace{{ else if eq .level "20" }}debug{{ else if eq .level "30" }}info{{ else if eq .level "40" }}warn{{ else if eq .level "50" }}error{{ else if eq .level "60" }}fatal{{ else }}unknown{{ end }}'
+  }
+
+  // Add labels (keep cardinality low)
+  stage.labels {
+    values = {
+      level    = "level_name",
+      service  = "",
+      environment = "",
+      region   = "",
+    }
+  }
+
+  // Add trace ID as metadata for linking to traces
+  stage.structured_metadata {
+    values = {
+      traceId  = "",
+      tenantId = "",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud_loki.receiver]
+}
+
+// ============================================================================
+// HEALTH CHECKS - Monitor Alloy itself
+// ============================================================================
+// Expose Alloy's own metrics for monitoring
+// Access via http://alloy:12345/metrics

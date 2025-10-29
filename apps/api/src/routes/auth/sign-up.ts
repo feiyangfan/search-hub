@@ -6,6 +6,7 @@ import {
     DatabaseError,
 } from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
+import { metrics } from '@search-hub/observability';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
 import type { RequestWithValidatedBody } from '../types.js';
@@ -28,6 +29,11 @@ export function signUpRoutes() {
             // Optimistic check - catches most duplicate attempts early
             const existingUser = await db.user.findByEmail({ email });
             if (existingUser) {
+                // Track failed sign-up (duplicate email)
+                metrics.authAttempts.inc({
+                    method: 'sign-up',
+                    status: 'failure',
+                });
                 throw new ValidationError(
                     'User with this email already exists',
                     'email'
@@ -38,6 +44,13 @@ export function signUpRoutes() {
 
             try {
                 const user = await db.user.create({ email, passwordHash });
+
+                // Track successful sign-up
+                metrics.authAttempts.inc({
+                    method: 'sign-up',
+                    status: 'success',
+                });
+                metrics.userSignUps.inc({ source: 'web' });
 
                 res.status(201).json({
                     user: UserProfile.parse(user),
@@ -58,6 +71,11 @@ export function signUpRoutes() {
                     dbError.meta.target.includes('email')
                 ) {
                     // Prisma unique constraint error for email field
+                    // Track failed sign-up (race condition duplicate)
+                    metrics.authAttempts.inc({
+                        method: 'sign-up',
+                        status: 'failure',
+                    });
                     throw new ValidationError(
                         'User with this email already exists',
                         'email'

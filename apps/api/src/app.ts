@@ -5,15 +5,17 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import session from 'express-session';
-import { httpLogger } from '@search-hub/logger';
+
 import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware.js';
 import { createRateLimiter } from './middleware/rateLimitMiddleware.js';
 import { correlationMiddleware } from './middleware/correlationMiddleware.js';
 import { authRequired } from './middleware/authMiddleware.js';
+import { requestLogger } from './middleware/requestLoggerMiddleware.js';
 
 import { buildV1Routes } from './routes/routes.js';
 import { healthRoutes } from './routes/health.js';
 import { buildAuthRoutes } from './routes/auth/index.js';
+import { metricsRoutes } from './routes/metrics.js';
 
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
@@ -33,7 +35,6 @@ export function createServer(): express.Express {
 
     // Middlewares
     app.use(helmet());
-    app.use(httpLogger);
     app.use(cors({ origin: true, credentials: true }));
     app.use(compression());
 
@@ -52,11 +53,16 @@ export function createServer(): express.Express {
         })
     );
 
+    // CRITICAL ORDER: correlationMiddleware MUST come before requestLogger
+    // It sets up AsyncLocalStorage context that requestLogger depends on
+    // #TODO README
     app.use(correlationMiddleware);
+    app.use(requestLogger);
 
     // Public routes
     app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc));
     app.use('/', healthRoutes());
+    app.use('/metrics', metricsRoutes());
     app.use('/v1/auth', buildAuthRoutes());
 
     // Rate limiter applied to all /v1 routes
@@ -65,10 +71,9 @@ export function createServer(): express.Express {
     // Protected routes
     // Authenticate all requests to /v1
     app.use('/v1', authRequired);
-
     app.use('/v1', buildV1Routes());
 
-    // error handler
+    // 404 error handler
     app.use((req: Request, res: Response) => {
         const { id: requestId, log } = req;
         log?.warn(
