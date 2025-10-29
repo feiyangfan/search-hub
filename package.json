@@ -16,6 +16,8 @@
         "openapi:genapi": "pnpm --filter api openapi:generate",
         "openapi:gensdk": "pnpm --filter @search-hub/sdk generate",
         "openapi:genall": "pnpm run openapi:genapi && pnpm run openapi:gensdk",
+        "dev:clean": "pnpm redis:clear && pnpm dev",
+        "redis:clear": "docker compose -f infra/docker-compose.yml exec -T redis redis-cli FLUSHALL",
         "build": "turbo run build",
         "docker": "docker compose -f infra/docker-compose.yml up -d",
         "dev": "turbo run dev --parallel",
