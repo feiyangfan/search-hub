@@ -9,10 +9,10 @@ import { userRoutes } from './users.js';
 export function buildV1Routes() {
     const router = Router();
 
-    router.use('/v1/documents', documentRoutes());
-    router.use('/v1/tenants', tenantRoutes());
-    router.use('/v1', searchRoutes());
-    router.use('/v1/users', userRoutes());
+    router.use('/documents', documentRoutes());
+    router.use('/tenants', tenantRoutes());
+    router.use('/', searchRoutes());
+    router.use('/users', userRoutes());
 
     return router;
 }
