@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authRequired } from '../middleware/authMiddleware.js';
+import { metrics } from '@search-hub/observability';
 
 import {
     CreateTenantPayload,
@@ -22,8 +22,6 @@ import { db } from '@search-hub/db';
 
 export function tenantRoutes() {
     const router = Router();
-
-    router.use(authRequired);
 
     router.get('/', async (req, res, next) => {
         try {
@@ -54,6 +52,10 @@ export function tenantRoutes() {
                     name: body.name,
                     ownerId: userId,
                 });
+
+                // Track tenant creation metric
+                metrics.tenantCreations.inc();
+
                 reqWithUser.session.currentTenantId = tenant.id;
                 reqWithUser.session.save((err) => {
                     if (err) {

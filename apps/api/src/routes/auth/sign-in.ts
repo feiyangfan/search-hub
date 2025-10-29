@@ -73,6 +73,13 @@ export function signInRoutes() {
                         status: 'success',
                     });
 
+                    // Increment active users count
+                    if (primaryTenantId) {
+                        metrics.activeUsers.inc({
+                            tenant_id: primaryTenantId,
+                        });
+                    }
+
                     res.status(200).json({
                         user: UserProfileWithSummary.parse({
                             id: userRecord.id,

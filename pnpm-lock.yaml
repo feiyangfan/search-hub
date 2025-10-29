@@ -83,6 +83,9 @@ importers:
       ioredis:
         specifier: ^5.8.0
         version: 5.8.0
+      prom-client:
+        specifier: ^15.1.3
+        version: 15.1.3
       redis:
         specifier: ^5.8.3
         version: 5.8.3
@@ -370,6 +373,9 @@ importers:
       '@search-hub/logger':
         specifier: workspace:*
         version: link:../../packages/logger
+      '@search-hub/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@search-hub/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas

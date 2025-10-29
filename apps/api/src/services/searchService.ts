@@ -11,6 +11,7 @@ import {
     SemanticQuery,
 } from '@search-hub/schemas';
 import { logger } from '@search-hub/logger';
+import { metrics } from '@search-hub/observability';
 
 interface Candidate {
     documentId: string;
@@ -91,6 +92,7 @@ export function createSearchService(
             failureThreshold: breakerFailureThreshold,
             resetTimeoutMs: breakerResetTimeoutMs,
             halfOpenTimeoutMs: breakerHalfOpenTimeoutMs,
+            serviceName: 'voyage_ai', // Track Voyage AI service health
         });
 
     async function lexicalSearch(
@@ -134,6 +136,7 @@ export function createSearchService(
     async function semanticSearch(
         query: z.infer<typeof SemanticQuery>
     ): Promise<SemanticSearchResult> {
+        const startEmbedding = Date.now();
         const { tenantId, q, k, recall_k } = query;
 
         const effectiveRecall = Math.max(recall_k ?? k, k);
@@ -143,6 +146,10 @@ export function createSearchService(
             const qVec = await voyage.embed([String(q)], {
                 input_type: 'query',
             });
+            metrics.aiRequestDuration.observe(
+                { provider: 'voyage', operation: 'embed' },
+                (Date.now() - startEmbedding) / 1000
+            );
 
             // query the nearest neighbours using the embedding vector with cosine distance
             const candidates = await prisma.$queryRawUnsafe<Candidate[]>(
@@ -168,9 +175,14 @@ export function createSearchService(
             }
 
             // rerank the candidates using the voyage rerank endpoint.
+            const startRerank = Date.now();
             const rerank = await voyage.rerank(
                 String(q),
                 candidates.map((candidate) => candidate.content)
+            );
+            metrics.aiRequestDuration.observe(
+                { provider: 'voyage', operation: 'rerank' },
+                (Date.now() - startRerank) / 1000
             );
 
             breaker.recordSuccess();

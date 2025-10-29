@@ -175,11 +175,17 @@ const processor = async (
             );
         }
 
+        // Track AI request duration for embeddings
+        const startEmbedding = Date.now();
         const vectors = await voyage.embed(
             chunks.map((c: TextChunk) => c.text),
             {
                 input_type: 'document',
             }
+        );
+        metrics.aiRequestDuration.observe(
+            { provider: 'voyage', operation: 'embed' },
+            (Date.now() - startEmbedding) / 1000
         );
 
         logger.info(

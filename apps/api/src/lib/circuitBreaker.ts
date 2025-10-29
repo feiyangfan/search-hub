@@ -1,3 +1,5 @@
+import { metrics } from '@search-hub/observability';
+
 export interface CircuitBreakerOptions {
     /** Number of consecutive failures allowed before the breaker opens */
     failureThreshold: number;
@@ -5,6 +7,8 @@ export interface CircuitBreakerOptions {
     halfOpenTimeoutMs: number;
     /** Minimum time the breaker stays open before transitioning toward recovery */
     resetTimeoutMs: number;
+    /** Service name for metrics (e.g., 'voyage_ai', 'database') */
+    serviceName?: string;
 }
 
 // closed: healthy
@@ -19,8 +23,13 @@ export class CircuitBreaker {
     private openUntil = 0;
     private halfOpenReadyAt = 0;
     private halfOpenProbeInFlight = false;
+    private readonly serviceName: string;
 
-    constructor(private readonly opts: CircuitBreakerOptions) {}
+    constructor(private readonly opts: CircuitBreakerOptions) {
+        this.serviceName = opts.serviceName || 'unknown';
+        // Initialize circuit breaker state metric (0 = closed)
+        metrics.circuitBreakerState.set({ service: this.serviceName }, 0);
+    }
 
     // canExecute returns true if a request is allowed to proceed
     canExecute(now = Date.now()) {
@@ -33,6 +42,7 @@ export class CircuitBreaker {
 
             // move to half-open to let one request through
             this.state = 'half-open';
+            metrics.circuitBreakerState.set({ service: this.serviceName }, 2);
             this.halfOpenProbeInFlight = false;
         }
 
@@ -52,6 +62,7 @@ export class CircuitBreaker {
     // recordSuccess resets the breaker to closed state
     recordSuccess() {
         this.state = 'closed';
+        metrics.circuitBreakerState.set({ service: this.serviceName }, 0);
         this.failures = 0;
         this.openUntil = 0;
         this.halfOpenReadyAt = 0;
@@ -67,6 +78,7 @@ export class CircuitBreaker {
             this.failures >= this.opts.failureThreshold
         ) {
             this.state = 'open';
+            metrics.circuitBreakerState.set({ service: this.serviceName }, 1);
             this.failures = 0;
             this.halfOpenProbeInFlight = false;
             this.openUntil = now + this.opts.resetTimeoutMs;
