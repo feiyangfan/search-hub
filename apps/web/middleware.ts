@@ -5,5 +5,10 @@ export default withAuth({
 });
 
 export const config = {
-    matcher: ['/dashboard', '/api/:path*'], // exclude auth routes
+    matcher: [
+        '/dashboard/:path*', // Protect all dashboard routes
+        '/doc/:path*', // Protect all document routes
+        '/api/:path*', // Protect all API routes (except those explicitly excluded below)
+        // Note: NextAuth automatically excludes /api/auth/* from withAuth
+    ],
 };
