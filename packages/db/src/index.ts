@@ -988,9 +988,44 @@ export const db = {
             }
         },
         updateTitle: async (documentId: string, title: string) => {
+            // Update title and searchVector in a transaction
+            return prisma.$transaction(async (tx) => {
+                const updated = await tx.document.update({
+                    where: { id: documentId },
+                    data: { title },
+                });
+
+                // Update searchVector to reflect new title
+                // Weight A for title (higher priority), Weight B for content
+                await tx.$executeRaw`
+                    UPDATE "Document" d
+                    SET "searchVector" =
+                        setweight(to_tsvector('english', d."title"), 'A') ||
+                        setweight(
+                            to_tsvector(
+                                'english',
+                                COALESCE(
+                                    (
+                                        SELECT string_agg(dc."content", ' ' ORDER BY dc."idx")
+                                        FROM "DocumentChunk" dc
+                                        WHERE dc."documentId" = d."id"
+                                    ),
+                                    d."content",
+                                    ''
+                                )
+                            ),
+                            'B'
+                        )
+                    WHERE d."id" = ${documentId};
+                `;
+
+                return updated;
+            });
+        },
+        updateContent: async (documentId: string, content: string) => {
             return prisma.document.update({
                 where: { id: documentId },
-                data: { title },
+                data: { content },
             });
         },
         replaceChunksWithEmbeddings: async ({

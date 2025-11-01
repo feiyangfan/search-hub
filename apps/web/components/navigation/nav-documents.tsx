@@ -70,13 +70,13 @@ export function NavDocuments({
                                 : documents.map((document) => (
                                       <SidebarMenuItem key={document.id}>
                                           <SidebarMenuButton asChild>
-                                              <a
+                                              <Link
                                                   href={`/doc/${document.id}`}
                                                   className="flex items-center gap-2"
                                               >
                                                   <File className="inline-block h-4 w-4 shrink-0" />
                                                   <span>{document.title}</span>
-                                              </a>
+                                              </Link>
                                           </SidebarMenuButton>
                                           <NavDocumentActions
                                               documentId={document.id}

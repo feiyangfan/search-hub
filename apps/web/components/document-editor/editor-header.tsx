@@ -28,6 +28,7 @@ type EditorHeaderProps = {
     onToggleView?: () => void;
     toggleDisabled?: boolean;
     onFavoriteToggle?: () => void;
+    onTitleChange?: (newTitle: string) => Promise<void>;
     actions?: Array<{
         label: string;
         href?: string;
@@ -45,15 +46,86 @@ export function EditorHeader({
     onToggleView,
     toggleDisabled,
     onFavoriteToggle,
+    onTitleChange,
     actions,
     headerRight,
     commandsDropdown,
 }: EditorHeaderProps) {
+    const [isEditingTitle, setIsEditingTitle] = React.useState(false);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const titleRef = React.useRef<HTMLHeadingElement>(null);
+    const originalTitleRef = React.useRef<string>(title);
+
+    React.useEffect(() => {
+        if (titleRef.current && titleRef.current.textContent !== title) {
+            titleRef.current.textContent = title;
+            originalTitleRef.current = title;
+        }
+    }, [title]);
+
+    React.useEffect(() => {
+        if (isEditingTitle && titleRef.current) {
+            titleRef.current.focus();
+        }
+    }, [isEditingTitle]);
+
     const handleFavoriteToggle = React.useCallback(() => {
         if (onFavoriteToggle) {
             onFavoriteToggle();
         }
     }, [onFavoriteToggle]);
+
+    const handleTitleClick = React.useCallback(() => {
+        if (onTitleChange && !isEditingTitle) {
+            setIsEditingTitle(true);
+        }
+    }, [onTitleChange, isEditingTitle]);
+
+    const handleTitleBlur = React.useCallback(async () => {
+        setIsEditingTitle(false);
+
+        const newTitle = titleRef.current?.textContent?.trim() || '';
+
+        if (
+            !onTitleChange ||
+            !newTitle ||
+            newTitle === originalTitleRef.current
+        ) {
+            if (titleRef.current) {
+                titleRef.current.textContent = originalTitleRef.current;
+            }
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await onTitleChange(newTitle);
+            originalTitleRef.current = newTitle;
+        } catch (error) {
+            console.error('Failed to save title:', error);
+            if (titleRef.current) {
+                titleRef.current.textContent = originalTitleRef.current;
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    }, [onTitleChange]);
+
+    const handleKeyDown = React.useCallback(
+        (e: React.KeyboardEvent<HTMLHeadingElement>) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                titleRef.current?.blur();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                if (titleRef.current) {
+                    titleRef.current.textContent = originalTitleRef.current;
+                }
+                titleRef.current?.blur();
+            }
+        },
+        []
+    );
 
     const toggleLabel =
         viewMode === 'markdown' ? 'Return to editor' : 'View markdown';
@@ -64,7 +136,30 @@ export function EditorHeader({
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold">{title}</h3>
+                        <h3
+                            ref={titleRef}
+                            contentEditable={!!onTitleChange}
+                            suppressContentEditableWarning
+                            className={`text-lg font-semibold outline-none rounded px-1  -mx-1  transition-colors ${
+                                onTitleChange
+                                    ? 'cursor-text hover:text-primary'
+                                    : ''
+                            } ${
+                                isEditingTitle
+                                    ? 'border border-gray-200'
+                                    : 'border border-transparent'
+                            } ${isSaving ? 'opacity-50' : ''}`}
+                            onClick={handleTitleClick}
+                            onBlur={handleTitleBlur}
+                            onKeyDown={handleKeyDown}
+                            title={
+                                onTitleChange
+                                    ? 'Click to edit title'
+                                    : undefined
+                            }
+                        >
+                            {title}
+                        </h3>
                         {lastSavedLabel ? (
                             <span className="text-xs text-muted-foreground">
                                 {lastSavedLabel}
@@ -127,11 +222,9 @@ export function EditorHeader({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem disabled>Rename</DropdownMenuItem>
                             {/* <DropdownMenuItem disabled>
                                 Share / manage access
                             </DropdownMenuItem> */}
-                            <DropdownMenuSeparator />
                             {actions?.map((action) =>
                                 action.href ? (
                                     <DropdownMenuItem
@@ -151,7 +244,6 @@ export function EditorHeader({
                                     </DropdownMenuItem>
                                 )
                             )}
-                            <DropdownMenuSeparator />
                             <DropdownMenuItem disabled>
                                 Delete document
                             </DropdownMenuItem>
