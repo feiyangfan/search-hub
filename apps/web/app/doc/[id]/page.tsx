@@ -213,7 +213,14 @@ export default function DocumentPage() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [documentId]);
+    }, [handleManualSave]);
+
+    // Cleanup: cancel pending saves on unmount
+    useEffect(() => {
+        return () => {
+            debouncedSave.cancel();
+        };
+    }, [debouncedSave]);
 
     // Create Crepe editor when document is loaded
     useEffect(() => {
@@ -405,6 +412,8 @@ export default function DocumentPage() {
 
     // Generate save status label
     const getSaveStatusLabel = () => {
+        if (!document) return 'Loading...';
+
         switch (saveStatus) {
             case 'saving':
                 return 'Saving...';
