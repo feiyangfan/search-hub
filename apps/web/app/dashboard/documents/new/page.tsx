@@ -1,5 +1,9 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FilePlus2, Link2 } from 'lucide-react';
+import { FilePlus2, Link2, Loader2 } from 'lucide-react';
 
 import {
     Card,
@@ -13,8 +17,54 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function NewDocumentLandingPage() {
+    const router = useRouter();
+    const { toast } = useToast();
+    const [isCreating, setIsCreating] = useState(false);
+
+    const handleCreateDocument = async () => {
+        setIsCreating(true);
+        try {
+            const response = await fetch('/api/documents', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    title: 'Untitled page',
+                    content: '',
+                    source: 'editor',
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create document');
+            }
+
+            const data = await response.json();
+            const documentId = data.id;
+
+            // Trigger event to add new document to sidebar
+            window.dispatchEvent(
+                new CustomEvent('documentCreated', {
+                    detail: {
+                        id: documentId,
+                        title: 'Untitled page',
+                        updatedAt: new Date().toISOString(),
+                        isFavorite: false,
+                    },
+                })
+            );
+
+            // Redirect to the document editor
+            router.push(`/doc/${documentId}`);
+        } catch (error) {
+            console.error('Failed to create document:', error);
+            toast.error('Failed to create document. Please try again.');
+            setIsCreating(false);
+        }
+    };
     return (
         <div className="space-y-10 px-6 pb-16 pt-10">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 text-center sm:text-left">
@@ -58,10 +108,18 @@ export default function NewDocumentLandingPage() {
                         </ul>
                     </CardContent>
                     <CardFooter>
-                        <Button asChild>
-                            <Link href="/dashboard/documents/new/editor">
-                                Open markdown editor
-                            </Link>
+                        <Button
+                            onClick={handleCreateDocument}
+                            disabled={isCreating}
+                        >
+                            {isCreating ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Creating...
+                                </>
+                            ) : (
+                                'Open markdown editor'
+                            )}
                         </Button>
                     </CardFooter>
                 </Card>
