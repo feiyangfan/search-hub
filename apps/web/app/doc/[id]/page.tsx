@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useDebounce } from 'use-debounce';
+import { useDebouncedCallback } from 'use-debounce';
 import { useParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Crepe } from '@milkdown/crepe';
@@ -31,6 +31,8 @@ type Document = {
     updatedAt: string;
 };
 
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 export default function DocumentPage() {
     const params = useParams();
     const { toast } = useToast();
@@ -41,6 +43,10 @@ export default function DocumentPage() {
     const [document, setDocument] = useState<Document | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const lastSavedContentRef = useRef<string>('');
+    const isSavingRef = useRef(false);
 
     useEffect(() => {
         async function fetchDocument() {
@@ -54,7 +60,9 @@ export default function DocumentPage() {
                 }
 
                 const data = await response.json();
-                setDocument(data.document || data);
+                const doc = data.document || data;
+                setDocument(doc);
+                lastSavedContentRef.current = doc.content || '';
                 setIsLoading(false);
             } catch (err) {
                 console.error('Failed to fetch document:', err);
@@ -68,7 +76,7 @@ export default function DocumentPage() {
 
     const handleTitleChange = async (newTitle: string) => {
         try {
-            const response = await fetch(`/api/documents/${documentId}`, {
+            const response = await fetch(`/api/documents/${documentId}/title`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -101,7 +109,99 @@ export default function DocumentPage() {
         }
     };
 
-    const handleManualSave = async () => {};
+    // Save content to backend
+    const saveContent = async (content: string) => {
+        if (isSavingRef.current) {
+            console.log('Save already in progress, skipping');
+            return;
+        }
+
+        // Don't save if content hasn't changed
+        if (content === lastSavedContentRef.current) {
+            console.log('Content unchanged, skipping save');
+            return;
+        }
+
+        try {
+            isSavingRef.current = true;
+            setSaveStatus('saving');
+
+            const response = await fetch(
+                `/api/documents/${documentId}/content`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content }),
+                    credentials: 'include',
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to save content');
+            }
+
+            const data = await response.json();
+            lastSavedContentRef.current = content;
+            setHasUnsavedChanges(false);
+            setSaveStatus('saved');
+
+            // Update local document state with new updatedAt
+            setDocument((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          content,
+                          updatedAt: data.document.updatedAt,
+                      }
+                    : null
+            );
+
+            // Reset to idle after 2 seconds
+            setTimeout(() => {
+                setSaveStatus('idle');
+            }, 2000);
+        } catch (error) {
+            console.error('Failed to save content:', error);
+            setSaveStatus('error');
+            toast.error('Failed to save', {
+                description:
+                    'Your changes could not be saved. Please try again.',
+            });
+        } finally {
+            isSavingRef.current = false;
+        }
+    };
+
+    // Debounced auto-save (2.5 seconds after typing stops)
+    const debouncedSave = useDebouncedCallback(
+        (content: string) => {
+            console.log('Auto-saving content...');
+            saveContent(content);
+        },
+        2500 // 2.5 seconds
+    );
+
+    // Handle content changes from editor
+    const handleContentChange = (content: string) => {
+        if (content !== lastSavedContentRef.current) {
+            setHasUnsavedChanges(true);
+            debouncedSave(content);
+        }
+    };
+
+    // Manual save handler (Cmd/Ctrl+S)
+    const handleManualSave = async () => {
+        if (!editorInstanceRef.current) return;
+
+        // Cancel any pending debounced save
+        debouncedSave.cancel();
+
+        // Get current content from editor
+        const content = editorInstanceRef.current.getMarkdown();
+        await saveContent(content);
+    };
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -247,6 +347,25 @@ export default function DocumentPage() {
 
             editorInstanceRef.current = editor;
 
+            // Listen for content changes to trigger auto-save
+            // Use ProseMirror's transaction listener
+            const view = editor.editor.ctx.get(editorViewCtx);
+            let previousContent = editor.getMarkdown();
+
+            const originalDispatch = view.dispatch.bind(view);
+            view.dispatch = (tr) => {
+                originalDispatch(tr);
+
+                // Check if document actually changed
+                if (tr.docChanged) {
+                    const currentContent = editor.getMarkdown();
+                    if (currentContent !== previousContent) {
+                        previousContent = currentContent;
+                        handleContentChange(currentContent);
+                    }
+                }
+            };
+
             console.log(
                 'Crepe editor created in page with remind functionality'
             );
@@ -284,13 +403,31 @@ export default function DocumentPage() {
         );
     }
 
+    // Generate save status label
+    const getSaveStatusLabel = () => {
+        switch (saveStatus) {
+            case 'saving':
+                return 'Saving...';
+            case 'saved':
+                return 'Saved';
+            case 'error':
+                return 'Failed to save';
+            case 'idle':
+            default:
+                if (hasUnsavedChanges) {
+                    return 'Unsaved changes';
+                }
+                return `Updated ${new Date(
+                    document.updatedAt
+                ).toLocaleString()}`;
+        }
+    };
+
     return (
         <div className="flex flex-1 flex-col">
             <EditorHeader
                 title={document.title}
-                lastSavedLabel={`Updated ${new Date(
-                    document.updatedAt
-                ).toLocaleString()}`}
+                lastSavedLabel={getSaveStatusLabel()}
                 isFavorited={document.isFavorite}
                 onTitleChange={handleTitleChange}
             />

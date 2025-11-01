@@ -132,6 +132,8 @@ export const DocumentEditor = React.forwardRef<
     const editorRootRef = React.useRef<HTMLDivElement | null>(null);
     const editorInstanceRef = React.useRef<Crepe | null>(null);
     const codeMirrorRef = React.useRef<ReactCodeMirrorRef | null>(null);
+    const initialContentRef = React.useRef<string>(initialMarkdown);
+    const isCreatingRef = React.useRef<boolean>(false);
 
     const milkdownSelectionRef = React.useRef<{
         from: number;
@@ -146,8 +148,9 @@ export const DocumentEditor = React.forwardRef<
     const lastSyncedMarkdownRef = React.useRef<string>(initialMarkdown);
 
     const [viewMode, setViewMode] = React.useState<ViewMode>('wysiwyg');
-    const [markdownSource, setMarkdownSource] =
-        React.useState<string>(initialMarkdown);
+    const [markdownSource, setMarkdownSource] = React.useState<string>('');
+    const [isEditorInitialized, setIsEditorInitialized] =
+        React.useState<boolean>(false);
 
     const readReminders = React.useCallback(() => {
         const out: Array<{
@@ -253,199 +256,247 @@ export const DocumentEditor = React.forwardRef<
                 });
             },
         }),
-        [viewMode, onRemindersChange, readReminders]
+        [] // Remove dependencies that cause unnecessary recreations
     );
 
     const createEditor = React.useCallback(async (content: string) => {
         if (!editorRootRef.current) return;
 
-        if (editorInstanceRef.current) {
-            await editorInstanceRef.current.destroy();
-            editorInstanceRef.current = null;
+        // Prevent concurrent creation attempts
+        if (
+            editorInstanceRef.current ||
+            isCreatingRef.current ||
+            isEditorInitialized
+        ) {
+            return;
         }
 
-        editorRootRef.current.innerHTML = '';
+        isCreatingRef.current = true;
 
-        const editor = new Crepe({
-            root: editorRootRef.current,
-            defaultValue: content,
-            featureConfigs: {
-                [Crepe.Feature.Placeholder]: {
-                    text: 'Start jotting ideas…',
-                },
-                // Add a custom slash menu item under BlockEdit to insert an inline remind pill
-                [Crepe.Feature.BlockEdit]: {
-                    buildMenu: (builder) => {
-                        const { addItem } = builder.addGroup(
-                            'inline-actions',
-                            'Inline actions'
-                        );
-                        addItem('remind', {
-                            label: 'Remind',
-                            icon: '⏰',
-                            onRun: (ctx) => {
-                                try {
-                                    const view = ctx.get(editorViewCtx);
-                                    const { schema } = view.state;
-                                    const remindType = (schema as PMSchema)
-                                        .nodes?.remind;
-                                    if (!remindType) return;
-                                    const whenText = '';
-                                    const content = schema.text('\u00A0');
-                                    const node = remindType.create(
-                                        { kind: 'remind', whenText },
-                                        content
-                                    );
+        try {
+            // Clear the container completely and remove any existing Milkdown instances
+            const container = editorRootRef.current;
 
-                                    const { state } = view;
-                                    const pos = state.selection.from;
-                                    const $pos = state.doc.resolve(pos);
-                                    // Find current textblock start
-                                    let blockStart = 0;
-                                    for (let d = $pos.depth; d >= 0; d--) {
-                                        const parent = $pos.node(d);
-                                        if (parent.isTextblock) {
-                                            blockStart = $pos.start(d);
-                                            break;
+            // Remove all child elements and event listeners
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+
+            // Create new container div to ensure clean state
+            container.innerHTML = '';
+
+            const editor = new Crepe({
+                root: container,
+                defaultValue: content,
+                featureConfigs: {
+                    [Crepe.Feature.Placeholder]: {
+                        text: 'Start jotting ideas…',
+                    },
+                    // Add a custom slash menu item under BlockEdit to insert an inline remind pill
+                    [Crepe.Feature.BlockEdit]: {
+                        buildMenu: (builder) => {
+                            const { addItem } = builder.addGroup(
+                                'inline-actions',
+                                'Inline actions'
+                            );
+                            addItem('remind', {
+                                label: 'Remind',
+                                icon: '⏰',
+                                onRun: (ctx) => {
+                                    try {
+                                        const view = ctx.get(editorViewCtx);
+                                        const { schema } = view.state;
+                                        const remindType = (schema as PMSchema)
+                                            .nodes?.remind;
+                                        if (!remindType) return;
+                                        const whenText = '';
+                                        const content = schema.text('\u00A0');
+                                        const node = remindType.create(
+                                            { kind: 'remind', whenText },
+                                            content
+                                        );
+
+                                        const { state } = view;
+                                        const pos = state.selection.from;
+                                        const $pos = state.doc.resolve(pos);
+                                        // Find current textblock start
+                                        let blockStart = 0;
+                                        for (let d = $pos.depth; d >= 0; d--) {
+                                            const parent = $pos.node(d);
+                                            if (parent.isTextblock) {
+                                                blockStart = $pos.start(d);
+                                                break;
+                                            }
                                         }
-                                    }
-                                    const before = state.doc.textBetween(
-                                        blockStart,
-                                        pos,
-                                        '\n',
-                                        '\n'
-                                    );
-                                    // Detect a trailing "/keyword" to replace
-                                    let insertFrom = pos;
-                                    const lastSlash = before.lastIndexOf('/');
-                                    if (lastSlash >= 0) {
-                                        const candidate =
-                                            before.slice(lastSlash);
-                                        if (
-                                            /^\/[A-Za-z0-9_-]*$/.test(candidate)
-                                        ) {
-                                            insertFrom = blockStart + lastSlash;
+                                        const before = state.doc.textBetween(
+                                            blockStart,
+                                            pos,
+                                            '\n',
+                                            '\n'
+                                        );
+                                        // Detect a trailing "/keyword" to replace
+                                        let insertFrom = pos;
+                                        const lastSlash =
+                                            before.lastIndexOf('/');
+                                        if (lastSlash >= 0) {
+                                            const candidate =
+                                                before.slice(lastSlash);
+                                            if (
+                                                /^\/[A-Za-z0-9_-]*$/.test(
+                                                    candidate
+                                                )
+                                            ) {
+                                                insertFrom =
+                                                    blockStart + lastSlash;
+                                            }
                                         }
-                                    }
 
-                                    let tr = state.tr.replaceWith(
-                                        insertFrom,
-                                        pos,
-                                        node
-                                    );
-                                    tr = tr.setSelection(
-                                        TextSelection.create(
-                                            tr.doc,
-                                            insertFrom + 1
-                                        )
-                                    );
-                                    view.dispatch(tr.scrollIntoView());
-                                    view.focus();
-                                } catch (e) {
-                                    console.warn('Slash Remind failed:', e);
-                                }
-                            },
-                        });
+                                        let tr = state.tr.replaceWith(
+                                            insertFrom,
+                                            pos,
+                                            node
+                                        );
+                                        tr = tr.setSelection(
+                                            TextSelection.create(
+                                                tr.doc,
+                                                insertFrom + 1
+                                            )
+                                        );
+                                        view.dispatch(tr.scrollIntoView());
+                                        view.focus();
+                                    } catch (e) {
+                                        console.warn('Slash Remind failed:', e);
+                                    }
+                                },
+                            });
+                        },
                     },
                 },
-            },
-        });
+            });
 
-        if (configureEditor) {
-            await configureEditor(editor);
-        } else {
-            await editor.create();
-        }
-        editorInstanceRef.current = editor;
+            if (configureEditor) {
+                await configureEditor(editor);
+            } else {
+                await editor.create();
+            }
+            editorInstanceRef.current = editor;
+            setIsEditorInitialized(true);
 
-        // After creation, run an initial rehydrate pass to convert any
-        // [[remind: ...]] bracket markdown inside the document into remind nodes
-        try {
-            editor.editor.action((ctx) => {
-                const view = ctx.get(editorViewCtx);
-                const { schema, doc } = view.state;
-                const remindType = (schema as PMSchema).nodes?.remind;
-                if (!remindType) return;
-                const RE =
-                    /\[\[\s*remind\s*:\s*([^|\]]+?)(?:\|([^\]]+))?\s*\]\]/gi;
-                type MatchItem = {
-                    from: number;
-                    to: number;
-                    whenText: string;
-                    attrs: Record<string, unknown>;
-                };
-                const matches: MatchItem[] = [];
-                doc.descendants((node: PMNode, pos: number) => {
-                    if (!node.isText) return;
-                    const text = (node.text || '').toString();
-                    if (!text) return;
-                    RE.lastIndex = 0;
-                    let m: RegExpExecArray | null;
-                    while ((m = RE.exec(text)) !== null) {
-                        const full = m[0];
-                        const whenText = (m[1] || '').trim();
-                        const rest = (m[2] || '').trim();
-                        const attrs: Record<string, unknown> = {
-                            kind: 'remind',
-                            whenText,
-                        };
-                        if (rest) {
-                            for (const piece of rest
-                                .split(',')
-                                .map((s) => s.trim())
-                                .filter(Boolean)) {
-                                const [rk, rv] = piece
-                                    .split('=')
-                                    .map((s) => s.trim());
-                                if (!rk || !rv) continue;
-                                if (rk.toLowerCase() === 'iso')
-                                    (attrs as Record<string, unknown>).whenISO =
-                                        rv;
-                                else if (rk.toLowerCase() === 'status')
-                                    (attrs as Record<string, unknown>).status =
-                                        rv;
-                                else
-                                    (attrs as Record<string, unknown>)[rk] = rv;
+            // After creation, run an initial rehydrate pass to convert any
+            // [[remind: ...]] bracket markdown inside the document into remind nodes
+            try {
+                editor.editor.action((ctx) => {
+                    const view = ctx.get(editorViewCtx);
+                    const { schema, doc } = view.state;
+                    const remindType = (schema as PMSchema).nodes?.remind;
+                    if (!remindType) return;
+                    const RE =
+                        /\[\[\s*remind\s*:\s*([^|\]]+?)(?:\|([^\]]+))?\s*\]\]/gi;
+                    type MatchItem = {
+                        from: number;
+                        to: number;
+                        whenText: string;
+                        attrs: Record<string, unknown>;
+                    };
+                    const matches: MatchItem[] = [];
+                    doc.descendants((node: PMNode, pos: number) => {
+                        if (!node.isText) return;
+                        const text = (node.text || '').toString();
+                        if (!text) return;
+                        RE.lastIndex = 0;
+                        let m: RegExpExecArray | null;
+                        while ((m = RE.exec(text)) !== null) {
+                            const full = m[0];
+                            const whenText = (m[1] || '').trim();
+                            const rest = (m[2] || '').trim();
+                            const attrs: Record<string, unknown> = {
+                                kind: 'remind',
+                                whenText,
+                            };
+                            if (rest) {
+                                for (const piece of rest
+                                    .split(',')
+                                    .map((s) => s.trim())
+                                    .filter(Boolean)) {
+                                    const [rk, rv] = piece
+                                        .split('=')
+                                        .map((s) => s.trim());
+                                    if (!rk || !rv) continue;
+                                    if (rk.toLowerCase() === 'iso')
+                                        (
+                                            attrs as Record<string, unknown>
+                                        ).whenISO = rv;
+                                    else if (rk.toLowerCase() === 'status')
+                                        (
+                                            attrs as Record<string, unknown>
+                                        ).status = rv;
+                                    else
+                                        (attrs as Record<string, unknown>)[rk] =
+                                            rv;
+                                }
                             }
+                            const from = pos + (m.index ?? 0);
+                            const to = from + full.length;
+                            matches.push({ from, to, whenText, attrs });
                         }
-                        const from = pos + (m.index ?? 0);
-                        const to = from + full.length;
-                        matches.push({ from, to, whenText, attrs });
+                    });
+                    if (matches.length) {
+                        matches
+                            .sort((a, b) => b.from - a.from)
+                            .forEach(({ from, to, whenText, attrs }) => {
+                                const content = whenText
+                                    ? schema.text(whenText)
+                                    : schema.text('\u00A0');
+                                const node = remindType.create(attrs, content);
+                                const trReplace = view.state.tr.replaceWith(
+                                    from,
+                                    to,
+                                    node
+                                );
+                                view.dispatch(trReplace);
+                            });
                     }
                 });
-                if (matches.length) {
-                    matches
-                        .sort((a, b) => b.from - a.from)
-                        .forEach(({ from, to, whenText, attrs }) => {
-                            const content = whenText
-                                ? schema.text(whenText)
-                                : schema.text('\u00A0');
-                            const node = remindType.create(attrs, content);
-                            const trReplace = view.state.tr.replaceWith(
-                                from,
-                                to,
-                                node
-                            );
-                            view.dispatch(trReplace);
-                        });
-                }
-            });
-        } catch (e) {
-            console.warn('Initial rehydrate remind failed:', e);
-        }
+            } catch (e) {
+                console.warn('Initial rehydrate remind failed:', e);
+            }
 
-        if (editorRootRef.current) {
-            editorRootRef.current.style.minHeight = '';
+            if (editorRootRef.current) {
+                editorRootRef.current.style.minHeight = '';
+            }
+        } catch (error) {
+            console.error('Failed to create editor:', error);
+        } finally {
+            isCreatingRef.current = false;
         }
     }, []);
 
     React.useEffect(() => {
-        void createEditor(initialMarkdown);
+        // Only create editor if one doesn't already exist and hasn't been initialized
+        if (
+            !editorInstanceRef.current &&
+            !isCreatingRef.current &&
+            !isEditorInitialized
+        ) {
+            void createEditor(initialContentRef.current);
+        }
+
         return () => {
-            void editorInstanceRef.current?.destroy();
-            editorInstanceRef.current = null;
+            if (editorInstanceRef.current) {
+                void editorInstanceRef.current.destroy();
+                editorInstanceRef.current = null;
+            }
+            isCreatingRef.current = false;
+            setIsEditorInitialized(false);
         };
-    }, [createEditor, initialMarkdown]);
+    }, []); // No dependencies - create only once
+
+    // Initialize markdown source with initial content when editor is ready
+    React.useEffect(() => {
+        if (markdownSource === '' && initialMarkdown) {
+            setMarkdownSource(initialMarkdown);
+        }
+    }, [initialMarkdown, markdownSource]);
 
     // Live-sync while in Markdown view
     React.useEffect(() => {
@@ -703,22 +754,17 @@ export const DocumentEditor = React.forwardRef<
 
     return (
         <div className={className}>
+            {/* Milkdown WYSIWYG Editor Container - always present but conditionally visible */}
             <div
                 className="crepe theme-frame h-full min-h-[560px] w-full"
                 ref={editorRootRef}
-                style={
-                    viewMode === 'wysiwyg'
-                        ? undefined
-                        : {
-                              visibility: 'hidden',
-                              position: 'absolute',
-                              inset: '0',
-                              pointerEvents: 'none',
-                              width: '100%',
-                          }
-                }
+                style={{
+                    display: viewMode === 'wysiwyg' ? 'block' : 'none',
+                }}
             />
-            {viewMode === 'markdown' ? (
+
+            {/* CodeMirror Markdown Editor */}
+            {viewMode === 'markdown' && (
                 <div className="crepe theme-frame min-h-[560px] px-4 py-6 sm:px-8 lg:px-[120px]">
                     <CodeMirror
                         ref={codeMirrorRef}
@@ -744,7 +790,7 @@ export const DocumentEditor = React.forwardRef<
                         className="w-full"
                     />
                 </div>
-            ) : null}
+            )}
         </div>
     );
 });

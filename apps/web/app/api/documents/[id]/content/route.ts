@@ -5,11 +5,11 @@ import { SearchHubClient } from '@search-hub/sdk';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
-export async function GET(
+export async function PATCH(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    { params }: { params: { id: string } }
 ) {
-    const { id } = await params;
+    const { id } = params;
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -23,18 +23,20 @@ export async function GET(
     }
 
     try {
+        const body = await request.json();
+
         const client = new SearchHubClient({
             baseUrl: apiBase,
             headers: { cookie: apiSessionCookie },
         });
 
-        const response = await client.getDocumentDetails(id);
+        const response = await client.updateDocumentContent(id, body);
         return NextResponse.json(response, { status: 200 });
     } catch (error) {
-        const status = (error as { status?: number }).status ?? 500;
-        const message =
-            (error as { message?: string }).message ??
-            'Failed to fetch document';
-        return NextResponse.json({ error: message }, { status });
+        console.error('Failed to update document content:', error);
+        return NextResponse.json(
+            { error: 'Failed to update document content' },
+            { status: 500 }
+        );
     }
 }

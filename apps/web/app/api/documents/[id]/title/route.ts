@@ -5,7 +5,7 @@ import { SearchHubClient } from '@search-hub/sdk';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
-export async function GET(
+export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -23,18 +23,20 @@ export async function GET(
     }
 
     try {
+        const body = await request.json();
+
         const client = new SearchHubClient({
             baseUrl: apiBase,
             headers: { cookie: apiSessionCookie },
         });
 
-        const response = await client.getDocumentDetails(id);
+        const response = await client.updateDocumentTitle(id, body);
         return NextResponse.json(response, { status: 200 });
     } catch (error) {
         const status = (error as { status?: number }).status ?? 500;
         const message =
             (error as { message?: string }).message ??
-            'Failed to fetch document';
+            'Failed to update document title';
         return NextResponse.json({ error: message }, { status });
     }
 }
