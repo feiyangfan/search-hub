@@ -8,6 +8,11 @@ import {
     CreateDocumentResponse,
     GetDocumentListParams,
     GetDocumentListResponse,
+    GetDocumentDetailsResponse,
+    UpdateDocumentTitlePayload,
+    UpdateDocumentTitleResponse,
+    UpdateDocumentContentPayload,
+    UpdateDocumentContentResponse,
 } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import {
@@ -206,6 +211,157 @@ export function buildOpenApi(
                         },
                         403: {
                             description: 'Forbidden - Tenant access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}': {
+                get: {
+                    responses: {
+                        200: {
+                            description: 'OK',
+                            content: {
+                                'application/json': {
+                                    schema: GetDocumentDetailsResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/title': {
+                patch: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: UpdateDocumentTitlePayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'Document title updated',
+                            content: {
+                                'application/json': {
+                                    schema: UpdateDocumentTitleResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/content': {
+                patch: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: UpdateDocumentContentPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'Document content updated',
+                            content: {
+                                'application/json': {
+                                    schema: UpdateDocumentContentResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
                             content: {
                                 'application/json': { schema: ApiError },
                             },

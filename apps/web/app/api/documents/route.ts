@@ -49,3 +49,43 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: message }, { status });
     }
 }
+
+export async function POST(request: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const apiSessionCookie = (session as { apiSessionCookie?: string })
+        .apiSessionCookie;
+    if (!apiSessionCookie) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const client = new SearchHubClient({
+        baseUrl: apiBase,
+        headers: { cookie: apiSessionCookie },
+    });
+
+    try {
+        const body = await request.json();
+
+        // Create document with default "Untitled page" if no title provided
+        const documentData = {
+            title: body.title || 'Untitled page',
+            content: body.content || '',
+            source: body.source || 'editor',
+            sourceUrl: body.sourceUrl || undefined,
+            metadata: body.metadata || {},
+        };
+
+        const response = await client.createDocument(documentData);
+        return NextResponse.json(response, { status: 202 });
+    } catch (error) {
+        const status = (error as { status?: number }).status ?? 500;
+        const message =
+            (error as { message?: string }).message ??
+            'Failed to create document';
+        return NextResponse.json({ error: message }, { status });
+    }
+}

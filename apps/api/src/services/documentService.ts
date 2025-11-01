@@ -7,6 +7,7 @@ import {
     type DeleteDocumentResponseType,
     type UpdateDocumentTitlePayloadType,
     type DocumentListResultType,
+    type UpdateDocumentContentResultType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
@@ -58,6 +59,12 @@ export interface DocumentService {
         context: { tenantId: string; userId: string },
         payload: UpdateDocumentTitlePayloadType
     ): Promise<UpdateDocumentTitleResult>;
+
+    updateDocumentContent(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: { content: string }
+    ): Promise<UpdateDocumentContentResultType>;
 }
 
 interface DocumentDetails {
@@ -281,11 +288,48 @@ export function createDocumentService(
         };
     }
 
+    async function updateDocumentContent(
+        documentId: string,
+        context: { userId: string; tenantId: string },
+        payload: { content: string }
+    ): Promise<UpdateDocumentContentResultType> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            return { status: 'forbidden' };
+        }
+
+        const document = await db.document.findUnique(documentId);
+
+        if (!document || document.tenantId !== context.tenantId) {
+            return { status: 'not_found' };
+        }
+
+        const content = payload.content;
+        const updatedDocument = await db.document.updateContent(
+            documentId,
+            content
+        );
+
+        return {
+            status: 'success',
+            document: {
+                id: updatedDocument.id,
+                updatedAt: updatedDocument.updatedAt.toISOString(),
+            },
+        };
+    }
+
     return {
         createAndQueueDocument,
         getDocumentDetails,
         getDocumentList,
         deleteDocument,
         updateDocumentTitle,
+        updateDocumentContent,
     };
 }

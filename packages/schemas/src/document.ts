@@ -1,14 +1,17 @@
 import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
 
+// Document source enum
 export const DocumentSource = z
     .enum(['editor', 'url'])
     .describe('How the document was created/imported');
 
+// Arbitrary document metadata
 export const DocumentMetadata = z
     .record(z.string(), z.any())
-    .describe('Arbitrary document metadata such as tags or ingestion details');
+    .describe('Arbitrary document metadata such as tags or ingestion details.');
 
+// Main Document schema
 export const DocumentSchema = z.object({
     id: Id.optional().meta({
         description: 'Document identifier assigned by the server',
@@ -45,6 +48,7 @@ export const DocumentSchema = z.object({
     updatedAt: IsoDate.optional(),
 });
 
+// Create Document request payload
 export const CreateDocumentRequest = DocumentSchema.pick({
     tenantId: true,
     title: true,
@@ -61,6 +65,7 @@ export const CreateDocumentRequest = DocumentSchema.pick({
     metadata: true,
 });
 
+// Create Document response payload
 export const CreateDocumentResponse = DocumentSchema.pick({
     id: true,
     tenantId: true,
@@ -75,10 +80,17 @@ export const CreateDocumentResponse = DocumentSchema.pick({
     updatedAt: true,
 });
 
+// Get Document details parameters
 export const GetDocumentDetailsParams = z.object({
     id: Id,
 });
 
+// Get Document details response
+export const GetDocumentDetailsResponse = z.object({
+    document: DocumentSchema,
+});
+
+// Document list item schema
 export const DocumentListItem = z.object({
     id: Id,
     title: DocumentSchema.shape.title,
@@ -90,6 +102,7 @@ export const DocumentListItem = z.object({
 });
 export type DocumentListItemType = z.infer<typeof DocumentListItem>;
 
+// Document list result schema
 export const DocumentListResult = z.object({
     items: z.array(DocumentListItem),
     total: z.coerce.number().int().min(0),
@@ -103,6 +116,7 @@ const favoritesOnlyParam = z
     )
     .optional();
 
+// Get Document list parameters
 export const GetDocumentListParams = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
@@ -119,6 +133,37 @@ export type GetDocumentListResponseType = z.infer<
 export const UpdateDocumentTitlePayload = z.object({
     title: z.string().trim().min(1, 'Title is required'),
 });
+
+export const UpdateDocumentTitleResponse = z.object({
+    document: z.object({
+        id: Id,
+        title: z.string(),
+    }),
+});
+
+export const UpdateDocumentContentPayload = z.object({
+    content: z.string().optional(),
+});
+
+export type UpdateDocumentContentPayloadType = z.infer<
+    typeof UpdateDocumentContentPayload
+>;
+
+export const UpdateDocumentContentResponse = z.object({
+    document: z.object({
+        id: Id,
+        updatedAt: IsoDate,
+    }),
+});
+
+export type UpdateDocumentContentResponseType = z.infer<
+    typeof UpdateDocumentContentResponse
+>;
+
+export type UpdateDocumentContentResultType =
+    | { status: 'success'; document: { id: string; updatedAt: string } }
+    | { status: 'not_found' }
+    | { status: 'forbidden' };
 
 export const DocumentFavorite = z.object({
     id: Id,

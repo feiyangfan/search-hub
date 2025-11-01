@@ -273,5 +273,44 @@ export function documentRoutes(
         }
     );
 
+    router.patch('/:id/content', async (req, res, next) => {
+        try {
+            const authReq = req as AuthenticatedRequest;
+            const { userId } = authReq.session;
+            const activeTenantId = authReq.session?.currentTenantId;
+
+            if (!activeTenantId) {
+                throw new TenantActiveMissingError(
+                    'No active tenant selected.'
+                );
+            }
+
+            const documentId = req.params.id;
+
+            const body = req.body as { content: string };
+
+            const result = await service.updateDocumentContent(
+                documentId,
+                {
+                    userId,
+                    tenantId: activeTenantId,
+                },
+                { content: body.content }
+            );
+
+            if (result.status === 'forbidden') {
+                throw new DocumentAccessDeniedError(documentId);
+            }
+
+            if (result.status === 'not_found') {
+                throw new DocumentNotFoundError(documentId, activeTenantId);
+            }
+
+            res.status(200).json({ document: result.document });
+        } catch (error) {
+            next(error);
+        }
+    });
+
     return router;
 }

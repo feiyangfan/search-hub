@@ -245,6 +245,68 @@ export class SearchHubClient {
         return (await res.json()) as paths['/v1/documents']['get']['responses']['200']['content']['application/json'];
     }
 
+    /** GET /v1/documents/{id} */
+    async getDocumentDetails(
+        id: string
+    ): Promise<
+        paths['/v1/documents/{id}']['get']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(id)}`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'getDocumentDetails');
+        return (await res.json()) as paths['/v1/documents/{id}']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** PATCH /v1/documents/{id}/title */
+    async updateDocumentTitle(
+        id: string,
+        body: paths['/v1/documents/{id}/title']['patch']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/documents/{id}/title']['patch']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/title`;
+        const res = await this.fetcher(url, {
+            method: 'PATCH',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'updateDocumentTitle');
+        return (await res.json()) as paths['/v1/documents/{id}/title']['patch']['responses']['200']['content']['application/json'];
+    }
+
+    /** PATCH /v1/documents/{id}/content */
+    async updateDocumentContent(
+        id: string,
+        body: paths['/v1/documents/{id}/content']['patch']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/documents/{id}/content']['patch']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/content`;
+        const res = await this.fetcher(url, {
+            method: 'PATCH',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'updateDocumentContent');
+        return (await res.json()) as paths['/v1/documents/{id}/content']['patch']['responses']['200']['content']['application/json'];
+    }
+
     /** GET /v1/search */
     async search(
         params: paths['/v1/search']['get']['parameters']['query']

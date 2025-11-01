@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { SearchHubClient } from '@search-hub/sdk';
+
+const apiBase = process.env.API_URL ?? 'http://localhost:3000';
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const apiSessionCookie = (session as { apiSessionCookie?: string })
+        .apiSessionCookie;
+    if (!apiSessionCookie) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const client = new SearchHubClient({
+            baseUrl: apiBase,
+            headers: { cookie: apiSessionCookie },
+        });
+
+        const response = await client.getDocumentDetails(id);
+        return NextResponse.json(response, { status: 200 });
+    } catch (error) {
+        const status = (error as { status?: number }).status ?? 500;
+        const message =
+            (error as { message?: string }).message ??
+            'Failed to fetch document';
+        return NextResponse.json({ error: message }, { status });
+    }
+}
+
+export async function PATCH(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+
+    if (!session) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const apiSessionCookie = (session as { apiSessionCookie?: string })
+        .apiSessionCookie;
+    if (!apiSessionCookie) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+
+        const client = new SearchHubClient({
+            baseUrl: apiBase,
+            headers: { cookie: apiSessionCookie },
+        });
+
+        const response = await client.updateDocumentTitle(id, body);
+        return NextResponse.json(response, { status: 200 });
+    } catch (error) {
+        const status = (error as { status?: number }).status ?? 500;
+        const message =
+            (error as { message?: string }).message ??
+            'Failed to update document';
+        return NextResponse.json({ error: message }, { status });
+    }
+}
