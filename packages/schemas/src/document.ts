@@ -11,9 +11,9 @@ export const DocumentMetadata = z
     .record(z.string(), z.any())
     .describe('Arbitrary document metadata such as tags or ingestion details.');
 
-// Main Document schema
+// Base Document schema - represents a complete database record
 export const DocumentSchema = z.object({
-    id: Id.optional().meta({
+    id: Id.meta({
         description: 'Document identifier assigned by the server',
         example: 'doc_123',
     }),
@@ -25,44 +25,41 @@ export const DocumentSchema = z.object({
         .string()
         .min(1)
         .meta({ description: 'Document title', example: 'Launch plan' }),
-    source: DocumentSource.default('editor').meta({
+    source: DocumentSource.meta({
         description: 'Creation source',
     }),
-    sourceUrl: z.url().optional().nullable().meta({
+    sourceUrl: z.url().nullable().meta({
         description: 'Original URL when the document was generated from a link',
     }),
-    content: z
-        .string()
-        .optional()
-        .meta({ description: 'Markdown or raw document body' }),
-    metadata: DocumentMetadata.optional().default({}).meta({
+    content: z.string().nullable().meta({
+        description: 'Markdown or raw document body',
+    }),
+    metadata: DocumentMetadata.meta({
         description: 'Additional metadata such as tags or ingestion info',
     }),
-    createdById: Id.optional().meta({
+    createdById: Id.meta({
         description: 'User who created the document',
     }),
-    updatedById: Id.optional().meta({
+    updatedById: Id.meta({
         description: 'User who last updated the document',
     }),
-    createdAt: IsoDate.optional(),
-    updatedAt: IsoDate.optional(),
+    createdAt: IsoDate.meta({
+        description: 'Document creation timestamp',
+    }),
+    updatedAt: IsoDate.meta({
+        description: 'Document last update timestamp',
+    }),
 });
 
-// Create Document request payload
-export const CreateDocumentRequest = DocumentSchema.pick({
-    tenantId: true,
-    title: true,
-    source: true,
-    sourceUrl: true,
-    content: true,
-    metadata: true,
-}).partial({
-    tenantId: true,
-    title: true,
-    source: true,
-    sourceUrl: true,
-    content: true,
-    metadata: true,
+// Create Document request payload - only fields users can provide
+// Server will generate: id, createdById, updatedById, createdAt, updatedAt
+// tenantId comes from session context
+export const CreateDocumentRequest = z.object({
+    title: z.string().min(1).optional(), // Optional for quick creates
+    source: DocumentSource.optional().default('editor'),
+    sourceUrl: z.url().nullable().optional(),
+    content: z.string().nullable().optional(),
+    metadata: DocumentMetadata.optional().default({}),
 });
 
 // Create Document response payload
@@ -80,14 +77,35 @@ export const CreateDocumentResponse = DocumentSchema.pick({
     updatedAt: true,
 });
 
+// Document details schema - base document + computed/relational fields
+export const DocumentDetailsSchema = DocumentSchema.extend({
+    isFavorite: z.boolean().meta({
+        description: 'Whether the current user has favorited this document',
+    }),
+    commands: z
+        .array(
+            z.object({
+                id: Id,
+                body: z.unknown(),
+                createdAt: IsoDate,
+                userId: Id,
+            })
+        )
+        .meta({
+            description: 'Inline commands associated with this document',
+        }),
+});
+
+export type DocumentDetailsType = z.infer<typeof DocumentDetailsSchema>;
+
+// Update the response to use the new schema
+export const GetDocumentDetailsResponse = z.object({
+    document: DocumentDetailsSchema,
+});
+
 // Get Document details parameters
 export const GetDocumentDetailsParams = z.object({
     id: Id,
-});
-
-// Get Document details response
-export const GetDocumentDetailsResponse = z.object({
-    document: DocumentSchema,
 });
 
 // Document list item schema
@@ -141,6 +159,11 @@ export const UpdateDocumentTitleResponse = z.object({
     }),
 });
 
+// Domain result type for title update operation (service layer)
+export type UpdateDocumentTitleResultType =
+    | { success: true; document: { id: string; title: string } }
+    | { success: false; error: 'forbidden' | 'not_found' | 'invalid' };
+
 export const UpdateDocumentContentPayload = z.object({
     content: z.string().optional(),
 });
@@ -160,10 +183,25 @@ export type UpdateDocumentContentResponseType = z.infer<
     typeof UpdateDocumentContentResponse
 >;
 
+// Domain result type for content update operation (service layer)
 export type UpdateDocumentContentResultType =
-    | { status: 'success'; document: { id: string; updatedAt: string } }
-    | { status: 'not_found' }
-    | { status: 'forbidden' };
+    | { success: true; document: { id: string; updatedAt: string } }
+    | { success: false; error: 'forbidden' | 'not_found' };
+
+// Reindex document endpoint
+export const ReindexDocumentResponse = z.object({
+    message: z.string(),
+    jobId: z.string(),
+});
+
+export type ReindexDocumentResponseType = z.infer<
+    typeof ReindexDocumentResponse
+>;
+
+// Domain result type for reindex operation (service layer)
+export type ReindexDocumentResultType =
+    | { success: true; jobId: string }
+    | { success: false; error: 'forbidden' | 'not_found' };
 
 export const DocumentFavorite = z.object({
     id: Id,
@@ -207,6 +245,11 @@ export const DeleteDocumentResponse = z.union([
     z.object({ status: z.literal('not_found') }),
 ]);
 
+// Domain result type for delete operation (service layer)
+export type DeleteDocumentResultType =
+    | { success: true }
+    | { success: false; error: 'forbidden' | 'not_found' };
+
 export type DocumentSourceType = z.infer<typeof DocumentSource>;
 export type DocumentMetadataType = z.infer<typeof DocumentMetadata>;
 export type DocumentRecord = z.infer<typeof DocumentSchema>;
@@ -221,4 +264,3 @@ export type GetDocumentListParamsType = z.infer<typeof GetDocumentListParams>;
 export type UpdateDocumentTitlePayloadType = z.infer<
     typeof UpdateDocumentTitlePayload
 >;
-export type DeleteDocumentResponseType = z.infer<typeof DeleteDocumentResponse>;

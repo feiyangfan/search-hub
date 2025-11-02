@@ -595,6 +595,7 @@
                                 "minLength": 1
                               },
                               "updatedAt": {
+                                "description": "Document last update timestamp",
                                 "type": "string",
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
@@ -607,6 +608,7 @@
                             "required": [
                               "id",
                               "title",
+                              "updatedAt",
                               "isFavorite"
                             ],
                             "additionalProperties": false
@@ -803,21 +805,13 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "tenantId": {
-                    "description": "Owning tenant identifier",
-                    "example": "tenant_123",
-                    "type": "string",
-                    "minLength": 1
-                  },
                   "title": {
-                    "description": "Document title",
-                    "example": "Launch plan",
                     "type": "string",
                     "minLength": 1
                   },
                   "source": {
-                    "description": "Creation source",
                     "default": "editor",
+                    "description": "How the document was created/imported",
                     "type": "string",
                     "enum": [
                       "editor",
@@ -825,18 +819,17 @@
                     ]
                   },
                   "sourceUrl": {
-                    "description": "Original URL when the document was generated from a link",
                     "nullable": true,
                     "type": "string",
                     "format": "uri"
                   },
                   "content": {
-                    "description": "Markdown or raw document body",
+                    "nullable": true,
                     "type": "string"
                   },
                   "metadata": {
-                    "description": "Additional metadata such as tags or ingestion info",
                     "default": {},
+                    "description": "Arbitrary document metadata such as tags or ingestion details.",
                     "type": "object",
                     "additionalProperties": {}
                   }
@@ -873,7 +866,6 @@
                     },
                     "source": {
                       "description": "Creation source",
-                      "default": "editor",
                       "type": "string",
                       "enum": [
                         "editor",
@@ -888,11 +880,11 @@
                     },
                     "content": {
                       "description": "Markdown or raw document body",
+                      "nullable": true,
                       "type": "string"
                     },
                     "metadata": {
                       "description": "Additional metadata such as tags or ingestion info",
-                      "default": {},
                       "type": "object",
                       "additionalProperties": {}
                     },
@@ -909,21 +901,30 @@
                       "minLength": 1
                     },
                     "createdAt": {
+                      "description": "Document creation timestamp",
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                     },
                     "updatedAt": {
+                      "description": "Document last update timestamp",
                       "type": "string",
                       "format": "date-time",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                     }
                   },
                   "required": [
+                    "id",
                     "tenantId",
                     "title",
                     "source",
-                    "metadata"
+                    "sourceUrl",
+                    "content",
+                    "metadata",
+                    "createdById",
+                    "updatedById",
+                    "createdAt",
+                    "updatedAt"
                   ],
                   "additionalProperties": false
                 }
@@ -1126,7 +1127,6 @@
                         },
                         "source": {
                           "description": "Creation source",
-                          "default": "editor",
                           "type": "string",
                           "enum": [
                             "editor",
@@ -1141,11 +1141,11 @@
                         },
                         "content": {
                           "description": "Markdown or raw document body",
+                          "nullable": true,
                           "type": "string"
                         },
                         "metadata": {
                           "description": "Additional metadata such as tags or ingestion info",
-                          "default": {},
                           "type": "object",
                           "additionalProperties": {}
                         },
@@ -1162,21 +1162,70 @@
                           "minLength": 1
                         },
                         "createdAt": {
+                          "description": "Document creation timestamp",
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                         },
                         "updatedAt": {
+                          "description": "Document last update timestamp",
                           "type": "string",
                           "format": "date-time",
                           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        },
+                        "isFavorite": {
+                          "description": "Whether the current user has favorited this document",
+                          "type": "boolean"
+                        },
+                        "commands": {
+                          "description": "Inline commands associated with this document",
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "description": "A unique identifier string",
+                                "example": "abc123",
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "body": {},
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                              },
+                              "userId": {
+                                "description": "A unique identifier string",
+                                "example": "abc123",
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "body",
+                              "createdAt",
+                              "userId"
+                            ],
+                            "additionalProperties": false
+                          }
                         }
                       },
                       "required": [
+                        "id",
                         "tenantId",
                         "title",
                         "source",
-                        "metadata"
+                        "sourceUrl",
+                        "content",
+                        "metadata",
+                        "createdById",
+                        "updatedById",
+                        "createdAt",
+                        "updatedAt",
+                        "isFavorite",
+                        "commands"
                       ],
                       "additionalProperties": false
                     }
@@ -1271,6 +1320,173 @@
           },
           "403": {
             "description": "Forbidden - Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Document does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "responses": {
+          "204": {
+            "description": "No Content - Document deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Only owners/admins can delete documents",
             "content": {
               "application/json": {
                 "schema": {
@@ -1741,6 +1957,195 @@
                   },
                   "required": [
                     "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Access denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Document does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "traceId": {
+                          "type": "string"
+                        },
+                        "details": {
+                          "type": "object",
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "code",
+                        "traceId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/documents/{id}/reindex": {
+      "post": {
+        "responses": {
+          "202": {
+            "description": "Accepted - Re-index job queued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "jobId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "jobId"
                   ],
                   "additionalProperties": false
                 }

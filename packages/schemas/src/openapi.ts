@@ -13,6 +13,7 @@ import {
     UpdateDocumentTitleResponse,
     UpdateDocumentContentPayload,
     UpdateDocumentContentResponse,
+    ReindexDocumentResponse,
 } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import {
@@ -268,6 +269,40 @@ export function buildOpenApi(
                         },
                     },
                 },
+                delete: {
+                    responses: {
+                        204: {
+                            description:
+                                'No Content - Document deleted successfully',
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description:
+                                'Forbidden - Only owners/admins can delete documents',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
             },
             '/v1/documents/{id}/title': {
                 patch: {
@@ -345,6 +380,46 @@ export function buildOpenApi(
                             description: 'Bad Request - Validation error',
                             content: {
                                 'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/reindex': {
+                post: {
+                    responses: {
+                        202: {
+                            description:
+                                'Accepted - Re-index job queued successfully',
+                            content: {
+                                'application/json': {
+                                    schema: ReindexDocumentResponse,
+                                },
                             },
                         },
                         401: {

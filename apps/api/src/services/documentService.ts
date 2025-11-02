@@ -3,11 +3,14 @@ import {
     CreateDocumentRequestType,
     IndexDocumentJobSchema,
     JOBS,
+    type DocumentDetailsType,
     type IndexDocumentJob,
-    type DeleteDocumentResponseType,
     type UpdateDocumentTitlePayloadType,
     type DocumentListResultType,
     type UpdateDocumentContentResultType,
+    type UpdateDocumentTitleResultType,
+    type DeleteDocumentResultType,
+    type ReindexDocumentResultType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
@@ -39,12 +42,12 @@ export interface DocumentService {
     getDocumentDetails(
         documentId: string,
         context: { tenantId: string; userId: string }
-    ): Promise<DocumentDetails | null>;
+    ): Promise<DocumentDetailsType | null>;
 
     deleteDocument(
         documentId: string,
         context: { tenantId: string; userId: string }
-    ): Promise<DeleteDocumentResponseType>;
+    ): Promise<DeleteDocumentResultType>;
 
     getDocumentList(context: {
         tenantId: string;
@@ -58,41 +61,19 @@ export interface DocumentService {
         documentId: string,
         context: { tenantId: string; userId: string },
         payload: UpdateDocumentTitlePayloadType
-    ): Promise<UpdateDocumentTitleResult>;
+    ): Promise<UpdateDocumentTitleResultType>;
 
     updateDocumentContent(
         documentId: string,
         context: { tenantId: string; userId: string },
         payload: { content: string }
     ): Promise<UpdateDocumentContentResultType>;
-}
 
-interface DocumentDetails {
-    id: string;
-    title: string;
-    tenantId: string;
-    content: string | null;
-    source: string;
-    sourceUrl: string | null;
-    metadata: unknown;
-    createdById: string;
-    updatedById: string;
-    createdAt: Date;
-    updatedAt: Date;
-    isFavorite: boolean;
-    commands: {
-        id: string;
-        body: unknown;
-        createdAt: Date;
-        userId: string;
-    }[];
+    queueDocumentReindexing(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<ReindexDocumentResultType>;
 }
-
-type UpdateDocumentTitleResult =
-    | { status: 'success'; document: { id: string; title: string } }
-    | { status: 'forbidden' }
-    | { status: 'not_found' }
-    | { status: 'invalid' };
 
 export function createDocumentService(
     deps: DocumentServiceDependencies = {}
@@ -176,18 +157,23 @@ export function createDocumentService(
             title: doc.title,
             tenantId: doc.tenantId,
             content: doc.content,
-            source: doc.source,
+            source: doc.source as 'editor' | 'url',
             sourceUrl: doc.sourceUrl,
-            metadata: doc.metadata,
+            metadata:
+                typeof doc.metadata === 'object' &&
+                doc.metadata !== null &&
+                !Array.isArray(doc.metadata)
+                    ? doc.metadata
+                    : {},
             createdById: doc.createdById,
             updatedById: doc.updatedById,
-            createdAt: doc.createdAt,
-            updatedAt: doc.updatedAt,
+            createdAt: doc.createdAt.toISOString(),
+            updatedAt: doc.updatedAt.toISOString(),
             isFavorite: isFavorite,
             commands: doc.commands.map((command) => ({
                 id: command.id,
                 body: command.body,
-                createdAt: command.createdAt,
+                createdAt: command.createdAt.toISOString(),
                 userId: command.userId,
             })),
         };
@@ -225,21 +211,40 @@ export function createDocumentService(
     async function deleteDocument(
         documentId: string,
         context: { userId: string; tenantId: string }
-    ): Promise<DeleteDocumentResponseType> {
+    ): Promise<DeleteDocumentResultType> {
+        logger.info(
+            { documentId, userId: context.userId, tenantId: context.tenantId },
+            'document.delete.start'
+        );
+
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
                 userId: context.userId,
                 tenantId: context.tenantId,
             });
 
+        // Only owners/admins can delete (members are read+write only)
         if (!membership || membership.role === 'member') {
-            return { status: 'forbidden' };
+            logger.warn(
+                {
+                    documentId,
+                    userId: context.userId,
+                    tenantId: context.tenantId,
+                    role: membership?.role,
+                },
+                'document.delete.forbidden'
+            );
+            return { success: false, error: 'forbidden' };
         }
 
         const document = await db.document.findUnique(documentId);
 
         if (!document || document.tenantId !== context.tenantId) {
-            return { status: 'not_found' };
+            logger.warn(
+                { documentId, tenantId: context.tenantId },
+                'document.delete.not_found'
+            );
+            return { success: false, error: 'not_found' };
         }
 
         await db.document.deleteById({
@@ -247,40 +252,70 @@ export function createDocumentService(
             tenantId: context.tenantId,
         });
 
-        return { status: 'success' };
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+                title: document.title,
+            },
+            'document.delete.succeeded'
+        );
+
+        return { success: true };
     }
 
     async function updateDocumentTitle(
         documentId: string,
         context: { userId: string; tenantId: string },
         payload: UpdateDocumentTitlePayloadType
-    ): Promise<UpdateDocumentTitleResult> {
+    ): Promise<UpdateDocumentTitleResultType> {
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
                 userId: context.userId,
                 tenantId: context.tenantId,
             });
 
+        // Members can update documents (collaborative model)
         if (!membership) {
-            return { status: 'forbidden' };
+            logger.warn(
+                {
+                    documentId,
+                    userId: context.userId,
+                    tenantId: context.tenantId,
+                },
+                'document.update_title.forbidden'
+            );
+            return { success: false, error: 'forbidden' };
         }
 
         const document = await db.document.findUnique(documentId);
 
         if (!document || document.tenantId !== context.tenantId) {
-            return { status: 'not_found' };
+            return { success: false, error: 'not_found' };
         }
 
         const title = payload.title.trim();
 
         if (!title) {
-            return { status: 'invalid' };
+            return { success: false, error: 'invalid' };
         }
 
         const updated = await db.document.updateTitle(documentId, title);
 
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+                oldTitle: document.title,
+                newTitle: updated.title,
+            },
+            'document.update_title.succeeded'
+        );
+
         return {
-            status: 'success',
+            success: true,
             document: {
                 id: updated.id,
                 title: updated.title,
@@ -299,14 +334,23 @@ export function createDocumentService(
                 tenantId: context.tenantId,
             });
 
+        // Members can update documents (collaborative model)
         if (!membership) {
-            return { status: 'forbidden' };
+            logger.warn(
+                {
+                    documentId,
+                    userId: context.userId,
+                    tenantId: context.tenantId,
+                },
+                'document.update_content.forbidden'
+            );
+            return { success: false, error: 'forbidden' };
         }
 
         const document = await db.document.findUnique(documentId);
 
         if (!document || document.tenantId !== context.tenantId) {
-            return { status: 'not_found' };
+            return { success: false, error: 'not_found' };
         }
 
         const content = payload.content;
@@ -315,12 +359,75 @@ export function createDocumentService(
             content
         );
 
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+                contentLength: content.length,
+            },
+            'document.update_content.succeeded'
+        );
+
         return {
-            status: 'success',
+            success: true,
             document: {
                 id: updatedDocument.id,
                 updatedAt: updatedDocument.updatedAt.toISOString(),
             },
+        };
+    }
+
+    async function queueDocumentReindexing(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<ReindexDocumentResultType> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        // Members can trigger reindex (collaborative model)
+        if (!membership) {
+            return { success: false, error: 'forbidden' };
+        }
+
+        const document = await db.document.findUnique(documentId);
+
+        if (!document || document.tenantId !== context.tenantId) {
+            return { success: false, error: 'not_found' };
+        }
+
+        await db.job.enqueueIndex(context.tenantId, documentId);
+
+        const jobPayload: IndexDocumentJob = IndexDocumentJobSchema.parse({
+            tenantId: context.tenantId,
+            documentId,
+        });
+
+        const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
+            ...DEFAULT_QUEUE_OPTIONS,
+        });
+
+        // Increment queue depth when job is added
+        metrics.queueDepth.inc({
+            queue_name: JOBS.INDEX_DOCUMENT,
+            tenant_id: context.tenantId,
+        });
+
+        logger.info(
+            {
+                documentId: documentId,
+                jobId: job.id,
+                tenantId: context.tenantId,
+            },
+            'queue.enqueue.succeeded'
+        );
+
+        return {
+            success: true,
+            jobId: String(job.id),
         };
     }
 
@@ -331,5 +438,6 @@ export function createDocumentService(
         deleteDocument,
         updateDocumentTitle,
         updateDocumentContent,
+        queueDocumentReindexing,
     };
 }

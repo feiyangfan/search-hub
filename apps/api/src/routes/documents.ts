@@ -3,7 +3,6 @@ import { Router } from 'express';
 import {
     CreateDocumentRequest,
     CreateDocumentRequestType,
-    CrossTenantAccessError,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import {
@@ -99,22 +98,13 @@ export function documentRoutes(
                     req as RequestWithValidatedBody<CreateDocumentRequestType>
                 ).validated.body;
 
-                const reqTenantId = body.tenantId;
-
-                if (reqTenantId && reqTenantId !== activeTenantId) {
-                    throw new CrossTenantAccessError(reqTenantId, userId);
-                }
-
-                const payload = {
-                    ...body,
-                    tenantId: activeTenantId,
-                    title: body.title?.trim() || undefined,
-                    sourceUrl: body.sourceUrl?.trim() || undefined,
-                    content: body.content?.trim() || undefined,
-                    metadata:
-                        body.metadata && Object.keys(body.metadata).length > 0
-                            ? body.metadata
-                            : undefined,
+                // tenantId now comes from session context only, not from request body
+                const payload: CreateDocumentRequestType = {
+                    title: body.title?.trim(),
+                    source: body.source,
+                    sourceUrl: body.sourceUrl,
+                    content: body.content,
+                    metadata: body.metadata,
                 };
 
                 const { documentId } = await service.createAndQueueDocument(
@@ -201,11 +191,11 @@ export function documentRoutes(
                     tenantId: activeTenantId,
                 });
 
-                if (result.status === 'forbidden') {
-                    throw new DocumentAccessDeniedError(documentId);
-                }
-
-                if (result.status === 'not_found') {
+                if (!result.success) {
+                    if (result.error === 'forbidden') {
+                        throw new DocumentAccessDeniedError(documentId);
+                    }
+                    // result.error === 'not_found'
                     throw new DocumentNotFoundError(documentId, activeTenantId);
                 }
 
@@ -249,23 +239,26 @@ export function documentRoutes(
                     { title }
                 );
 
-                if (result.status === 'forbidden') {
-                    throw new DocumentAccessDeniedError(documentId);
+                if (!result.success) {
+                    switch (result.error) {
+                        case 'forbidden':
+                            throw new DocumentAccessDeniedError(documentId);
+                        case 'not_found':
+                            throw new DocumentNotFoundError(
+                                documentId,
+                                activeTenantId
+                            );
+                        case 'invalid':
+                            return res.status(400).json({
+                                error: {
+                                    code: 'INVALID_TITLE',
+                                    message: 'Title cannot be empty.',
+                                },
+                            });
+                    }
                 }
 
-                if (result.status === 'not_found') {
-                    throw new DocumentNotFoundError(documentId, activeTenantId);
-                }
-
-                if (result.status === 'invalid') {
-                    return res.status(400).json({
-                        error: {
-                            code: 'INVALID_TITLE',
-                            message: 'Title cannot be empty.',
-                        },
-                    });
-                }
-
+                // TypeScript now knows result.success === true
                 res.status(200).json({ document: result.document });
             } catch (error) {
                 next(error);
@@ -298,15 +291,53 @@ export function documentRoutes(
                 { content: body.content }
             );
 
-            if (result.status === 'forbidden') {
-                throw new DocumentAccessDeniedError(documentId);
-            }
-
-            if (result.status === 'not_found') {
+            if (!result.success) {
+                if (result.error === 'forbidden') {
+                    throw new DocumentAccessDeniedError(documentId);
+                }
+                // result.error === 'not_found'
                 throw new DocumentNotFoundError(documentId, activeTenantId);
             }
 
             res.status(200).json({ document: result.document });
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    router.post('/:id/reindex', async (req, res, next) => {
+        try {
+            const authReq = req as AuthenticatedRequest;
+            const { userId } = authReq.session;
+            const activeTenantId = authReq.session?.currentTenantId;
+            if (!activeTenantId) {
+                throw new TenantActiveMissingError(
+                    'No active tenant selected.'
+                );
+            }
+
+            const documentId = req.params.id;
+
+            const result = await service.queueDocumentReindexing(documentId, {
+                userId,
+                tenantId: activeTenantId,
+            });
+
+            // Translate domain errors to HTTP errors
+            if (!result.success) {
+                if (result.error === 'forbidden') {
+                    throw new DocumentAccessDeniedError(documentId);
+                }
+                // result.error === 'not_found'
+                throw new DocumentNotFoundError(documentId, activeTenantId);
+            }
+
+            // At this point, TypeScript knows result.success === true
+            // Translate domain result to HTTP response (schema-compliant)
+            res.status(202).json({
+                message: 'Re-index job queued successfully',
+                jobId: result.jobId,
+            });
         } catch (error) {
             next(error);
         }
