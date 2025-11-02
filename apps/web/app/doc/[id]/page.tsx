@@ -90,11 +90,16 @@ export default function DocumentPage() {
             }
 
             const data = await response.json();
-            const now = new Date().toISOString();
 
-            // Update local state with new title and updated timestamp
+            // Update local state with new title and server's updated timestamp
             setDocument((prev) =>
-                prev ? { ...prev, title: newTitle, updatedAt: now } : null
+                prev
+                    ? {
+                          ...prev,
+                          title: data.document.title,
+                          updatedAt: new Date().toISOString(), // Use current timestamp for immediate feedback
+                      }
+                    : null
             );
 
             // Trigger custom event to refresh only this document in sidebar
@@ -105,6 +110,9 @@ export default function DocumentPage() {
             );
         } catch (error) {
             console.error('Failed to update title:', error);
+            toast.error('Failed to update title', {
+                description: 'Your title change could not be saved.',
+            });
             throw error;
         }
     };
@@ -174,13 +182,47 @@ export default function DocumentPage() {
         }
     };
 
-    // Debounced auto-save (2.5 seconds after typing stops)
+    // Debounced auto-save
     const debouncedSave = useDebouncedCallback(
         (content: string) => {
             console.log('Auto-saving content...');
             saveContent(content);
         },
-        2500 // 2.5 seconds
+        8000 // 8 seconds
+    );
+
+    // Queue reindex request
+    const queueReindex = async (documentId: string) => {
+        try {
+            const response = await fetch(
+                `/api/documents/${documentId}/reindex`,
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to queue re-indexing');
+            }
+
+            console.log('Re-indexing queued successfully');
+        } catch (error) {
+            console.error('Failed to queue re-indexing:', error);
+        }
+    };
+
+    // Debounced auto re-index trigger (60 seconds after typing stops)
+    const debouncedReindex = useDebouncedCallback(
+        async () => {
+            try {
+                console.log('Triggering re-index for document...');
+                queueReindex(documentId);
+            } catch (error) {
+                console.error('Failed to trigger re-index:', error);
+            }
+        },
+        60000 // 60 seconds
     );
 
     // Handle content changes from editor
@@ -188,6 +230,7 @@ export default function DocumentPage() {
         if (content !== lastSavedContentRef.current) {
             setHasUnsavedChanges(true);
             debouncedSave(content);
+            debouncedReindex(); // Separate 60s timer for reindex
         }
     };
 
@@ -195,12 +238,15 @@ export default function DocumentPage() {
     const handleManualSave = async () => {
         if (!editorInstanceRef.current) return;
 
-        // Cancel any pending debounced save
+        // Cancel pending debounced save
         debouncedSave.cancel();
 
-        // Get current content from editor
+        // Get current content from editor and save immediately
         const content = editorInstanceRef.current.getMarkdown();
         await saveContent(content);
+
+        // Note: Manual save does NOT trigger reindex
+        // Reindex only happens via the 60s debounced timer
     };
 
     useEffect(() => {
@@ -213,14 +259,16 @@ export default function DocumentPage() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleManualSave]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // handleManualSave uses refs, so it's stable
 
-    // Cleanup: cancel pending saves on unmount
+    // Cleanup: cancel pending saves and reindex on unmount
     useEffect(() => {
         return () => {
             debouncedSave.cancel();
+            debouncedReindex.cancel();
         };
-    }, [debouncedSave]);
+    }, [debouncedSave, debouncedReindex]);
 
     // Create Crepe editor when document is loaded
     useEffect(() => {
@@ -228,16 +276,18 @@ export default function DocumentPage() {
             return;
         }
 
+        // Store the content at the time of editor creation
+        const contentToLoad = document.content || '';
+
         const createEditor = async () => {
             const container = editorRootRef.current!;
-            console.log('Creating Crepe editor directly in page');
 
             // Clear container
             container.innerHTML = '';
 
             const editor = new Crepe({
                 root: container,
-                defaultValue: document.content || '',
+                defaultValue: contentToLoad,
                 featureConfigs: {
                     [Crepe.Feature.Placeholder]: {
                         text: 'Start writing...',
@@ -372,23 +422,19 @@ export default function DocumentPage() {
                     }
                 }
             };
-
-            console.log(
-                'Crepe editor created in page with remind functionality'
-            );
         };
 
         createEditor().catch(console.error);
 
         // Cleanup
         return () => {
-            console.log('Page editor cleanup');
             if (editorInstanceRef.current) {
                 editorInstanceRef.current.destroy();
                 editorInstanceRef.current = null;
             }
         };
-    }, [document]); // Depend on document so editor is created after document loads
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [document?.id]); // Only recreate editor when document loads or ID changes, not on title/updatedAt changes
 
     if (isLoading) {
         return (
