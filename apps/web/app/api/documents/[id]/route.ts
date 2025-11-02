@@ -10,6 +10,8 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
+    const startTime = performance.now();
+
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -28,8 +30,18 @@ export async function GET(
             headers: { cookie: apiSessionCookie },
         });
 
+        const backendStart = performance.now();
         const response = await client.getDocumentDetails(id);
-        return NextResponse.json(response, { status: 200 });
+        const backendTime = performance.now() - backendStart;
+
+        const totalTime = performance.now() - startTime;
+
+        // Add timing info to response headers (accessible in browser)
+        const headers = new Headers();
+        headers.set('X-Backend-Time', backendTime.toFixed(2));
+        headers.set('X-Total-Time', totalTime.toFixed(2));
+
+        return NextResponse.json(response, { status: 200, headers });
     } catch (error) {
         const status = (error as { status?: number }).status ?? 500;
         const message =

@@ -57,11 +57,18 @@ export default function DocumentPage() {
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [loadTiming, setLoadTiming] = useState<{
+        frontend: number;
+        backend: number;
+        total: number;
+    } | null>(null);
     const lastSavedContentRef = useRef<string>('');
     const isSavingRef = useRef(false);
 
     useEffect(() => {
         async function fetchDocument() {
+            const startTime = performance.now();
+
             try {
                 const response = await fetch(`/api/documents/${documentId}`, {
                     credentials: 'include',
@@ -73,6 +80,25 @@ export default function DocumentPage() {
 
                 const data = await response.json();
                 const doc = data.document || data;
+
+                const totalTime = performance.now() - startTime;
+                const backendTime = parseFloat(
+                    response.headers.get('X-Backend-Time') || '0'
+                );
+                const apiRouteTime = parseFloat(
+                    response.headers.get('X-Total-Time') || '0'
+                );
+                const frontendTime = totalTime - apiRouteTime;
+
+                // Only show timing in development
+                if (process.env.NODE_ENV === 'development') {
+                    setLoadTiming({
+                        frontend: frontendTime,
+                        backend: backendTime,
+                        total: totalTime,
+                    });
+                }
+
                 setDocument(doc);
                 lastSavedContentRef.current = doc.content || '';
                 setIsLoading(false);
@@ -359,6 +385,9 @@ export default function DocumentPage() {
         const contentToLoad = document.content || '';
 
         const createEditor = async () => {
+            const editorStartTime = performance.now();
+            console.log('[Perf] Starting editor initialization');
+
             const container = editorRootRef.current!;
 
             // Clear container
@@ -479,7 +508,14 @@ export default function DocumentPage() {
                 .use(removeEmptyRemindProse)
                 .use(remindBackspaceDeleteProse);
 
+            const createStart = performance.now();
             await editor.create();
+            const createEnd = performance.now();
+            console.log(
+                `[Perf] Editor.create() took: ${(
+                    createEnd - createStart
+                ).toFixed(2)}ms`
+            );
 
             editorInstanceRef.current = editor;
 
@@ -501,6 +537,13 @@ export default function DocumentPage() {
                     }
                 }
             };
+
+            const totalEditorTime = performance.now() - editorStartTime;
+            console.log(
+                `[Perf] Total editor initialization took: ${totalEditorTime.toFixed(
+                    2
+                )}ms`
+            );
         };
 
         createEditor().catch(console.error);
@@ -572,6 +615,15 @@ export default function DocumentPage() {
                     ref={editorRootRef}
                     className="crepe theme-frame h-full min-h-[560px] w-full"
                 />
+                {loadTiming && process.env.NODE_ENV === 'development' && (
+                    <div className="border-t bg-muted/30 px-4 py-1 text-xs text-muted-foreground">
+                        <span className="font-mono">
+                            Load: {loadTiming.total.toFixed(0)}ms (Frontend:{' '}
+                            {loadTiming.frontend.toFixed(0)}ms, Backend:{' '}
+                            {loadTiming.backend.toFixed(0)}ms)
+                        </span>
+                    </div>
+                )}
             </div>
 
             <AlertDialog
