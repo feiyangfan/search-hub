@@ -7,6 +7,8 @@ import {
     MoreHorizontal,
     Star,
     StarOff,
+    Tag,
+    Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -29,6 +31,8 @@ type EditorHeaderProps = {
     toggleDisabled?: boolean;
     onFavoriteToggle?: () => void;
     onTitleChange?: (newTitle: string) => Promise<void>;
+    onEditTags?: () => void;
+    onDelete?: () => void;
     actions?: Array<{
         label: string;
         href?: string;
@@ -47,6 +51,8 @@ export function EditorHeader({
     toggleDisabled,
     onFavoriteToggle,
     onTitleChange,
+    onEditTags,
+    onDelete,
     actions,
     headerRight,
     commandsDropdown,
@@ -222,30 +228,25 @@ export function EditorHeader({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            {/* <DropdownMenuItem disabled>
-                                Share / manage access
-                            </DropdownMenuItem> */}
-                            {actions?.map((action) =>
-                                action.href ? (
-                                    <DropdownMenuItem
-                                        key={action.label}
-                                        asChild
-                                    >
-                                        <Link href={action.href}>
-                                            {action.label}
-                                        </Link>
-                                    </DropdownMenuItem>
-                                ) : (
-                                    <DropdownMenuItem
-                                        key={action.label}
-                                        onSelect={action.onSelect}
-                                    >
-                                        {action.label}
-                                    </DropdownMenuItem>
-                                )
+                            <DropdownMenuItem
+                                onSelect={onEditTags}
+                                disabled={!onEditTags}
+                            >
+                                <Tag className="mr-2 size-4" />
+                                Edit tags
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+
+                            {actions && actions.length > 0 && (
+                                <DropdownMenuSeparator />
                             )}
-                            <DropdownMenuItem disabled>
-                                Delete document
+                            <DropdownMenuItem
+                                onSelect={onDelete}
+                                disabled={!onDelete}
+                                className="text-destructive focus:text-destructive"
+                            >
+                                <Trash2 className="mr-2 size-4" />
+                                Delete
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -253,7 +254,7 @@ export function EditorHeader({
             </div>
             <div className="flex gap-2">
                 <Badge variant={'outline'} className="h-5 text-xs">
-                    TEST pretty long tag name
+                    Leetcode
                 </Badge>
             </div>
         </div>

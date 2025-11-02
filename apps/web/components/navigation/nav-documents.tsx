@@ -1,4 +1,5 @@
 import { ChevronDown, Loader2, Plus, File, MoreHorizontal } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 import { Button } from '../ui/button';
 import {
@@ -38,6 +39,63 @@ export function NavDocuments({
     onLoadMore?: () => void;
     isLoadingMore?: boolean;
 }) {
+    const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
+        null
+    );
+    const [originalTitle, setOriginalTitle] = useState<string>('');
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (editingDocumentId && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [editingDocumentId]);
+
+    const handleRename = (documentId: string, currentTitle: string) => {
+        setEditingDocumentId(documentId);
+        setOriginalTitle(currentTitle);
+    };
+
+    const handleRenameSubmit = async (documentId: string, newTitle: string) => {
+        const trimmedTitle = newTitle.trim();
+
+        // Cancel if empty or unchanged
+        if (!trimmedTitle || trimmedTitle === originalTitle) {
+            setEditingDocumentId(null);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/documents/${documentId}/title`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title: trimmedTitle }),
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to rename document');
+            }
+
+            // Trigger event to refresh document list
+            window.dispatchEvent(
+                new CustomEvent('documentUpdated', {
+                    detail: { documentId, title: trimmedTitle },
+                })
+            );
+        } catch (error) {
+            console.error('Failed to rename document:', error);
+        } finally {
+            setEditingDocumentId(null);
+        }
+    };
+
+    const handleRenameCancel = () => {
+        setEditingDocumentId(null);
+    };
     return (
         <Collapsible defaultOpen>
             <SidebarGroup>
@@ -69,18 +127,65 @@ export function NavDocuments({
                                   ))
                                 : documents.map((document) => (
                                       <SidebarMenuItem key={document.id}>
-                                          <SidebarMenuButton asChild>
-                                              <Link
-                                                  href={`/doc/${document.id}`}
-                                                  className="flex items-center gap-2"
-                                              >
+                                          {editingDocumentId === document.id ? (
+                                              <div className="flex items-center gap-2 px-2 py-1.5">
                                                   <File className="inline-block h-4 w-4 shrink-0" />
-                                                  <span>{document.title}</span>
-                                              </Link>
-                                          </SidebarMenuButton>
-                                          <NavDocumentActions
-                                              documentId={document.id}
-                                          />
+                                                  <input
+                                                      ref={inputRef}
+                                                      type="text"
+                                                      defaultValue={
+                                                          document.title
+                                                      }
+                                                      className="flex-1 bg-transparent text-sm outline-none border border-transparent rounded px-1 py-0.5 focus:border-gray-300"
+                                                      onKeyDown={(e) => {
+                                                          if (
+                                                              e.key === 'Enter'
+                                                          ) {
+                                                              handleRenameSubmit(
+                                                                  document.id,
+                                                                  e
+                                                                      .currentTarget
+                                                                      .value
+                                                              );
+                                                          } else if (
+                                                              e.key === 'Escape'
+                                                          ) {
+                                                              handleRenameCancel();
+                                                          }
+                                                      }}
+                                                      onBlur={(e) => {
+                                                          handleRenameSubmit(
+                                                              document.id,
+                                                              e.currentTarget
+                                                                  .value
+                                                          );
+                                                      }}
+                                                  />
+                                              </div>
+                                          ) : (
+                                              <>
+                                                  <SidebarMenuButton asChild>
+                                                      <Link
+                                                          href={`/doc/${document.id}`}
+                                                          className="flex items-center gap-2"
+                                                      >
+                                                          <File className="inline-block h-4 w-4 shrink-0" />
+                                                          <span>
+                                                              {document.title}
+                                                          </span>
+                                                      </Link>
+                                                  </SidebarMenuButton>
+                                                  <NavDocumentActions
+                                                      documentId={document.id}
+                                                      onRename={() =>
+                                                          handleRename(
+                                                              document.id,
+                                                              document.title
+                                                          )
+                                                      }
+                                                  />
+                                              </>
+                                          )}
                                       </SidebarMenuItem>
                                   ))}
                             {!isLoading && hasMore ? (

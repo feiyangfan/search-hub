@@ -7,7 +7,13 @@ import {
 import { SidebarMenuAction } from '@/components/ui/sidebar';
 import { MoreHorizontal } from 'lucide-react';
 
-export function NavDocumentActions({ documentId }: { documentId: string }) {
+export function NavDocumentActions({
+    documentId,
+    onRename,
+}: {
+    documentId: string;
+    onRename?: () => void;
+}) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -21,7 +27,7 @@ export function NavDocumentActions({ documentId }: { documentId: string }) {
                 side="right"
                 align="start"
             >
-                <DropdownMenuItem>Rename</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
                 <DropdownMenuItem>Edit tags</DropdownMenuItem>
                 <DropdownMenuItem>Delete</DropdownMenuItem>
             </DropdownMenuContent>
