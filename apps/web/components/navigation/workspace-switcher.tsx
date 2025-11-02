@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronsUpDown, Plus, Briefcase } from 'lucide-react';
+import { ChevronsUpDown, Plus, Briefcase, Loader2, Pencil } from 'lucide-react';
 
 import {
     DropdownMenu,
@@ -20,6 +20,16 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -45,6 +55,12 @@ export function WorkspaceSwitcher({
     const { isMobile } = useSidebar();
     const router = useRouter();
     const [, startTransition] = React.useTransition();
+    const [isSwitching, setIsSwitching] = React.useState(false);
+    const [showRenameDialog, setShowRenameDialog] = React.useState(false);
+    const [renamingWorkspace, setRenamingWorkspace] =
+        React.useState<Workspace | null>(null);
+    const [newName, setNewName] = React.useState('');
+    const [isRenaming, setIsRenaming] = React.useState(false);
     const [activeIndex, setActiveIndex] = React.useState(() => {
         if (!workspaces.length) {
             return 0;
@@ -77,6 +93,53 @@ export function WorkspaceSwitcher({
             setActiveIndex(nextIndex);
         }
     }, [workspaces, activeTenantId, activeIndex]);
+
+    const handleRename = async () => {
+        if (!renamingWorkspace?.id || !newName.trim()) {
+            return;
+        }
+
+        if (newName.trim() === renamingWorkspace.name) {
+            setShowRenameDialog(false);
+            return;
+        }
+
+        setIsRenaming(true);
+        try {
+            const response = await fetch('/api/tenants', {
+                method: 'PATCH',
+                headers: {
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: renamingWorkspace.id,
+                    name: newName.trim(),
+                }),
+            });
+
+            if (!response.ok) {
+                const data = (await response.json().catch(() => null)) as {
+                    error?: string;
+                } | null;
+                throw new Error(data?.error || 'Failed to rename workspace');
+            }
+
+            toast.success('Workspace renamed', {
+                description: `Renamed to "${newName.trim()}"`,
+            });
+
+            router.refresh();
+            setShowRenameDialog(false);
+        } catch (error) {
+            toast.error('Failed to rename workspace', {
+                description:
+                    (error as { message?: string }).message ??
+                    'Please try again.',
+            });
+        } finally {
+            setIsRenaming(false);
+        }
+    };
 
     const activeWorkspace = workspaces[activeIndex];
     if (!activeWorkspace) {
@@ -131,9 +194,9 @@ export function WorkspaceSwitcher({
                         {workspaces.map((workspace, index) => (
                             <DropdownMenuItem
                                 key={workspace.id ?? workspace.name}
-                                disabled={activeIndex === index}
+                                disabled={activeIndex === index || isSwitching}
                                 onClick={() => {
-                                    if (activeIndex === index) {
+                                    if (activeIndex === index || isSwitching) {
                                         return;
                                     }
 
@@ -143,30 +206,71 @@ export function WorkspaceSwitcher({
                                     }
 
                                     startTransition(async () => {
+                                        setIsSwitching(true);
                                         try {
-                                            await fetch('/api/tenants/active', {
-                                                method: 'POST',
-                                                headers: {
-                                                    'content-type':
-                                                        'application/json',
-                                                },
-                                                body: JSON.stringify({
-                                                    id: workspace.id,
-                                                }),
-                                            });
+                                            const response = await fetch(
+                                                '/api/tenants/active',
+                                                {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'content-type':
+                                                            'application/json',
+                                                    },
+                                                    body: JSON.stringify({
+                                                        id: workspace.id,
+                                                    }),
+                                                }
+                                            );
 
+                                            if (!response.ok) {
+                                                const data = (await response
+                                                    .json()
+                                                    .catch(() => null)) as {
+                                                    error?: string;
+                                                } | null;
+                                                throw new Error(
+                                                    data?.error ||
+                                                        'Failed to switch workspace'
+                                                );
+                                            }
+
+                                            // Dispatch event to refresh document list
+                                            window.dispatchEvent(
+                                                new CustomEvent(
+                                                    'workspaceSwitched'
+                                                )
+                                            );
+
+                                            // Redirect to dashboard
+                                            router.push('/dashboard');
                                             router.refresh();
-                                        } catch {
-                                            // swallow to keep UX responsive; server refresh will re-sync
+                                        } catch (error) {
+                                            toast.error(
+                                                'Failed to switch workspace',
+                                                {
+                                                    description:
+                                                        (
+                                                            error as {
+                                                                message?: string;
+                                                            }
+                                                        ).message ??
+                                                        'Please try again.',
+                                                }
+                                            );
                                         } finally {
                                             setActiveIndex(index);
+                                            setIsSwitching(false);
                                         }
                                     });
                                 }}
                                 className="gap-2 p-2"
                             >
                                 <div className="flex size-6 items-center justify-center rounded-md border">
-                                    <WorkspaceIcon workspace={workspace} />
+                                    {isSwitching && activeIndex === index ? (
+                                        <Loader2 className="size-3.5 animate-spin" />
+                                    ) : (
+                                        <WorkspaceIcon workspace={workspace} />
+                                    )}
                                 </div>
                                 {workspace.name}
                                 <DropdownMenuShortcut>
@@ -185,6 +289,25 @@ export function WorkspaceSwitcher({
                                 </div>
                             </Link>
                         </DropdownMenuItem>
+                        {activeWorkspace?.role === 'owner' &&
+                            activeWorkspace?.id && (
+                                <DropdownMenuItem
+                                    className="gap-2 p-2"
+                                    onSelect={(e) => {
+                                        e.preventDefault();
+                                        setRenamingWorkspace(activeWorkspace);
+                                        setNewName(activeWorkspace.name);
+                                        setShowRenameDialog(true);
+                                    }}
+                                >
+                                    <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                                        <Pencil className="size-4" />
+                                    </div>
+                                    <div className="text-muted-foreground font-medium">
+                                        Rename workspace
+                                    </div>
+                                </DropdownMenuItem>
+                            )}
                         {activeWorkspace?.role === 'owner' ? (
                             <WorkspaceDeletionConfirmationDialog
                                 workspaceName={activeWorkspace.name}
@@ -252,6 +375,51 @@ export function WorkspaceSwitcher({
                     </DropdownMenuContent>
                 </DropdownMenu>
             </SidebarMenuItem>
+
+            <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Rename workspace</DialogTitle>
+                        <DialogDescription>
+                            Enter a new name for &quot;{renamingWorkspace?.name}
+                            &quot;
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="Workspace name"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isRenaming) {
+                                handleRename();
+                            }
+                        }}
+                        disabled={isRenaming}
+                    />
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowRenameDialog(false)}
+                            disabled={isRenaming}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleRename}
+                            disabled={isRenaming || !newName.trim()}
+                        >
+                            {isRenaming ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Renaming...
+                                </>
+                            ) : (
+                                'Rename'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </SidebarMenu>
     );
 }

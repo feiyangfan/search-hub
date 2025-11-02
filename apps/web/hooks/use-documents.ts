@@ -148,9 +148,15 @@ export function useDocuments({
             }
         };
 
+        const handleWorkspaceSwitched = () => {
+            // Force refresh document list when workspace changes
+            refresh();
+        };
+
         window.addEventListener('documentUpdated', handleDocumentUpdate);
         window.addEventListener('documentCreated', handleDocumentCreated);
         window.addEventListener('documentDeleted', handleDocumentDeleted);
+        window.addEventListener('workspaceSwitched', handleWorkspaceSwitched);
 
         return () => {
             window.removeEventListener('documentUpdated', handleDocumentUpdate);
@@ -161,6 +167,10 @@ export function useDocuments({
             window.removeEventListener(
                 'documentDeleted',
                 handleDocumentDeleted
+            );
+            window.removeEventListener(
+                'workspaceSwitched',
+                handleWorkspaceSwitched
             );
         };
     }, [refresh]);
