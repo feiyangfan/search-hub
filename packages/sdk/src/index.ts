@@ -261,6 +261,17 @@ export class SearchHubClient {
         return (await res.json()) as paths['/v1/documents/{id}']['get']['responses']['200']['content']['application/json'];
     }
 
+    /** DELETE /v1/documents/{id} */
+    async deleteDocument(id: string): Promise<void> {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(id)}`;
+        const res = await this.fetcher(url, {
+            method: 'DELETE',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'deleteDocument');
+    }
+
     /** PATCH /v1/documents/{id}/title */
     async updateDocumentTitle(
         id: string,

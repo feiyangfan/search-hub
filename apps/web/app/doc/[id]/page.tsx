@@ -2,12 +2,22 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { Crepe } from '@milkdown/crepe';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/prose/state';
 import { useToast } from '@/components/ui/use-toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
@@ -35,6 +45,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function DocumentPage() {
     const params = useParams();
+    const router = useRouter();
     const { toast } = useToast();
     const documentId = params.id as string;
     const editorRootRef = useRef<HTMLDivElement>(null);
@@ -45,6 +56,7 @@ export default function DocumentPage() {
     const [error, setError] = useState<string | null>(null);
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const lastSavedContentRef = useRef<string>('');
     const isSavingRef = useRef(false);
 
@@ -224,6 +236,73 @@ export default function DocumentPage() {
         },
         60000 // 60 seconds
     );
+
+    // Placeholder handlers
+    const handleEditTags = () => {
+        console.log('Edit tags clicked - TODO: implement tags editor');
+        toast.info('Edit tags', {
+            description: 'Tags editor coming soon!',
+        });
+    };
+
+    const handleDelete = () => {
+        setShowDeleteDialog(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        try {
+            const response = await fetch(`/api/documents/${documentId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete document');
+            }
+
+            // Trigger event to refresh the sidebar
+            window.dispatchEvent(
+                new CustomEvent('documentDeleted', {
+                    detail: { documentId },
+                })
+            );
+
+            toast.success('Document deleted', {
+                description: 'The document has been permanently deleted.',
+            });
+
+            // Fetch the most recent document
+            const docsResponse = await fetch(
+                '/api/documents?limit=1&offset=0',
+                {
+                    credentials: 'include',
+                }
+            );
+
+            if (docsResponse.ok) {
+                const data = await docsResponse.json();
+                const documents = data.documents?.items || [];
+
+                if (documents.length > 0) {
+                    // Redirect to the most recent document
+                    router.push(`/doc/${documents[0].id}`);
+                } else {
+                    // No documents, redirect to new document page
+                    router.push('/dashboard/new');
+                }
+            } else {
+                // Fallback to new document page if fetch fails
+                router.push('/dashboard/new');
+            }
+        } catch (error) {
+            console.error('Failed to delete document:', error);
+            toast.error('Failed to delete document', {
+                description: 'An error occurred while deleting the document.',
+            });
+        } finally {
+            setShowDeleteDialog(false);
+        }
+    };
 
     // Handle content changes from editor
     const handleContentChange = (content: string) => {
@@ -479,17 +558,46 @@ export default function DocumentPage() {
     };
 
     return (
-        <div className="flex flex-1 flex-col">
-            <EditorHeader
-                title={document.title}
-                lastSavedLabel={getSaveStatusLabel()}
-                isFavorited={document.isFavorite}
-                onTitleChange={handleTitleChange}
-            />
-            <div
-                ref={editorRootRef}
-                className="crepe theme-frame h-full min-h-[560px] w-full"
-            />
-        </div>
+        <>
+            <div className="flex flex-1 flex-col">
+                <EditorHeader
+                    title={document.title}
+                    lastSavedLabel={getSaveStatusLabel()}
+                    isFavorited={document.isFavorite}
+                    onTitleChange={handleTitleChange}
+                    onEditTags={handleEditTags}
+                    onDelete={handleDelete}
+                />
+                <div
+                    ref={editorRootRef}
+                    className="crepe theme-frame h-full min-h-[560px] w-full"
+                />
+            </div>
+
+            <AlertDialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently
+                            delete &quot;{document.title}&quot; and all of its
+                            content.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteConfirm}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }

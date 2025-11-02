@@ -2,6 +2,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction } from '@/components/ui/sidebar';
@@ -10,9 +11,11 @@ import { MoreHorizontal } from 'lucide-react';
 export function NavDocumentActions({
     documentId,
     onRename,
+    onDelete,
 }: {
     documentId: string;
     onRename?: () => void;
+    onDelete?: () => void;
 }) {
     return (
         <DropdownMenu>
@@ -29,7 +32,13 @@ export function NavDocumentActions({
             >
                 <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
                 <DropdownMenuItem>Edit tags</DropdownMenuItem>
-                <DropdownMenuItem>Delete</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    onSelect={onDelete}
+                    className="text-destructive focus:text-destructive"
+                >
+                    Delete
+                </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );

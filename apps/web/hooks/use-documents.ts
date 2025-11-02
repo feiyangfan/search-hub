@@ -135,14 +135,32 @@ export function useDocuments({
             }
         };
 
+        const handleDocumentDeleted = (event: Event) => {
+            const customEvent = event as CustomEvent<{ documentId: string }>;
+            if (customEvent.detail) {
+                // Remove the document from the list
+                setItems((prev) =>
+                    prev.filter(
+                        (item) => item.id !== customEvent.detail.documentId
+                    )
+                );
+                setTotal((prev) => prev - 1);
+            }
+        };
+
         window.addEventListener('documentUpdated', handleDocumentUpdate);
         window.addEventListener('documentCreated', handleDocumentCreated);
+        window.addEventListener('documentDeleted', handleDocumentDeleted);
 
         return () => {
             window.removeEventListener('documentUpdated', handleDocumentUpdate);
             window.removeEventListener(
                 'documentCreated',
                 handleDocumentCreated
+            );
+            window.removeEventListener(
+                'documentDeleted',
+                handleDocumentDeleted
             );
         };
     }, [refresh]);
