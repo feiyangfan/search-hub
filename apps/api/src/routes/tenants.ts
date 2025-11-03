@@ -8,9 +8,7 @@ import {
     type DeleteTenantPayload as DeleteTenantPayloadBody,
     ActiveTenantPayload,
     type ActiveTenantPayload as ActiveTenantPayloadBody,
-    TenantNotFoundError,
-    TenantAccessDeniedError,
-    DatabaseError,
+    AppError,
 } from '@search-hub/schemas';
 
 import { validateBody } from '../middleware/validateMiddleware.js';
@@ -60,10 +58,17 @@ export function tenantRoutes() {
                 reqWithUser.session.save((err) => {
                     if (err) {
                         next(
-                            new DatabaseError(
+                            AppError.internal(
+                                'SESSION_SAVE_FAILED',
                                 'Failed to save session',
-                                'session_save',
-                                { userId }
+                                {
+                                    context: {
+                                        origin: 'database',
+                                        domain: 'tenant',
+                                        operation: 'create',
+                                        userId,
+                                    },
+                                }
                             )
                         );
                         return;
@@ -100,10 +105,17 @@ export function tenantRoutes() {
                     req.session.save((err: Error) => {
                         if (err) {
                             next(
-                                new DatabaseError(
+                                AppError.internal(
+                                    'SESSION_SAVE_FAILED',
                                     'Failed to save session',
-                                    'session_save',
-                                    { userId }
+                                    {
+                                        context: {
+                                            origin: 'database',
+                                            domain: 'tenant',
+                                            operation: 'delete',
+                                            userId,
+                                        },
+                                    }
                                 )
                             );
                             return;
@@ -133,7 +145,19 @@ export function tenantRoutes() {
 
                 const tenant = await db.tenant.findById(tenantId);
                 if (!tenant) {
-                    throw new TenantNotFoundError(tenantId);
+                    throw AppError.notFound(
+                        'TENANT_NOT_FOUND',
+                        'Tenant not found',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'tenant',
+                                resource: 'Tenant',
+                                resourceId: tenantId,
+                                operation: 'setActive',
+                            },
+                        }
+                    );
                 }
 
                 const memberships = await db.tenant.listForUser({ userId });
@@ -142,10 +166,19 @@ export function tenantRoutes() {
                 );
 
                 if (!membership) {
-                    throw new TenantAccessDeniedError(
-                        tenantId,
-                        userId,
-                        'User is not a member of this tenant'
+                    throw AppError.authorization(
+                        'TENANT_ACCESS_DENIED',
+                        'User is not a member of this tenant',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'tenant',
+                                resource: 'Tenant',
+                                resourceId: tenantId,
+                                operation: 'setActive',
+                                userId,
+                            },
+                        }
                     );
                 }
 
@@ -153,10 +186,17 @@ export function tenantRoutes() {
                 reqWithUser.session.save((err) => {
                     if (err) {
                         next(
-                            new DatabaseError(
+                            AppError.internal(
+                                'SESSION_SAVE_FAILED',
                                 'Failed to save session',
-                                'session_save',
-                                { userId }
+                                {
+                                    context: {
+                                        origin: 'database',
+                                        domain: 'tenant',
+                                        operation: 'setActive',
+                                        userId,
+                                    },
+                                }
                             )
                         );
                         return;

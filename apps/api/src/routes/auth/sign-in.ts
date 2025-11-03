@@ -3,7 +3,7 @@ import { Router } from 'express';
 import {
     AuthPayload,
     UserProfileWithSummary,
-    AuthenticationError,
+    AppError,
 } from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
@@ -30,7 +30,17 @@ export function signInRoutes() {
                     method: 'sign-in',
                     status: 'failure',
                 });
-                throw new AuthenticationError('Invalid email or password');
+                throw AppError.authentication(
+                    'INVALID_CREDENTIALS',
+                    'Invalid email or password',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'auth',
+                            operation: 'sign-in',
+                        },
+                    }
+                );
             }
 
             const isPasswordValid = await bcrypt.compare(
@@ -44,7 +54,17 @@ export function signInRoutes() {
                     method: 'sign-in',
                     status: 'failure',
                 });
-                throw new AuthenticationError('Invalid email or password');
+                throw AppError.authentication(
+                    'INVALID_CREDENTIALS',
+                    'Invalid email or password',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'auth',
+                            operation: 'sign-in',
+                        },
+                    }
+                );
             }
 
             const userTenants = await db.tenant.listForUser({

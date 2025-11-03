@@ -1,10 +1,5 @@
 import { Router } from 'express';
-import {
-    AuthPayload,
-    UserProfile,
-    ValidationError,
-    DatabaseError,
-} from '@search-hub/schemas';
+import { AuthPayload, UserProfile, AppError } from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 
@@ -34,9 +29,17 @@ export function signUpRoutes() {
                     method: 'sign-up',
                     status: 'failure',
                 });
-                throw new ValidationError(
+                throw AppError.conflict(
+                    'USER_ALREADY_EXISTS',
                     'User with this email already exists',
-                    'email'
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'auth',
+                            operation: 'sign-up',
+                            metadata: { field: 'email' },
+                        },
+                    }
                 );
             }
 
@@ -76,13 +79,24 @@ export function signUpRoutes() {
                         method: 'sign-up',
                         status: 'failure',
                     });
-                    throw new ValidationError(
+                    throw AppError.conflict(
+                        'USER_ALREADY_EXISTS',
                         'User with this email already exists',
-                        'email'
+                        {
+                            context: {
+                                origin: 'database',
+                                domain: 'auth',
+                                operation: 'sign-up',
+                                metadata: {
+                                    field: 'email',
+                                    reason: 'race_condition',
+                                },
+                            },
+                        }
                     );
                 }
 
-                // Re-throw other database errors as DatabaseError
+                // Re-throw other database errors as internal error
                 const errorMessage =
                     dbError instanceof Error
                         ? dbError.message
@@ -92,10 +106,17 @@ export function signUpRoutes() {
                         ? String(dbError.code)
                         : 'UNKNOWN';
 
-                throw new DatabaseError(
+                throw AppError.internal(
+                    'USER_CREATION_FAILED',
                     `Failed to create user: ${errorMessage}`,
-                    'user_creation',
-                    { originalError: errorCode }
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'auth',
+                            operation: 'sign-up',
+                            metadata: { originalError: errorCode },
+                        },
+                    }
                 );
             }
         } catch (error) {
