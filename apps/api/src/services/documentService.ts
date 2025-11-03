@@ -1,5 +1,6 @@
 import { db as defaultDb } from '@search-hub/db';
 import {
+    AppError,
     CreateDocumentRequestType,
     IndexDocumentJobSchema,
     JOBS,
@@ -7,10 +8,6 @@ import {
     type IndexDocumentJob,
     type UpdateDocumentTitlePayloadType,
     type DocumentListResultType,
-    type UpdateDocumentContentResultType,
-    type UpdateDocumentTitleResultType,
-    type DeleteDocumentResultType,
-    type ReindexDocumentResultType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
@@ -47,7 +44,7 @@ export interface DocumentService {
     deleteDocument(
         documentId: string,
         context: { tenantId: string; userId: string }
-    ): Promise<DeleteDocumentResultType>;
+    ): Promise<void>;
 
     getDocumentList(context: {
         tenantId: string;
@@ -61,18 +58,18 @@ export interface DocumentService {
         documentId: string,
         context: { tenantId: string; userId: string },
         payload: UpdateDocumentTitlePayloadType
-    ): Promise<UpdateDocumentTitleResultType>;
+    ): Promise<{ id: string; title: string }>;
 
     updateDocumentContent(
         documentId: string,
         context: { tenantId: string; userId: string },
         payload: { content: string }
-    ): Promise<UpdateDocumentContentResultType>;
+    ): Promise<{ id: string; updatedAt: string }>;
 
     queueDocumentReindexing(
         documentId: string,
         context: { tenantId: string; userId: string }
-    ): Promise<ReindexDocumentResultType>;
+    ): Promise<string>;
 }
 
 export function createDocumentService(
@@ -211,7 +208,7 @@ export function createDocumentService(
     async function deleteDocument(
         documentId: string,
         context: { userId: string; tenantId: string }
-    ): Promise<DeleteDocumentResultType> {
+    ): Promise<void> {
         logger.info(
             { documentId, userId: context.userId, tenantId: context.tenantId },
             'document.delete.start'
@@ -234,7 +231,19 @@ export function createDocumentService(
                 },
                 'document.delete.forbidden'
             );
-            return { success: false, error: 'forbidden' };
+            throw AppError.authorization(
+                'DOCUMENT_DELETE_FORBIDDEN',
+                'Only owners and admins can delete documents',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'delete',
+                    },
+                }
+            );
         }
 
         const document = await db.document.findUnique(documentId);
@@ -244,7 +253,19 @@ export function createDocumentService(
                 { documentId, tenantId: context.tenantId },
                 'document.delete.not_found'
             );
-            return { success: false, error: 'not_found' };
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'delete',
+                    },
+                }
+            );
         }
 
         await db.document.deleteById({
@@ -261,15 +282,13 @@ export function createDocumentService(
             },
             'document.delete.succeeded'
         );
-
-        return { success: true };
     }
 
     async function updateDocumentTitle(
         documentId: string,
         context: { userId: string; tenantId: string },
         payload: UpdateDocumentTitlePayloadType
-    ): Promise<UpdateDocumentTitleResultType> {
+    ): Promise<{ id: string; title: string }> {
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
                 userId: context.userId,
@@ -286,19 +305,56 @@ export function createDocumentService(
                 },
                 'document.update_title.forbidden'
             );
-            return { success: false, error: 'forbidden' };
+            throw AppError.authorization(
+                'DOCUMENT_UPDATE_FORBIDDEN',
+                'You do not have permission to update this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                    },
+                }
+            );
         }
 
         const document = await db.document.findUnique(documentId);
 
         if (!document || document.tenantId !== context.tenantId) {
-            return { success: false, error: 'not_found' };
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                    },
+                }
+            );
         }
 
         const title = payload.title.trim();
 
         if (!title) {
-            return { success: false, error: 'invalid' };
+            throw AppError.validation(
+                'INVALID_DOCUMENT_TITLE',
+                'Document title cannot be empty',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                        metadata: { field: 'title' },
+                    },
+                }
+            );
         }
 
         const updated = await db.document.updateTitle(documentId, title);
@@ -315,11 +371,8 @@ export function createDocumentService(
         );
 
         return {
-            success: true,
-            document: {
-                id: updated.id,
-                title: updated.title,
-            },
+            id: updated.id,
+            title: updated.title,
         };
     }
 
@@ -327,7 +380,7 @@ export function createDocumentService(
         documentId: string,
         context: { userId: string; tenantId: string },
         payload: { content: string }
-    ): Promise<UpdateDocumentContentResultType> {
+    ): Promise<{ id: string; updatedAt: string }> {
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
                 userId: context.userId,
@@ -344,13 +397,37 @@ export function createDocumentService(
                 },
                 'document.update_content.forbidden'
             );
-            return { success: false, error: 'forbidden' };
+            throw AppError.authorization(
+                'DOCUMENT_UPDATE_FORBIDDEN',
+                'You do not have permission to update this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                    },
+                }
+            );
         }
 
         const document = await db.document.findUnique(documentId);
 
         if (!document || document.tenantId !== context.tenantId) {
-            return { success: false, error: 'not_found' };
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                    },
+                }
+            );
         }
 
         const content = payload.content;
@@ -370,18 +447,15 @@ export function createDocumentService(
         );
 
         return {
-            success: true,
-            document: {
-                id: updatedDocument.id,
-                updatedAt: updatedDocument.updatedAt.toISOString(),
-            },
+            id: updatedDocument.id,
+            updatedAt: updatedDocument.updatedAt.toISOString(),
         };
     }
 
     async function queueDocumentReindexing(
         documentId: string,
         context: { tenantId: string; userId: string }
-    ): Promise<ReindexDocumentResultType> {
+    ): Promise<string> {
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
                 userId: context.userId,
@@ -390,13 +464,37 @@ export function createDocumentService(
 
         // Members can trigger reindex (collaborative model)
         if (!membership) {
-            return { success: false, error: 'forbidden' };
+            throw AppError.authorization(
+                'DOCUMENT_REINDEX_FORBIDDEN',
+                'You do not have permission to reindex this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'reindex',
+                    },
+                }
+            );
         }
 
         const document = await db.document.findUnique(documentId);
 
         if (!document || document.tenantId !== context.tenantId) {
-            return { success: false, error: 'not_found' };
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'reindex',
+                    },
+                }
+            );
         }
 
         await db.job.enqueueIndex(context.tenantId, documentId);
@@ -425,10 +523,7 @@ export function createDocumentService(
             'queue.enqueue.succeeded'
         );
 
-        return {
-            success: true,
-            jobId: String(job.id),
-        };
+        return String(job.id);
     }
 
     return {

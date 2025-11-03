@@ -18,9 +18,7 @@ import {
     type GetDocumentListParamsType,
     UpdateDocumentTitlePayload,
     type UpdateDocumentTitlePayloadType,
-    TenantActiveMissingError,
-    DocumentAccessDeniedError,
-    DocumentNotFoundError,
+    AppError,
 } from '@search-hub/schemas';
 import {
     validateParams,
@@ -48,8 +46,16 @@ export function documentRoutes(
                 const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
-                    throw new TenantActiveMissingError(
-                        'No active tenant selected.'
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'list',
+                            },
+                        }
                     );
                 }
 
@@ -85,8 +91,16 @@ export function documentRoutes(
                 const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
-                    throw new TenantActiveMissingError(
-                        'No active tenant selected.'
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'create',
+                            },
+                        }
                     );
                 }
 
@@ -137,8 +151,16 @@ export function documentRoutes(
                 const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
-                    throw new TenantActiveMissingError(
-                        'No active tenant selected.'
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'getDetails',
+                            },
+                        }
                     );
                 }
 
@@ -152,7 +174,20 @@ export function documentRoutes(
                 });
 
                 if (!document) {
-                    throw new DocumentNotFoundError(documentId, activeTenantId);
+                    throw AppError.notFound(
+                        'DOCUMENT_NOT_FOUND',
+                        'Document not found',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                resource: 'Document',
+                                resourceId: documentId,
+                                operation: 'getDetails',
+                                tenantId: activeTenantId,
+                            },
+                        }
+                    );
                 }
 
                 res.status(200).json({ document });
@@ -173,8 +208,16 @@ export function documentRoutes(
                 const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
-                    throw new TenantActiveMissingError(
-                        'No active tenant selected.'
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'delete',
+                            },
+                        }
                     );
                 }
 
@@ -182,18 +225,10 @@ export function documentRoutes(
                     req as RequestWithValidatedParams<GetDocumentDetailsParamsType>;
                 const { id: documentId } = requestWithParams.validated.params;
 
-                const result = await service.deleteDocument(documentId, {
+                await service.deleteDocument(documentId, {
                     userId,
                     tenantId: activeTenantId,
                 });
-
-                if (!result.success) {
-                    if (result.error === 'forbidden') {
-                        throw new DocumentAccessDeniedError(documentId);
-                    }
-                    // result.error === 'not_found'
-                    throw new DocumentNotFoundError(documentId, activeTenantId);
-                }
 
                 res.status(204).end();
             } catch (error) {
@@ -213,8 +248,16 @@ export function documentRoutes(
                 const activeTenantId = authReq.session?.currentTenantId;
 
                 if (!activeTenantId) {
-                    throw new TenantActiveMissingError(
-                        'No active tenant selected.'
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'updateTitle',
+                            },
+                        }
                     );
                 }
 
@@ -226,7 +269,7 @@ export function documentRoutes(
                     req as RequestWithValidatedBody<UpdateDocumentTitlePayloadType>;
                 const { title } = requestWithBody.validated.body;
 
-                const result = await service.updateDocumentTitle(
+                const document = await service.updateDocumentTitle(
                     documentId,
                     {
                         userId,
@@ -235,27 +278,7 @@ export function documentRoutes(
                     { title }
                 );
 
-                if (!result.success) {
-                    switch (result.error) {
-                        case 'forbidden':
-                            throw new DocumentAccessDeniedError(documentId);
-                        case 'not_found':
-                            throw new DocumentNotFoundError(
-                                documentId,
-                                activeTenantId
-                            );
-                        case 'invalid':
-                            return res.status(400).json({
-                                error: {
-                                    code: 'INVALID_TITLE',
-                                    message: 'Title cannot be empty.',
-                                },
-                            });
-                    }
-                }
-
-                // TypeScript now knows result.success === true
-                res.status(200).json({ document: result.document });
+                res.status(200).json({ document });
             } catch (error) {
                 next(error);
             }
@@ -269,8 +292,16 @@ export function documentRoutes(
             const activeTenantId = authReq.session?.currentTenantId;
 
             if (!activeTenantId) {
-                throw new TenantActiveMissingError(
-                    'No active tenant selected.'
+                throw AppError.validation(
+                    'NO_ACTIVE_TENANT',
+                    'No active tenant selected.',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'document',
+                            operation: 'updateContent',
+                        },
+                    }
                 );
             }
 
@@ -278,7 +309,7 @@ export function documentRoutes(
 
             const body = req.body as { content: string };
 
-            const result = await service.updateDocumentContent(
+            const document = await service.updateDocumentContent(
                 documentId,
                 {
                     userId,
@@ -287,15 +318,7 @@ export function documentRoutes(
                 { content: body.content }
             );
 
-            if (!result.success) {
-                if (result.error === 'forbidden') {
-                    throw new DocumentAccessDeniedError(documentId);
-                }
-                // result.error === 'not_found'
-                throw new DocumentNotFoundError(documentId, activeTenantId);
-            }
-
-            res.status(200).json({ document: result.document });
+            res.status(200).json({ document });
         } catch (error) {
             next(error);
         }
@@ -307,32 +330,29 @@ export function documentRoutes(
             const { userId } = authReq.session;
             const activeTenantId = authReq.session?.currentTenantId;
             if (!activeTenantId) {
-                throw new TenantActiveMissingError(
-                    'No active tenant selected.'
+                throw AppError.validation(
+                    'NO_ACTIVE_TENANT',
+                    'No active tenant selected.',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'document',
+                            operation: 'reindex',
+                        },
+                    }
                 );
             }
 
             const documentId = req.params.id;
 
-            const result = await service.queueDocumentReindexing(documentId, {
+            const jobId = await service.queueDocumentReindexing(documentId, {
                 userId,
                 tenantId: activeTenantId,
             });
 
-            // Translate domain errors to HTTP errors
-            if (!result.success) {
-                if (result.error === 'forbidden') {
-                    throw new DocumentAccessDeniedError(documentId);
-                }
-                // result.error === 'not_found'
-                throw new DocumentNotFoundError(documentId, activeTenantId);
-            }
-
-            // At this point, TypeScript knows result.success === true
-            // Translate domain result to HTTP response (schema-compliant)
             res.status(202).json({
                 message: 'Re-index job queued successfully',
-                jobId: result.jobId,
+                jobId,
             });
         } catch (error) {
             next(error);

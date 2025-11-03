@@ -159,11 +159,6 @@ export const UpdateDocumentTitleResponse = z.object({
     }),
 });
 
-// Domain result type for title update operation (service layer)
-export type UpdateDocumentTitleResultType =
-    | { success: true; document: { id: string; title: string } }
-    | { success: false; error: 'forbidden' | 'not_found' | 'invalid' };
-
 export const UpdateDocumentContentPayload = z.object({
     content: z.string().optional(),
 });
@@ -183,11 +178,6 @@ export type UpdateDocumentContentResponseType = z.infer<
     typeof UpdateDocumentContentResponse
 >;
 
-// Domain result type for content update operation (service layer)
-export type UpdateDocumentContentResultType =
-    | { success: true; document: { id: string; updatedAt: string } }
-    | { success: false; error: 'forbidden' | 'not_found' };
-
 // Reindex document endpoint
 export const ReindexDocumentResponse = z.object({
     message: z.string(),
@@ -197,11 +187,6 @@ export const ReindexDocumentResponse = z.object({
 export type ReindexDocumentResponseType = z.infer<
     typeof ReindexDocumentResponse
 >;
-
-// Domain result type for reindex operation (service layer)
-export type ReindexDocumentResultType =
-    | { success: true; jobId: string }
-    | { success: false; error: 'forbidden' | 'not_found' };
 
 export const DocumentFavorite = z.object({
     id: Id,
@@ -244,11 +229,6 @@ export const DeleteDocumentResponse = z.union([
     z.object({ status: z.literal('forbidden') }),
     z.object({ status: z.literal('not_found') }),
 ]);
-
-// Domain result type for delete operation (service layer)
-export type DeleteDocumentResultType =
-    | { success: true }
-    | { success: false; error: 'forbidden' | 'not_found' };
 
 export type DocumentSourceType = z.infer<typeof DocumentSource>;
 export type DocumentMetadataType = z.infer<typeof DocumentMetadata>;
