@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger, getRequestContext } from '@search-hub/logger';
 import { AppError, type ErrorType } from '@search-hub/schemas';
+import { ZodError } from 'zod';
 
 // Helper function to map native Node.js/Express errors to our error types
 function mapNativeError(error: Error): {
@@ -117,8 +118,22 @@ export function errorHandlerMiddleware(
     let metadata: Record<string, unknown> = {};
     let userMessage = 'Internal server error';
 
+    // Handle Zod validation errors
+    if (error instanceof ZodError) {
+        statusCode = 400;
+        errorType = 'validation';
+        errorCode = 'VALIDATION_ERROR';
+        userMessage = 'Validation error';
+        metadata = {
+            issues: error.issues.map((issue) => ({
+                field: issue.path.join('.'),
+                message: issue.message,
+                code: issue.code,
+            })),
+        };
+    }
     // Handle AppError instances (our custom errors)
-    if (error instanceof AppError) {
+    else if (error instanceof AppError) {
         statusCode = error.statusCode;
         errorType = error.type;
         errorCode = error.code;
