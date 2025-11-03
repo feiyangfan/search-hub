@@ -1,6 +1,6 @@
 import { ChevronDown, Loader2, Plus, File, MoreHorizontal } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { Button } from '../ui/button';
 import {
@@ -52,6 +52,7 @@ export function NavDocuments({
     isLoadingMore?: boolean;
 }) {
     const router = useRouter();
+    const pathname = usePathname();
     const { toast } = useToast();
     const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
         null
@@ -212,85 +213,102 @@ export function NavDocuments({
                                               </SidebarMenuButton>
                                           </SidebarMenuItem>
                                       ))
-                                    : documents.map((document) => (
-                                          <SidebarMenuItem key={document.id}>
-                                              {editingDocumentId ===
-                                              document.id ? (
-                                                  <div className="flex items-center gap-2 px-2 py-1.5">
-                                                      <File className="inline-block h-4 w-4 shrink-0" />
-                                                      <input
-                                                          ref={inputRef}
-                                                          type="text"
-                                                          defaultValue={
-                                                              document.title
-                                                          }
-                                                          className="flex-1 bg-transparent text-sm outline-none border border-transparent rounded px-1 py-0.5 focus:border-gray-300"
-                                                          onKeyDown={(e) => {
-                                                              if (
-                                                                  e.key ===
-                                                                  'Enter'
-                                                              ) {
+                                    : documents.map((document) => {
+                                          const isActive =
+                                              pathname ===
+                                                  `/doc/${document.id}` ||
+                                              pathname?.startsWith(
+                                                  `/doc/${document.id}/`
+                                              );
+
+                                          return (
+                                              <SidebarMenuItem
+                                                  key={document.id}
+                                              >
+                                                  {editingDocumentId ===
+                                                  document.id ? (
+                                                      <div className="flex items-center gap-2 px-2 py-1.5">
+                                                          <File className="inline-block h-4 w-4 shrink-0" />
+                                                          <input
+                                                              ref={inputRef}
+                                                              type="text"
+                                                              defaultValue={
+                                                                  document.title
+                                                              }
+                                                              className="flex-1 bg-transparent text-sm outline-none border border-transparent rounded px-1 py-0.5 focus:border-gray-300"
+                                                              onKeyDown={(e) => {
+                                                                  if (
+                                                                      e.key ===
+                                                                      'Enter'
+                                                                  ) {
+                                                                      handleRenameSubmit(
+                                                                          document.id,
+                                                                          e
+                                                                              .currentTarget
+                                                                              .value
+                                                                      );
+                                                                  } else if (
+                                                                      e.key ===
+                                                                      'Escape'
+                                                                  ) {
+                                                                      handleRenameCancel();
+                                                                  }
+                                                              }}
+                                                              onBlur={(e) => {
                                                                   handleRenameSubmit(
                                                                       document.id,
                                                                       e
                                                                           .currentTarget
                                                                           .value
                                                                   );
-                                                              } else if (
-                                                                  e.key ===
-                                                                  'Escape'
-                                                              ) {
-                                                                  handleRenameCancel();
+                                                              }}
+                                                          />
+                                                      </div>
+                                                  ) : (
+                                                      <>
+                                                          <SidebarMenuButton
+                                                              asChild
+                                                              isActive={
+                                                                  isActive
                                                               }
-                                                          }}
-                                                          onBlur={(e) => {
-                                                              handleRenameSubmit(
-                                                                  document.id,
-                                                                  e
-                                                                      .currentTarget
-                                                                      .value
-                                                              );
-                                                          }}
-                                                      />
-                                                  </div>
-                                              ) : (
-                                                  <>
-                                                      <SidebarMenuButton
-                                                          asChild
-                                                      >
-                                                          <Link
-                                                              href={`/doc/${document.id}`}
-                                                              className="flex items-center gap-2"
                                                           >
-                                                              <File className="inline-block h-4 w-4 shrink-0" />
-                                                              <span>
-                                                                  {
+                                                              <Link
+                                                                  href={`/doc/${document.id}`}
+                                                                  className="flex items-center gap-2"
+                                                              >
+                                                                  <File className="inline-block h-4 w-4 shrink-0" />
+                                                                  <span>
+                                                                      {
+                                                                          document.title
+                                                                      }
+                                                                  </span>
+                                                              </Link>
+                                                          </SidebarMenuButton>
+                                                          <NavDocumentActions
+                                                              documentId={
+                                                                  document.id
+                                                              }
+                                                              onRename={() =>
+                                                                  handleRename(
+                                                                      document.id,
                                                                       document.title
-                                                                  }
-                                                              </span>
-                                                          </Link>
-                                                      </SidebarMenuButton>
-                                                      <NavDocumentActions
-                                                          documentId={
-                                                              document.id
-                                                          }
-                                                          onRename={() =>
-                                                              handleRename(
-                                                                  document.id,
-                                                                  document.title
-                                                              )
-                                                          }
-                                                          onDelete={() =>
-                                                              handleDelete(
-                                                                  document.id,
-                                                                  document.title
-                                                              )
-                                                          }
-                                                      />
-                                                  </>
-                                              )}
-                                          </SidebarMenuItem>
-                                      ))}
+                                                                  )
+                                                              }
+                                                              onDelete={() =>
+                                                                  handleDelete(
+                                                                      document.id,
+                                                                      document.title
+                                                                  )
+                                                              }
+                                                              isActive={
+                                                                  isActive
+                                                              }
+                                                          />
+                                                      </>
+                                                  )}
+                                              </SidebarMenuItem>
+                                          );
+                                      })}
                                 {!isLoading && hasMore ? (
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
