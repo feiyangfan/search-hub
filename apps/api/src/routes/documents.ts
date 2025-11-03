@@ -5,10 +5,7 @@ import {
     CreateDocumentRequestType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
-import {
-    AuthenticatedRequest,
-    authRequired,
-} from '../middleware/authMiddleware.js';
+import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { validateBody } from '../middleware/validateMiddleware.js';
 import {
     createDocumentService,
@@ -39,7 +36,6 @@ export function documentRoutes(
     service: DocumentService = createDocumentService()
 ) {
     const router = Router();
-    router.use(authRequired);
 
     router.get(
         '/',
