@@ -5,431 +5,430 @@ import { DocumentSourceType } from '@search-hub/schemas';
 import { Tag } from '@prisma/client';
 
 export const documentRepository = {
-    document: {
-        create: async ({
-            tenantId,
-            title,
-            source = 'editor',
-            sourceUrl,
-            content,
-            metadata,
-            createdById,
-            updatedById,
-        }: {
-            tenantId: string;
-            title: string;
-            source?: DocumentSourceType;
-            sourceUrl?: string | null;
-            content?: string | null;
-            metadata?: Prisma.InputJsonValue | null;
-            createdById: string;
-            updatedById: string;
-        }) => {
-            try {
-                const data: Prisma.DocumentCreateInput = {
-                    title,
-                    source,
-                    tenant: {
-                        connect: { id: tenantId },
-                    },
-                    createdBy: {
-                        connect: { id: createdById },
-                    },
-                    updatedBy: {
-                        connect: { id: updatedById },
-                    },
-                };
+    create: async ({
+        tenantId,
+        title,
+        source = 'editor',
+        sourceUrl,
+        content,
+        metadata,
+        createdById,
+        updatedById,
+    }: {
+        tenantId: string;
+        title: string;
+        source?: DocumentSourceType;
+        sourceUrl?: string | null;
+        content?: string | null;
+        metadata?: Prisma.InputJsonValue | null;
+        createdById: string;
+        updatedById: string;
+    }) => {
+        try {
+            const data: Prisma.DocumentCreateInput = {
+                title,
+                source,
+                tenant: {
+                    connect: { id: tenantId },
+                },
+                createdBy: {
+                    connect: { id: createdById },
+                },
+                updatedBy: {
+                    connect: { id: updatedById },
+                },
+            };
 
-                if (sourceUrl !== undefined) {
-                    data.sourceUrl = sourceUrl ?? undefined;
-                }
-
-                if (content !== undefined) {
-                    data.content = content ?? undefined;
-                }
-
-                if (metadata !== undefined) {
-                    data.metadata = metadata ?? Prisma.JsonNull;
-                }
-
-                return await prisma.document.create({ data });
-            } catch (error) {
-                if (error instanceof Prisma.PrismaClientKnownRequestError) {
-                    switch (error.code) {
-                        case 'P2002': // Unique constraint violation
-                            throw AppError.internal(
-                                'DB_CONSTRAINT_VIOLATION',
-                                'Document with this identifier already exists',
-                                {
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'create',
-                                        metadata: { prismaCode: error.code },
-                                    },
-                                }
-                            );
-
-                        case 'P2003': {
-                            // Foreign key constraint violation
-                            const target = error.meta?.field_name;
-                            if (typeof target === 'string') {
-                                if (target.includes('tenantId')) {
-                                    throw AppError.notFound(
-                                        'TENANT_NOT_FOUND',
-                                        'Tenant not found',
-                                        {
-                                            context: {
-                                                origin: 'database',
-                                                domain: 'documents',
-                                                resource: 'Document',
-                                                operation: 'create',
-                                                metadata: { field: 'tenantId' },
-                                            },
-                                        }
-                                    );
-                                }
-                                if (target.includes('createdById')) {
-                                    throw AppError.validation(
-                                        'INVALID_USER_ID',
-                                        'Invalid creator user ID',
-                                        {
-                                            context: {
-                                                origin: 'database',
-                                                domain: 'documents',
-                                                resource: 'Document',
-                                                operation: 'create',
-                                                metadata: {
-                                                    field: 'createdById',
-                                                },
-                                            },
-                                        }
-                                    );
-                                }
-                                if (target.includes('updatedById')) {
-                                    throw AppError.validation(
-                                        'INVALID_USER_ID',
-                                        'Invalid updater user ID',
-                                        {
-                                            context: {
-                                                origin: 'database',
-                                                domain: 'documents',
-                                                resource: 'Document',
-                                                operation: 'create',
-                                                metadata: {
-                                                    field: 'updatedById',
-                                                },
-                                            },
-                                        }
-                                    );
-                                }
-                            }
-                            // Fallback for other foreign key violations
-                            throw AppError.internal(
-                                'DB_CONSTRAINT_VIOLATION',
-                                'Invalid reference in document creation',
-                                {
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'create',
-                                        metadata: {
-                                            prismaCode: error.code,
-                                            target,
-                                        },
-                                    },
-                                }
-                            );
-                        }
-
-                        case 'P1001': // Can't reach database
-                        case 'P1002': // Database timeout
-                            throw AppError.transient(
-                                'DB_CONNECTION_FAILED',
-                                'Database connection failed',
-                                {
-                                    retryAfterMs: 5000,
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'create',
-                                        metadata: { prismaCode: error.code },
-                                    },
-                                }
-                            );
-
-                        default:
-                            throw AppError.internal(
-                                'DB_OPERATION_FAILED',
-                                'Failed to create document',
-                                {
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'create',
-                                        metadata: {
-                                            prismaCode: error.code,
-                                            message: error.message,
-                                        },
-                                    },
-                                }
-                            );
-                    }
-                }
-
-                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
-                    throw AppError.internal(
-                        'DB_UNKNOWN_ERROR',
-                        'Database operation failed',
-                        {
-                            context: {
-                                origin: 'database',
-                                domain: 'documents',
-                                resource: 'Document',
-                                operation: 'create',
-                                metadata: { message: error.message },
-                            },
-                        }
-                    );
-                }
-
-                // Re-throw unexpected errors
-                throw error;
+            if (sourceUrl !== undefined) {
+                data.sourceUrl = sourceUrl ?? undefined;
             }
-        },
-        findUnique: async (documentId: string) => {
-            return prisma.document.findUnique({
-                where: { id: documentId },
-                select: {
-                    id: true,
-                    tenantId: true,
-                    content: true,
-                    title: true,
-                },
-            });
-        },
-        getById: async ({
-            documentId,
-            userId,
-            tenantId,
-        }: {
-            documentId: string;
-            userId: string;
-            tenantId: string;
-        }) => {
-            return prisma.document.findFirst({
-                where: {
-                    id: documentId,
-                    tenantId,
-                },
-                include: {
-                    favorites: {
-                        where: { userId },
-                        select: { id: true },
-                    },
-                    commands: {
-                        orderBy: { createdAt: 'asc' },
-                    },
-                },
-            });
-        },
-        deleteById: async ({
-            documentId,
-            tenantId,
-        }: {
-            documentId: string;
-            tenantId: string;
-        }) => {
-            return prisma.document.delete({
-                where: {
-                    id: documentId,
-                    tenantId,
-                },
-            });
-        },
-        listTenantDocuments: async ({
-            tenantId,
-            userId,
-            limit = 20,
-            offset = 0,
-            favoritesOnly = false,
-        }: {
-            tenantId: string;
-            userId: string;
-            limit?: number;
-            offset?: number;
-            favoritesOnly?: boolean;
-        }) => {
-            try {
-                const where: Prisma.DocumentWhereInput = {
-                    tenantId,
-                    ...(favoritesOnly
-                        ? {
-                              favorites: {
-                                  some: {
-                                      userId,
-                                  },
-                              },
-                          }
-                        : {}),
-                };
 
-                const [items, total] = await prisma.$transaction([
-                    prisma.document.findMany({
-                        where,
-                        orderBy: { updatedAt: 'desc' },
-                        skip: offset,
-                        take: limit,
-                        select: {
-                            id: true,
-                            title: true,
-                            updatedAt: true,
-                            favorites: {
-                                where: { userId },
-                                select: { id: true },
-                            },
+            if (content !== undefined) {
+                data.content = content ?? undefined;
+            }
+
+            if (metadata !== undefined) {
+                data.metadata = metadata ?? Prisma.JsonNull;
+            }
+
+            return await prisma.document.create({ data });
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                switch (error.code) {
+                    case 'P2002': // Unique constraint violation
+                        throw AppError.internal(
+                            'DB_CONSTRAINT_VIOLATION',
+                            'Document with this identifier already exists',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'create',
+                                    metadata: { prismaCode: error.code },
+                                },
+                            }
+                        );
+
+                    case 'P2003': {
+                        // Foreign key constraint violation
+                        const target = error.meta?.field_name;
+                        if (typeof target === 'string') {
+                            if (target.includes('tenantId')) {
+                                throw AppError.notFound(
+                                    'TENANT_NOT_FOUND',
+                                    'Tenant not found',
+                                    {
+                                        context: {
+                                            origin: 'database',
+                                            domain: 'documents',
+                                            resource: 'Document',
+                                            operation: 'create',
+                                            metadata: { field: 'tenantId' },
+                                        },
+                                    }
+                                );
+                            }
+                            if (target.includes('createdById')) {
+                                throw AppError.validation(
+                                    'INVALID_USER_ID',
+                                    'Invalid creator user ID',
+                                    {
+                                        context: {
+                                            origin: 'database',
+                                            domain: 'documents',
+                                            resource: 'Document',
+                                            operation: 'create',
+                                            metadata: {
+                                                field: 'createdById',
+                                            },
+                                        },
+                                    }
+                                );
+                            }
+                            if (target.includes('updatedById')) {
+                                throw AppError.validation(
+                                    'INVALID_USER_ID',
+                                    'Invalid updater user ID',
+                                    {
+                                        context: {
+                                            origin: 'database',
+                                            domain: 'documents',
+                                            resource: 'Document',
+                                            operation: 'create',
+                                            metadata: {
+                                                field: 'updatedById',
+                                            },
+                                        },
+                                    }
+                                );
+                            }
+                        }
+                        // Fallback for other foreign key violations
+                        throw AppError.internal(
+                            'DB_CONSTRAINT_VIOLATION',
+                            'Invalid reference in document creation',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'create',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        target,
+                                    },
+                                },
+                            }
+                        );
+                    }
+
+                    case 'P1001': // Can't reach database
+                    case 'P1002': // Database timeout
+                        throw AppError.transient(
+                            'DB_CONNECTION_FAILED',
+                            'Database connection failed',
+                            {
+                                retryAfterMs: 5000,
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'create',
+                                    metadata: { prismaCode: error.code },
+                                },
+                            }
+                        );
+
+                    default:
+                        throw AppError.internal(
+                            'DB_OPERATION_FAILED',
+                            'Failed to create document',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'create',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        message: error.message,
+                                    },
+                                },
+                            }
+                        );
+                }
+            }
+
+            if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                throw AppError.internal(
+                    'DB_UNKNOWN_ERROR',
+                    'Database operation failed',
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'documents',
+                            resource: 'Document',
+                            operation: 'create',
+                            metadata: { message: error.message },
                         },
-                    }),
-                    prisma.document.count({ where }),
-                ]);
-
-                return {
-                    items: items.map((item) => ({
-                        id: item.id,
-                        title: item.title,
-                        updatedAt: item.updatedAt,
-                        isFavorite: item.favorites.length > 0,
-                    })),
-                    total,
-                };
-            } catch (error) {
-                if (error instanceof Prisma.PrismaClientKnownRequestError) {
-                    switch (error.code) {
-                        case 'P2003': {
-                            // Foreign key constraint violation
-                            const target = error.meta?.field_name;
-                            if (typeof target === 'string') {
-                                if (target.includes('tenantId')) {
-                                    throw AppError.notFound(
-                                        'TENANT_NOT_FOUND',
-                                        'Tenant not found',
-                                        {
-                                            context: {
-                                                origin: 'database',
-                                                domain: 'documents',
-                                                resource: 'Document',
-                                                operation: 'list',
-                                                metadata: { field: 'tenantId' },
-                                            },
-                                        }
-                                    );
-                                }
-                                if (target.includes('userId')) {
-                                    throw AppError.validation(
-                                        'INVALID_USER_ID',
-                                        'Invalid user ID provided',
-                                        {
-                                            context: {
-                                                origin: 'database',
-                                                domain: 'documents',
-                                                resource: 'Document',
-                                                operation: 'list',
-                                                metadata: { field: 'userId' },
-                                            },
-                                        }
-                                    );
-                                }
-                            }
-                            throw AppError.internal(
-                                'DB_CONSTRAINT_VIOLATION',
-                                'Invalid reference in document query',
-                                {
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'list',
-                                        metadata: {
-                                            prismaCode: error.code,
-                                            target,
-                                        },
-                                    },
-                                }
-                            );
-                        }
-
-                        case 'P1001': // Can't reach database
-                        case 'P1002': // Database timeout
-                            throw AppError.transient(
-                                'DB_CONNECTION_FAILED',
-                                'Database connection failed',
-                                {
-                                    retryAfterMs: 5000,
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'list',
-                                        metadata: { prismaCode: error.code },
-                                    },
-                                }
-                            );
-
-                        default:
-                            throw AppError.internal(
-                                'DB_OPERATION_FAILED',
-                                'Failed to fetch documents',
-                                {
-                                    context: {
-                                        origin: 'database',
-                                        domain: 'documents',
-                                        resource: 'Document',
-                                        operation: 'list',
-                                        metadata: {
-                                            prismaCode: error.code,
-                                            message: error.message,
-                                        },
-                                    },
-                                }
-                            );
                     }
-                }
-
-                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
-                    throw AppError.internal(
-                        'DB_UNKNOWN_ERROR',
-                        'Database query failed',
-                        {
-                            context: {
-                                origin: 'database',
-                                domain: 'documents',
-                                resource: 'Document',
-                                operation: 'list',
-                                metadata: { message: error.message },
-                            },
-                        }
-                    );
-                }
-
-                // Re-throw unexpected errors
-                throw error;
+                );
             }
-        },
-        updateTitle: async (documentId: string, title: string) => {
-            // Update title and searchVector in a transaction
-            return prisma.$transaction(async (tx) => {
-                const updated = await tx.document.update({
-                    where: { id: documentId },
-                    data: { title },
-                });
 
-                // Update searchVector to reflect new title
-                // Weight A for title (higher priority), Weight B for content
-                await tx.$executeRaw`
+            // Re-throw unexpected errors
+            throw error;
+        }
+    },
+    findUnique: async (documentId: string) => {
+        return prisma.document.findUnique({
+            where: { id: documentId },
+            select: {
+                id: true,
+                tenantId: true,
+                content: true,
+                title: true,
+            },
+        });
+    },
+    getById: async ({
+        documentId,
+        userId,
+        tenantId,
+    }: {
+        documentId: string;
+        userId: string;
+        tenantId: string;
+    }) => {
+        return prisma.document.findFirst({
+            where: {
+                id: documentId,
+                tenantId,
+            },
+            include: {
+                favorites: {
+                    where: { userId },
+                    select: { id: true },
+                },
+                commands: {
+                    orderBy: { createdAt: 'asc' },
+                },
+            },
+        });
+    },
+    deleteById: async ({
+        documentId,
+        tenantId,
+    }: {
+        documentId: string;
+        tenantId: string;
+    }) => {
+        return prisma.document.delete({
+            where: {
+                id: documentId,
+                tenantId,
+            },
+        });
+    },
+    listTenantDocuments: async ({
+        tenantId,
+        userId,
+        limit = 20,
+        offset = 0,
+        favoritesOnly = false,
+    }: {
+        tenantId: string;
+        userId: string;
+        limit?: number;
+        offset?: number;
+        favoritesOnly?: boolean;
+    }) => {
+        try {
+            const where: Prisma.DocumentWhereInput = {
+                tenantId,
+                ...(favoritesOnly
+                    ? {
+                          favorites: {
+                              some: {
+                                  userId,
+                              },
+                          },
+                      }
+                    : {}),
+            };
+
+            const [items, total] = await prisma.$transaction([
+                prisma.document.findMany({
+                    where,
+                    orderBy: { updatedAt: 'desc' },
+                    skip: offset,
+                    take: limit,
+                    select: {
+                        id: true,
+                        title: true,
+                        updatedAt: true,
+                        favorites: {
+                            where: { userId },
+                            select: { id: true },
+                        },
+                    },
+                }),
+                prisma.document.count({ where }),
+            ]);
+
+            return {
+                items: items.map((item) => ({
+                    id: item.id,
+                    title: item.title,
+                    updatedAt: item.updatedAt,
+                    isFavorite: item.favorites.length > 0,
+                })),
+                total,
+            };
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                switch (error.code) {
+                    case 'P2003': {
+                        // Foreign key constraint violation
+                        const target = error.meta?.field_name;
+                        if (typeof target === 'string') {
+                            if (target.includes('tenantId')) {
+                                throw AppError.notFound(
+                                    'TENANT_NOT_FOUND',
+                                    'Tenant not found',
+                                    {
+                                        context: {
+                                            origin: 'database',
+                                            domain: 'documents',
+                                            resource: 'Document',
+                                            operation: 'list',
+                                            metadata: { field: 'tenantId' },
+                                        },
+                                    }
+                                );
+                            }
+                            if (target.includes('userId')) {
+                                throw AppError.validation(
+                                    'INVALID_USER_ID',
+                                    'Invalid user ID provided',
+                                    {
+                                        context: {
+                                            origin: 'database',
+                                            domain: 'documents',
+                                            resource: 'Document',
+                                            operation: 'list',
+                                            metadata: { field: 'userId' },
+                                        },
+                                    }
+                                );
+                            }
+                        }
+                        throw AppError.internal(
+                            'DB_CONSTRAINT_VIOLATION',
+                            'Invalid reference in document query',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'list',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        target,
+                                    },
+                                },
+                            }
+                        );
+                    }
+
+                    case 'P1001': // Can't reach database
+                    case 'P1002': // Database timeout
+                        throw AppError.transient(
+                            'DB_CONNECTION_FAILED',
+                            'Database connection failed',
+                            {
+                                retryAfterMs: 5000,
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'list',
+                                    metadata: { prismaCode: error.code },
+                                },
+                            }
+                        );
+
+                    default:
+                        throw AppError.internal(
+                            'DB_OPERATION_FAILED',
+                            'Failed to fetch documents',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documents',
+                                    resource: 'Document',
+                                    operation: 'list',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        message: error.message,
+                                    },
+                                },
+                            }
+                        );
+                }
+            }
+
+            if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                throw AppError.internal(
+                    'DB_UNKNOWN_ERROR',
+                    'Database query failed',
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'documents',
+                            resource: 'Document',
+                            operation: 'list',
+                            metadata: { message: error.message },
+                        },
+                    }
+                );
+            }
+
+            // Re-throw unexpected errors
+            throw error;
+        }
+    },
+    updateTitle: async (documentId: string, title: string) => {
+        // Update title and searchVector in a transaction
+        return prisma.$transaction(async (tx) => {
+            const updated = await tx.document.update({
+                where: { id: documentId },
+                data: { title },
+            });
+
+            // Update searchVector to reflect new title
+            // Weight A for title (higher priority), Weight B for content
+            await tx.$executeRaw`
                     UPDATE "Document" d
                     SET "searchVector" =
                         setweight(to_tsvector('english', d."title"), 'A') ||
@@ -451,59 +450,59 @@ export const documentRepository = {
                     WHERE d."id" = ${documentId};
                 `;
 
-                return updated;
-            });
-        },
-        updateContent: async (documentId: string, content: string) => {
-            return prisma.document.update({
-                where: { id: documentId },
-                data: { content },
-            });
-        },
-        replaceChunksWithEmbeddings: async ({
-            tenantId,
-            documentId,
-            chunks,
-            vectors,
-            checksum,
-        }: {
-            tenantId: string;
-            documentId: string;
-            chunks: { idx: number; text: string }[];
-            vectors: number[][];
-            checksum: string;
-        }) => {
-            if (chunks.length !== vectors.length) {
-                throw new Error('Chunk count and vector count must match');
-            }
+            return updated;
+        });
+    },
+    updateContent: async (documentId: string, content: string) => {
+        return prisma.document.update({
+            where: { id: documentId },
+            data: { content },
+        });
+    },
+    replaceChunksWithEmbeddings: async ({
+        tenantId,
+        documentId,
+        chunks,
+        vectors,
+        checksum,
+    }: {
+        tenantId: string;
+        documentId: string;
+        chunks: { idx: number; text: string }[];
+        vectors: number[][];
+        checksum: string;
+    }) => {
+        if (chunks.length !== vectors.length) {
+            throw new Error('Chunk count and vector count must match');
+        }
 
-            await prisma.$transaction(async (tx) => {
-                await tx.documentChunk.deleteMany({ where: { documentId } });
+        await prisma.$transaction(async (tx) => {
+            await tx.documentChunk.deleteMany({ where: { documentId } });
 
-                for (let i = 0; i < chunks.length; i++) {
-                    const chunk = chunks[i];
-                    const vector = vectors[i];
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                const vector = vectors[i];
 
-                    if (!chunk || !vector) {
-                        throw new Error(`Chunk/vector mismatch at index ${i}`);
-                    }
+                if (!chunk || !vector) {
+                    throw new Error(`Chunk/vector mismatch at index ${i}`);
+                }
 
-                    await tx.$executeRawUnsafe(
-                        `
+                await tx.$executeRawUnsafe(
+                    `
                         INSERT INTO "DocumentChunk"
                           ("id","tenantId","documentId","idx","content","embedding","createdAt")
                         VALUES
                           (gen_random_uuid(), $1, $2, $3, $4, $5::vector, now())
                         `,
-                        tenantId,
-                        documentId,
-                        chunk.idx,
-                        chunk.text,
-                        `[${vector.join(',')}]`
-                    );
-                }
+                    tenantId,
+                    documentId,
+                    chunk.idx,
+                    chunk.text,
+                    `[${vector.join(',')}]`
+                );
+            }
 
-                await tx.$executeRaw`
+            await tx.$executeRaw`
                     UPDATE "Document" d
                     SET "searchVector" =
                         setweight(to_tsvector('english', d."title"), 'A') ||
@@ -525,23 +524,54 @@ export const documentRepository = {
                     WHERE d."id" = ${documentId};
                 `;
 
-                await tx.documentIndexState.upsert({
-                    where: { documentId },
-                    create: {
-                        documentId,
-                        lastChecksum: checksum,
-                        lastIndexedAt: new Date(),
-                    },
-                    update: {
-                        lastChecksum: checksum,
-                        lastIndexedAt: new Date(),
-                    },
-                });
+            await tx.documentIndexState.upsert({
+                where: { documentId },
+                create: {
+                    documentId,
+                    lastChecksum: checksum,
+                    lastIndexedAt: new Date(),
+                },
+                update: {
+                    lastChecksum: checksum,
+                    lastIndexedAt: new Date(),
+                },
             });
-        },
-        getDocumentTags: async (documentId: string, tenantId: string) => {
-            // First verify the document belongs to the tenant
-            const document = await prisma.document.findFirst({
+        });
+    },
+    getDocumentTags: async (documentId: string, tenantId: string) => {
+        // First verify the document belongs to the tenant
+        const document = await prisma.document.findFirst({
+            where: {
+                id: documentId,
+                tenantId,
+            },
+            select: { id: true },
+        });
+
+        if (!document) {
+            return null; // Document not found or doesn't belong to tenant
+        }
+
+        return prisma.documentTag.findMany({
+            where: { documentId },
+            include: {
+                tag: true,
+            },
+        });
+    },
+    addTagsToDocument: async (
+        documentId: string,
+        tagIds: string[],
+        tenantId: string,
+        userId: string
+    ) => {
+        const addedTags: Tag[] = [];
+        const alreadyExists: string[] = [];
+        const notFound: string[] = [];
+
+        await prisma.$transaction(async (tx) => {
+            // Verify document belongs to tenant
+            const document = await tx.document.findFirst({
                 where: {
                     id: documentId,
                     tenantId,
@@ -550,99 +580,65 @@ export const documentRepository = {
             });
 
             if (!document) {
-                return null; // Document not found or doesn't belong to tenant
+                throw new Error('Document not found or access denied');
             }
 
-            return prisma.documentTag.findMany({
-                where: { documentId },
-                include: {
-                    tag: true,
+            // Verify all tags exist and belong to tenant
+            const existingTags = await tx.tag.findMany({
+                where: {
+                    id: { in: tagIds },
+                    tenantId,
                 },
+                select: { id: true },
             });
-        },
-        addTagsToDocument: async (
-            documentId: string,
-            tagIds: string[],
-            tenantId: string,
-            userId: string
-        ) => {
-            const addedTags: Tag[] = [];
-            const alreadyExists: string[] = [];
-            const notFound: string[] = [];
 
-            await prisma.$transaction(async (tx) => {
-                // Verify document belongs to tenant
-                const document = await tx.document.findFirst({
-                    where: {
-                        id: documentId,
-                        tenantId,
-                    },
-                    select: { id: true },
-                });
+            const existingTagIds = new Set(existingTags.map((t) => t.id));
 
-                if (!document) {
-                    throw new Error('Document not found or access denied');
+            // Track which tags weren't found
+            for (const tagId of tagIds) {
+                if (!existingTagIds.has(tagId)) {
+                    notFound.push(tagId);
                 }
+            }
 
-                // Verify all tags exist and belong to tenant
-                const existingTags = await tx.tag.findMany({
+            // Only process valid tags
+            const validTagIds = tagIds.filter((id) => existingTagIds.has(id));
+
+            for (const tagId of validTagIds) {
+                const existing = await tx.documentTag.findUnique({
                     where: {
-                        id: { in: tagIds },
-                        tenantId,
-                    },
-                    select: { id: true },
-                });
-
-                const existingTagIds = new Set(existingTags.map((t) => t.id));
-
-                // Track which tags weren't found
-                for (const tagId of tagIds) {
-                    if (!existingTagIds.has(tagId)) {
-                        notFound.push(tagId);
-                    }
-                }
-
-                // Only process valid tags
-                const validTagIds = tagIds.filter((id) =>
-                    existingTagIds.has(id)
-                );
-
-                for (const tagId of validTagIds) {
-                    const existing = await tx.documentTag.findUnique({
-                        where: {
-                            documentId_tagId: {
-                                documentId,
-                                tagId,
-                            },
-                        },
-                    });
-
-                    if (existing) {
-                        alreadyExists.push(tagId);
-                        continue;
-                    }
-
-                    const newDocTag = await tx.documentTag.create({
-                        data: {
+                        documentId_tagId: {
                             documentId,
                             tagId,
-                            addedById: userId,
                         },
-                        include: {
-                            tag: true,
-                        },
-                    });
+                    },
+                });
 
-                    addedTags.push(newDocTag.tag);
+                if (existing) {
+                    alreadyExists.push(tagId);
+                    continue;
                 }
-            });
 
-            return { added: addedTags, alreadyExists, notFound };
-        },
-        removeTagFromDocument: async (documentId: string, tagId: string) => {
-            return prisma.documentTag.deleteMany({
-                where: { documentId, tagId },
-            });
-        },
+                const newDocTag = await tx.documentTag.create({
+                    data: {
+                        documentId,
+                        tagId,
+                        addedById: userId,
+                    },
+                    include: {
+                        tag: true,
+                    },
+                });
+
+                addedTags.push(newDocTag.tag);
+            }
+        });
+
+        return { added: addedTags, alreadyExists, notFound };
+    },
+    removeTagFromDocument: async (documentId: string, tagId: string) => {
+        return prisma.documentTag.deleteMany({
+            where: { documentId, tagId },
+        });
     },
 };
