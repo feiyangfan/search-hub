@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Tag } from '@prisma/client';
 export type { PrismaClient } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { loadDbEnv } from '@search-hub/config-env';
@@ -1106,6 +1106,474 @@ export const db = {
                     },
                 });
             });
+        },
+        getDocumentTags: async (documentId: string, tenantId: string) => {
+            // First verify the document belongs to the tenant
+            const document = await prisma.document.findFirst({
+                where: {
+                    id: documentId,
+                    tenantId,
+                },
+                select: { id: true },
+            });
+
+            if (!document) {
+                return null; // Document not found or doesn't belong to tenant
+            }
+
+            return prisma.documentTag.findMany({
+                where: { documentId },
+                include: {
+                    tag: true,
+                },
+            });
+        },
+        addTagsToDocument: async (
+            documentId: string,
+            tagIds: string[],
+            tenantId: string,
+            userId: string
+        ) => {
+            const addedTags: Tag[] = [];
+            const alreadyExists: string[] = [];
+            const notFound: string[] = [];
+
+            await prisma.$transaction(async (tx) => {
+                // Verify document belongs to tenant
+                const document = await tx.document.findFirst({
+                    where: {
+                        id: documentId,
+                        tenantId,
+                    },
+                    select: { id: true },
+                });
+
+                if (!document) {
+                    throw new Error('Document not found or access denied');
+                }
+
+                // Verify all tags exist and belong to tenant
+                const existingTags = await tx.tag.findMany({
+                    where: {
+                        id: { in: tagIds },
+                        tenantId,
+                    },
+                    select: { id: true },
+                });
+
+                const existingTagIds = new Set(existingTags.map((t) => t.id));
+
+                // Track which tags weren't found
+                for (const tagId of tagIds) {
+                    if (!existingTagIds.has(tagId)) {
+                        notFound.push(tagId);
+                    }
+                }
+
+                // Only process valid tags
+                const validTagIds = tagIds.filter((id) =>
+                    existingTagIds.has(id)
+                );
+
+                for (const tagId of validTagIds) {
+                    const existing = await tx.documentTag.findUnique({
+                        where: {
+                            documentId_tagId: {
+                                documentId,
+                                tagId,
+                            },
+                        },
+                    });
+
+                    if (existing) {
+                        alreadyExists.push(tagId);
+                        continue;
+                    }
+
+                    const newDocTag = await tx.documentTag.create({
+                        data: {
+                            documentId,
+                            tagId,
+                            addedById: userId,
+                        },
+                        include: {
+                            tag: true,
+                        },
+                    });
+
+                    addedTags.push(newDocTag.tag);
+                }
+            });
+
+            return { added: addedTags, alreadyExists, notFound };
+        },
+        removeTagFromDocument: async (documentId: string, tagId: string) => {
+            return prisma.documentTag.deleteMany({
+                where: { documentId, tagId },
+            });
+        },
+    },
+    tag: {
+        findByIdWithCount: async (tagId: string, tenantId: string) => {
+            try {
+                return await prisma.tag.findFirst({
+                    where: { id: tagId, tenantId },
+                    include: {
+                        _count: {
+                            select: { documentTags: true },
+                        },
+                    },
+                });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tag_find_by_id',
+                                { tagId, tenantId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch tag',
+                                'tag_find_by_id',
+                                {
+                                    tagId,
+                                    tenantId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'tag_find_by_id',
+                        { tagId, tenantId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
+        },
+        listTags: async (
+            tenantId: string,
+            options?: {
+                includeCount?: boolean;
+                sortBy?: 'name' | 'createdAt' | 'documentCount';
+                order?: 'asc' | 'desc';
+            }
+        ) => {
+            try {
+                const {
+                    includeCount = false,
+                    sortBy = 'name',
+                    order = 'asc',
+                } = options || {};
+
+                return await prisma.tag.findMany({
+                    where: { tenantId },
+                    orderBy:
+                        sortBy === 'name'
+                            ? { name: order }
+                            : { createdAt: order },
+                    ...(includeCount && {
+                        include: {
+                            _count: {
+                                select: { documentTags: true },
+                            },
+                        },
+                    }),
+                });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tag_list',
+                                { tenantId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to fetch tags',
+                                'tag_list',
+                                {
+                                    tenantId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database query failed',
+                        'tag_list',
+                        { tenantId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
+        },
+        createTag: async ({
+            tenantId,
+            userId,
+            name,
+            color,
+            description,
+        }: {
+            tenantId: string;
+            userId: string;
+            name: string;
+            color?: string | null;
+            description?: string | null;
+        }) => {
+            try {
+                return await prisma.tag.create({
+                    data: {
+                        tenantId,
+                        createdById: userId,
+                        name,
+                        color,
+                        description,
+                    },
+                });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2002': {
+                            // Unique constraint violation (tenantId, name)
+                            const target = error.meta?.target;
+                            if (
+                                (Array.isArray(target) &&
+                                    target.includes('name')) ||
+                                (typeof target === 'string' &&
+                                    target.includes('name'))
+                            ) {
+                                throw new ValidationError(
+                                    'Tag with this name already exists in workspace',
+                                    'name'
+                                );
+                            }
+                            // Fallback for other unique constraints
+                            throw new DatabaseError(
+                                'Unique constraint violation',
+                                'tag_create',
+                                { tenantId, name, prismaCode: error.code }
+                            );
+                        }
+
+                        case 'P2003': {
+                            // Foreign key constraint violation
+                            const target = error.meta?.field_name;
+                            if (typeof target === 'string') {
+                                if (target.includes('tenantId')) {
+                                    throw new TenantNotFoundError(tenantId);
+                                }
+                                if (target.includes('createdById')) {
+                                    throw new ValidationError(
+                                        'Invalid user ID provided',
+                                        'createdById'
+                                    );
+                                }
+                            }
+                            throw new DatabaseError(
+                                'Invalid reference in tag creation',
+                                'tag_create',
+                                { tenantId, userId, prismaCode: error.code }
+                            );
+                        }
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tag_create',
+                                { tenantId, name, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to create tag',
+                                'tag_create',
+                                {
+                                    tenantId,
+                                    name,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'tag_create',
+                        { tenantId, name, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
+        },
+        updateTag: async ({
+            tagId,
+            tenantId,
+            name,
+            color,
+            description,
+        }: {
+            tagId: string;
+            tenantId: string;
+            name?: string;
+            color?: string | null;
+            description?: string | null;
+        }) => {
+            try {
+                // First verify tag exists and belongs to tenant
+                const tag = await prisma.tag.findFirst({
+                    where: { id: tagId, tenantId },
+                });
+
+                if (!tag) {
+                    return null;
+                }
+
+                // Update and return the updated tag
+                return await prisma.tag.update({
+                    where: { id: tagId },
+                    data: {
+                        ...(name !== undefined && { name }),
+                        ...(color !== undefined && { color }),
+                        ...(description !== undefined && { description }),
+                    },
+                });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2002': {
+                            // Unique constraint violation (duplicate name)
+                            const target = error.meta?.target;
+                            if (
+                                (Array.isArray(target) &&
+                                    target.includes('name')) ||
+                                (typeof target === 'string' &&
+                                    target.includes('name'))
+                            ) {
+                                throw new ValidationError(
+                                    'Tag with this name already exists in workspace',
+                                    'name'
+                                );
+                            }
+                            throw new DatabaseError(
+                                'Unique constraint violation',
+                                'tag_update',
+                                { tagId, tenantId, prismaCode: error.code }
+                            );
+                        }
+
+                        case 'P2025': // Record not found
+                            throw new NotFoundError('Tag', tagId);
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tag_update',
+                                { tagId, tenantId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to update tag',
+                                'tag_update',
+                                {
+                                    tagId,
+                                    tenantId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'tag_update',
+                        { tagId, tenantId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
+        },
+        deleteTag: async (tagId: string, tenantId: string) => {
+            try {
+                const result = await prisma.tag.deleteMany({
+                    where: { id: tagId, tenantId },
+                });
+                return result.count;
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                    switch (error.code) {
+                        case 'P2025': // Record not found
+                            throw new NotFoundError('Tag', tagId);
+
+                        case 'P2003': // Foreign key constraint violation
+                            throw new DatabaseError(
+                                'Cannot delete tag with existing references',
+                                'tag_delete',
+                                { tagId, tenantId, prismaCode: error.code }
+                            );
+
+                        case 'P1001': // Can't reach database
+                        case 'P1002': // Database timeout
+                            throw new DatabaseError(
+                                'Database connection failed',
+                                'tag_delete',
+                                { tagId, tenantId, prismaCode: error.code }
+                            );
+
+                        default:
+                            throw new DatabaseError(
+                                'Failed to delete tag',
+                                'tag_delete',
+                                {
+                                    tagId,
+                                    tenantId,
+                                    prismaCode: error.code,
+                                    originalMessage: error.message,
+                                }
+                            );
+                    }
+                }
+
+                if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                    throw new DatabaseError(
+                        'Database operation failed',
+                        'tag_delete',
+                        { tagId, tenantId, originalMessage: error.message }
+                    );
+                }
+
+                // Re-throw other errors
+                throw error;
+            }
         },
     },
     documentIndexState: {
