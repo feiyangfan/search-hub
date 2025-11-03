@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ChevronsUpDown, Plus, Briefcase, Loader2, Pencil } from 'lucide-react';
 
 import {
@@ -54,6 +55,7 @@ export function WorkspaceSwitcher({
     const { toast } = useToast();
     const { isMobile } = useSidebar();
     const router = useRouter();
+    const { update: updateSession } = useSession();
     const [, startTransition] = React.useTransition();
     const [isSwitching, setIsSwitching] = React.useState(false);
     const [showRenameDialog, setShowRenameDialog] = React.useState(false);
@@ -231,6 +233,15 @@ export function WorkspaceSwitcher({
                                                 throw new Error(
                                                     data?.error ||
                                                         'Failed to switch workspace'
+                                                );
+                                            }
+
+                                            try {
+                                                await updateSession();
+                                            } catch (err) {
+                                                console.error(
+                                                    'Failed to refresh session after workspace switch',
+                                                    err
                                                 );
                                             }
 

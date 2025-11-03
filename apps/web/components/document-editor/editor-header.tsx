@@ -32,6 +32,7 @@ type EditorHeaderProps = {
     onFavoriteToggle?: () => void;
     onTitleChange?: (newTitle: string) => Promise<void>;
     onEditTags?: () => void;
+    canManageDocument?: boolean;
     onDelete?: () => void;
     actions?: Array<{
         label: string;
@@ -52,6 +53,7 @@ export function EditorHeader({
     onFavoriteToggle,
     onTitleChange,
     onEditTags,
+    canManageDocument = false,
     onDelete,
     actions,
     headerRight,
@@ -136,6 +138,9 @@ export function EditorHeader({
     const toggleLabel =
         viewMode === 'markdown' ? 'Return to editor' : 'View markdown';
     const ToggleIcon = viewMode === 'markdown' ? LayoutDashboard : Code2;
+    const showEditTags = !!onEditTags && canManageDocument;
+    const hasActions = Array.isArray(actions) && actions.length > 0;
+    const showDelete = !!onDelete && canManageDocument;
 
     return (
         <div className="sticky top-0 z-30 bg-background/95 px-6 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -228,26 +233,52 @@ export function EditorHeader({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                                onSelect={onEditTags}
-                                disabled={!onEditTags}
-                            >
-                                <Tag className="mr-2 size-4" />
-                                Edit tags
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {showEditTags ? (
+                                <>
+                                    <DropdownMenuItem
+                                        onSelect={onEditTags}
+                                        disabled={!onEditTags}
+                                    >
+                                        <Tag className="mr-2 size-4" />
+                                        Edit tags
+                                    </DropdownMenuItem>
+                                    {(hasActions || showDelete) && (
+                                        <DropdownMenuSeparator />
+                                    )}
+                                </>
+                            ) : null}
 
-                            {actions && actions.length > 0 && (
-                                <DropdownMenuSeparator />
-                            )}
-                            <DropdownMenuItem
-                                onSelect={onDelete}
-                                disabled={!onDelete}
-                                className="text-destructive focus:text-destructive"
-                            >
-                                <Trash2 className="mr-2 size-4" />
-                                Delete
-                            </DropdownMenuItem>
+                            {hasActions ? (
+                                <>
+                                    {actions!.map((action, index) => (
+                                        <DropdownMenuItem
+                                            key={`${action.label}-${index}`}
+                                            onSelect={action.onSelect}
+                                            asChild={Boolean(action.href)}
+                                        >
+                                            {action.href ? (
+                                                <Link href={action.href}>
+                                                    {action.label}
+                                                </Link>
+                                            ) : (
+                                                action.label
+                                            )}
+                                        </DropdownMenuItem>
+                                    ))}
+                                    {showDelete && <DropdownMenuSeparator />}
+                                </>
+                            ) : null}
+
+                            {showDelete ? (
+                                <DropdownMenuItem
+                                    onSelect={onDelete}
+                                    disabled={!onDelete}
+                                    className="text-destructive focus:text-destructive"
+                                >
+                                    <Trash2 className="mr-2 size-4" />
+                                    Delete
+                                </DropdownMenuItem>
+                            ) : null}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
 import { Crepe } from '@milkdown/crepe';
 import { editorViewCtx } from '@milkdown/kit/core';
@@ -47,6 +48,7 @@ export default function DocumentPage() {
     const params = useParams();
     const router = useRouter();
     const { toast } = useToast();
+    const { data: session } = useSession();
     const documentId = params.id as string;
     const editorRootRef = useRef<HTMLDivElement>(null);
     const editorInstanceRef = useRef<Crepe | null>(null);
@@ -600,6 +602,14 @@ export default function DocumentPage() {
         }
     };
 
+    const activeMembership = session?.user?.memberships?.find(
+        (membership) => membership.tenantId === session?.activeTenantId
+    );
+    const canManageDocument =
+        !!activeMembership &&
+        (activeMembership.role === 'owner' ||
+            activeMembership.role === 'admin');
+
     return (
         <>
             <div className="flex flex-1 flex-col">
@@ -609,6 +619,7 @@ export default function DocumentPage() {
                     isFavorited={document.isFavorite}
                     onTitleChange={handleTitleChange}
                     onEditTags={handleEditTags}
+                    canManageDocument={canManageDocument}
                     onDelete={handleDelete}
                 />
                 <div

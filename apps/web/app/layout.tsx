@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AppHeader } from '@/components/layout/app-header';
+import { AppProviders } from '@/components/layout/app-providers';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppToaster } from '@/components/layout/app-toaster';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -45,27 +46,29 @@ export default async function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                <SidebarProvider>
-                    <div className="flex min-h-dvh w-full">
-                        {session && hasWorkspaces ? (
-                            <AppSidebar
-                                user={session.user}
-                                workspaces={workspaces}
-                                activeTenantId={activeTenantId}
-                            />
-                        ) : null}
-                        <SidebarInset>
-                            <AppHeader
-                                session={session}
-                                showSidebarTrigger={hasWorkspaces}
-                            />
-                            <main className="flex flex-1 flex-col">
-                                {children}
-                            </main>
-                        </SidebarInset>
-                    </div>
-                </SidebarProvider>
-                <AppToaster />
+                <AppProviders session={session}>
+                    <SidebarProvider>
+                        <div className="flex min-h-dvh w-full">
+                            {session && hasWorkspaces ? (
+                                <AppSidebar
+                                    user={session.user}
+                                    workspaces={workspaces}
+                                    activeTenantId={activeTenantId}
+                                />
+                            ) : null}
+                            <SidebarInset>
+                                <AppHeader
+                                    session={session}
+                                    showSidebarTrigger={hasWorkspaces}
+                                />
+                                <main className="flex flex-1 flex-col">
+                                    {children}
+                                </main>
+                            </SidebarInset>
+                        </div>
+                    </SidebarProvider>
+                    <AppToaster />
+                </AppProviders>
             </body>
         </html>
     );
