@@ -1,12 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import { logger, getRequestContext } from '@search-hub/logger';
-import { AppError, type ErrorType } from '@search-hub/schemas';
+import { AppError, type ErrorKindType } from '@search-hub/schemas';
 import { ZodError } from 'zod';
 
 // Helper function to map native Node.js/Express errors to our error types
 function mapNativeError(error: Error): {
     statusCode: number;
-    type: ErrorType;
+    type: ErrorKindType;
     code: string;
     userMessage: string;
     metadata: Record<string, unknown>;
@@ -68,7 +68,7 @@ function mapNativeError(error: Error): {
     ) {
         return {
             statusCode: 503,
-            type: 'database',
+            type: 'transient',
             code: 'DB_CONNECTION_ERROR',
             userMessage: 'Service temporarily unavailable',
             metadata: { originalError: error.name },
@@ -113,7 +113,7 @@ export function errorHandlerMiddleware(
     const tenantId = context?.tenantId || req.session?.currentTenantId;
 
     let statusCode = 500;
-    let errorType: ErrorType = 'internal';
+    let errorType: ErrorKindType = 'internal';
     let errorCode = 'INTERNAL_ERROR';
     let metadata: Record<string, unknown> = {};
     let userMessage = 'Internal server error';
@@ -135,10 +135,37 @@ export function errorHandlerMiddleware(
     // Handle AppError instances (our custom errors)
     else if (error instanceof AppError) {
         statusCode = error.statusCode;
-        errorType = error.type;
+        errorType = error.kind;
         errorCode = error.code;
-        metadata = error.context.metadata || {};
         userMessage = error.message; // AppErrors are safe to expose
+
+        // Enrich error context with request context if not already set
+        if (!error.context.userId && userId) {
+            error.context.userId = userId;
+        }
+        if (!error.context.tenantId && tenantId) {
+            error.context.tenantId = tenantId;
+        }
+        if (!error.context.traceId) {
+            error.context.traceId = traceId;
+        }
+
+        // Build safe metadata for client (exclude sensitive fields)
+        metadata = {
+            ...(error.context.domain && { domain: error.context.domain }),
+            ...(error.context.resource && { resource: error.context.resource }),
+            ...(error.context.resourceId && {
+                resourceId: error.context.resourceId,
+            }),
+            ...(error.context.operation && {
+                operation: error.context.operation,
+            }),
+            ...(error.context.metadata && { ...error.context.metadata }),
+            ...(error.retryable && {
+                retryable: error.retryable,
+                ...(error.retryAfterMs && { retryAfterMs: error.retryAfterMs }),
+            }),
+        };
     } else {
         // Handle common Node.js/Express errors
         const mappedError = mapNativeError(error);
@@ -185,6 +212,12 @@ export function errorHandlerMiddleware(
     //     code: errorCode,
     //     statusCode: statusCode.toString(),
     // });
+
+    // Set Retry-After header for retryable errors
+    if (error instanceof AppError && error.retryable && error.retryAfterMs) {
+        const retryAfterSeconds = Math.ceil(error.retryAfterMs / 1000);
+        res.setHeader('Retry-After', retryAfterSeconds.toString());
+    }
 
     // Return safe error to client
     res.status(statusCode).json({

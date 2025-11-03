@@ -12,257 +12,342 @@ export const ApiError = z.object({
 
 export type ApiErrorType = z.infer<typeof ApiError>;
 
-// Zod schemas for validation and OpenAPI generation
-export const ErrorTypeSchema = z.enum([
-    'validation',
-    'authentication',
-    'authorization',
-    'not_found',
-    'rate_limit',
-    'tenant',
-    'database',
-    'external_api',
-    'queue',
-    'internal',
+// General App error kinds
+export const ErrorKindSchema = z.enum([
+    'validation', // 400
+    'authentication', // 401
+    'authorization', // 403
+    'not_found', // 404
+    'conflict', // 409
+    'rate_limit', // 429
+    'transient', // 503
+    'internal', // 500
 ]);
 
+export type ErrorKindType = z.infer<typeof ErrorKindSchema>;
+
+// HTTP status codes
+export const HttpStatusSchema = z.number().int().min(100).max(599);
+export type HttpStatusType = z.infer<typeof HttpStatusSchema>;
+
+// Map error kinds to default HTTP status codes
+const defaultStatus: Record<ErrorKindType, HttpStatusType> = {
+    validation: 422,
+    authentication: 401,
+    authorization: 403,
+    not_found: 404,
+    conflict: 409,
+    rate_limit: 429,
+    transient: 503,
+    internal: 500,
+};
+
+// Error origins
+export const ErrorOriginSchema = z.enum([
+    'app', // default
+    'client',
+    'server',
+    'external_service',
+    'database',
+    'queue',
+    'cache',
+]);
+
+export type ErrorOriginType = z.infer<typeof ErrorOriginSchema>;
+
+// Error context for logging and debugging
 export const ErrorContextSchema = z.object({
-    type: ErrorTypeSchema,
-    code: z.string(),
-    operation: z.string(),
-    resource: z.string().optional(),
-    userId: z.string().optional(),
-    tenantId: z.string().optional(),
-    metadata: z.record(z.string(), z.unknown()).optional(),
+    origin: ErrorOriginSchema.default('app'),
+    domain: z.string().optional(), // e.g. 'user', 'document', 'tag'
+    resource: z.string().optional(), // e.g. 'TenantMembership', 'Document'
+    resourceId: z.string().optional(), // e.g. specific resource ID
+    operation: z.string().optional(), // e.g. 'create', 'update', 'delete'
+    userId: z.string().optional(), // e.g. ID of user making the request
+    tenantId: z.string().optional(), // e.g. ID of tenant
+    traceId: z.string().optional(), // correlation ID
+    metadata: z.record(z.string(), z.unknown()).optional(), // additional info
 });
 
-export const AppErrorSchema = z.object({
-    name: z.string(),
-    message: z.string(),
-    type: ErrorTypeSchema,
-    code: z.string(),
-    statusCode: z.number(),
-    context: ErrorContextSchema,
-    stack: z.string().optional(),
-});
+export type ErrorContextType = z.infer<typeof ErrorContextSchema>;
 
-export type ErrorType = z.infer<typeof ErrorTypeSchema>;
-export type ErrorContext = z.infer<typeof ErrorContextSchema>;
-export type AppErrorData = z.infer<typeof AppErrorSchema>;
+// Generic App error schema
+export const AppErrorSchema = z
+    .object({
+        name: z.string().default('AppError'),
+        message: z.string(),
+        kind: ErrorKindSchema,
+        code: z.string(), // machine-readable error code
+        statusCode: HttpStatusSchema.optional(), // HTTP status code
+        retryable: z.boolean().optional(),
+        retryAfterMs: z.number().int().nonnegative().optional(),
+        context: ErrorContextSchema.default({ origin: 'app' }),
+        stack: z.string().optional(), // stack trace
+        cause: z.any().optional(), // original error
+    })
+    .transform((e) => ({
+        ...e,
+        statusCode: e.statusCode ?? defaultStatus[e.kind], // fill default
+    }));
+
+export type AppErrorType = z.infer<typeof AppErrorSchema>;
 
 // Error classes for runtime use
 export class AppError extends Error {
-    public readonly type: ErrorType;
+    public readonly kind: ErrorKindType;
     public readonly code: string;
-    public readonly statusCode: number;
-    public readonly context: ErrorContext;
+    public readonly statusCode: HttpStatusType;
+    public readonly retryable: boolean;
+    public readonly retryAfterMs?: number;
+    public readonly context: ErrorContextType;
 
     constructor(
         message: string,
-        type: ErrorType,
+        kind: ErrorKindType,
         code: string,
-        statusCode: number,
-        metadata?: Record<string, unknown>
+        options?: {
+            statusCode?: HttpStatusType;
+            retryable?: boolean;
+            retryAfterMs?: number;
+            context?: Partial<ErrorContextType>;
+        }
     ) {
         super(message);
         this.name = 'AppError';
-        this.type = type;
+        this.kind = kind;
         this.code = code;
-        this.statusCode = statusCode;
+        this.statusCode = options?.statusCode ?? defaultStatus[kind];
+        this.retryable = options?.retryable ?? false;
+        this.retryAfterMs = options?.retryAfterMs;
         this.context = {
-            type,
-            code,
-            operation: this.getOperationFromStack(),
-            metadata,
+            origin: options?.context?.origin ?? 'app',
+            domain: options?.context?.domain,
+            resource: options?.context?.resource,
+            resourceId: options?.context?.resourceId,
+            operation: options?.context?.operation,
+            userId: options?.context?.userId,
+            tenantId: options?.context?.tenantId,
+            traceId: options?.context?.traceId,
+            metadata: options?.context?.metadata,
         };
     }
 
-    private getOperationFromStack(): string {
-        // Extract operation from stack trace
-        const stack = this.stack?.split('\n')[2];
-        const match = stack?.match(/at (\w+)/);
-        return match?.[1] || 'unknown';
-    }
-
     // Serialize for logging/API responses
-    toJSON(): AppErrorData {
+    toJSON(): AppErrorType {
         return {
             name: this.name,
             message: this.message,
-            type: this.type,
+            kind: this.kind,
             code: this.code,
             statusCode: this.statusCode,
+            retryable: this.retryable,
+            retryAfterMs: this.retryAfterMs,
             context: this.context,
             stack: this.stack,
         };
     }
-}
 
-// Specific error classes
-export class ValidationError extends AppError {
-    constructor(message: string, field?: string) {
-        super(message, 'validation', 'VALIDATION_ERROR', 400, { field });
-        this.name = 'ValidationError';
-    }
-}
-
-export class AuthenticationError extends AppError {
-    constructor(message: string) {
-        super(message, 'authentication', 'AUTH_ERROR', 401);
-        this.name = 'AuthenticationError';
-    }
-}
-
-export class AuthorizationError extends AppError {
-    constructor(message: string, resource?: string) {
-        super(message, 'authorization', 'AUTHZ_ERROR', 403, { resource });
-        this.name = 'AuthorizationError';
-    }
-}
-
-// Tenant related errors
-export class TenantNotFoundError extends AppError {
-    constructor(tenantId: string) {
-        super(
-            `Tenant with ID ${tenantId} not found`,
-            'tenant',
-            'TENANT_NOT_FOUND',
-            404,
-            { tenantId }
-        );
-        this.name = 'TenantNotFoundError';
-    }
-}
-
-export class TenantActiveMissingError extends AppError {
-    constructor(message: string) {
-        super(message, 'tenant', 'TENANT_MISSING', 400);
-        this.name = 'TenantAcctiveMissingError';
-    }
-}
-
-export class TenantAccessDeniedError extends AppError {
-    constructor(requestedTenantId: string, userId: string, reason?: string) {
-        super(
-            `Access denied to tenant ${requestedTenantId} for user ${userId}${
-                reason ? `: ${reason}` : ''
-            }`,
-            'authorization',
-            'TENANT_ACCESS_DENIED',
-            403,
-            { requestedTenantId, userId, reason }
-        );
-        this.name = 'TenantAccessDeniedError';
-    }
-}
-
-export class CrossTenantAccessError extends AppError {
-    constructor(requestedTenantId: string, userTenantId: string) {
-        super(
-            'Access denied: Cannot access resources from another tenant',
-            'tenant',
-            'CROSS_TENANT_ACCESS',
-            403,
-            { requestedTenantId, userTenantId }
-        );
-        this.name = 'CrossTenantAccessError';
-    }
-}
-
-// Document-specific error classes (using existing error types)
-export class DocumentNotFoundError extends AppError {
-    constructor(documentId: string, tenantId?: string) {
-        super(`Document not found`, 'not_found', 'DOCUMENT_NOT_FOUND', 404, {
-            documentId,
-            tenantId,
-        });
-        this.name = 'DocumentNotFoundError';
-    }
-}
-
-export class DocumentAccessDeniedError extends AppError {
-    constructor(documentId: string, reason = 'Access denied') {
-        super(reason, 'authorization', 'DOCUMENT_ACCESS_DENIED', 403, {
-            documentId,
-        });
-        this.name = 'DocumentAccessDeniedError';
-    }
-}
-
-export class DocumentIndexingError extends AppError {
-    constructor(documentId: string, stage: string, details?: string) {
-        super(
-            `Document indexing failed at ${stage}${
-                details ? `: ${details}` : ''
-            }`,
-            'queue',
-            'DOCUMENT_INDEXING_FAILED',
-            500,
-            { documentId, stage, details }
-        );
-        this.name = 'DocumentIndexingError';
-    }
-}
-
-export class DocumentContentValidationError extends AppError {
-    constructor(field: string, message: string) {
-        super(message, 'validation', 'DOCUMENT_CONTENT_INVALID', 400, {
-            field,
-        });
-        this.name = 'DocumentContentValidationError';
-    }
-}
-
-export class NotFoundError extends AppError {
-    constructor(resource: string, id?: string) {
-        super(`${resource} not found`, 'not_found', 'NOT_FOUND', 404, {
-            resource,
-            id,
-        });
-        this.name = 'NotFoundError';
-    }
-}
-
-export class RateLimitError extends AppError {
-    constructor(limit: number, window: string) {
-        super('Rate limit exceeded', 'rate_limit', 'RATE_LIMIT', 429, {
-            limit,
-            window,
-        });
-        this.name = 'RateLimitError';
-    }
-}
-
-export class DatabaseError extends AppError {
-    constructor(
+    /**
+     * Create a validation error (422)
+     * @example
+     * throw AppError.validation('VALIDATION_ERROR', 'Invalid email format', {
+     *   context: {
+     *     domain: 'user',
+     *     metadata: { field: 'email', pattern: /^.+@.+$/ }
+     *   }
+     * })
+     */
+    static validation(
+        code: string,
         message: string,
-        operation: string,
-        metadata?: Record<string, unknown>
-    ) {
-        super(message, 'database', 'DB_ERROR', 500, { operation, ...metadata });
-        this.name = 'DatabaseError';
+        options?: {
+            statusCode?: HttpStatusType;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'validation', code, options);
+        error.name = 'ValidationError';
+        return error;
     }
-}
 
-export class ExternalApiError extends AppError {
-    constructor(service: string, message: string, statusCode?: number) {
-        super(
-            `${service}: ${message}`,
-            'external_api',
-            'EXTERNAL_API_ERROR',
-            502,
-            {
-                service,
-                originalStatusCode: statusCode,
-            }
-        );
-        this.name = 'ExternalApiError';
+    /**
+     * Create an authentication error (401)
+     * @example
+     * throw AppError.authentication('AUTH_INVALID', 'Invalid credentials', {
+     *   context: { metadata: { attemptCount: 3 } }
+     * })
+     */
+    static authentication(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'authentication', code, options);
+        error.name = 'AuthenticationError';
+        return error;
     }
-}
 
-export class QueueError extends AppError {
-    constructor(message: string, jobType: string, jobId?: string) {
-        super(message, 'queue', 'QUEUE_ERROR', 500, { jobType, jobId });
-        this.name = 'QueueError';
+    /**
+     * Create an authorization error (403)
+     * @example
+     * throw AppError.authorization('AUTHZ_FORBIDDEN', 'Only admins can create tags', {
+     *   context: {
+     *     domain: 'tags',
+     *     operation: 'create',
+     *     userId: userId,
+     *     tenantId: tenantId,
+     *     metadata: { requiredRole: 'admin', userRole: 'member' }
+     *   }
+     * })
+     */
+    static authorization(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'authorization', code, options);
+        error.name = 'AuthorizationError';
+        return error;
+    }
+
+    /**
+     * Create a not found error (404)
+     * @example
+     * throw AppError.notFound('TAG_NOT_FOUND', 'Tag not found', {
+     *   context: {
+     *     domain: 'tags',
+     *     resource: 'tag',
+     *     resourceId: tagId,
+     *     tenantId: tenantId
+     *   }
+     * })
+     */
+    static notFound(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'not_found', code, options);
+        error.name = 'NotFoundError';
+        return error;
+    }
+
+    /**
+     * Create a conflict error (409)
+     * @example
+     * throw AppError.conflict('TAG_DUPLICATE', 'Tag with this name already exists', {
+     *   context: {
+     *     domain: 'tags',
+     *     resource: 'tag',
+     *     operation: 'create',
+     *     tenantId: tenantId,
+     *     metadata: { field: 'name', value: 'My Tag', existingId: 'tag-123' }
+     *   }
+     * })
+     */
+    static conflict(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'conflict', code, options);
+        error.name = 'ConflictError';
+        return error;
+    }
+
+    /**
+     * Create a rate limit error (429)
+     * @example
+     * throw AppError.rateLimit('RATE_LIMIT_EXCEEDED', 'Too many requests', {
+     *   retryAfterMs: 60000,
+     *   context: {
+     *     userId: userId,
+     *     metadata: { limit: 100, window: '1m', current: 150 }
+     *   }
+     * })
+     */
+    static rateLimit(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            retryAfterMs?: number;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'rate_limit', code, {
+            ...options,
+            retryable: true,
+        });
+        error.name = 'RateLimitError';
+        return error;
+    }
+
+    /**
+     * Create a transient error (503) - temporary failures that can be retried
+     * @example
+     * throw AppError.transient('DB_CONNECTION_FAILED', 'Database unavailable', {
+     *   retryAfterMs: 5000,
+     *   context: {
+     *     origin: 'database',
+     *     operation: 'query',
+     *     metadata: { query: 'SELECT ...', attempt: 3 }
+     *   }
+     * })
+     */
+    static transient(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            retryAfterMs?: number;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'transient', code, {
+            statusCode: 503,
+            ...options,
+            retryable: true,
+        });
+        error.name = 'TransientError';
+        return error;
+    }
+
+    /**
+     * Create an internal error (500)
+     * @example
+     * throw AppError.internal('INTERNAL_ERROR', 'Unexpected error', {
+     *   context: {
+     *     origin: 'app',
+     *     operation: 'processDocument',
+     *     metadata: { documentId: 'doc-123', stage: 'embedding' }
+     *   }
+     * })
+     */
+    static internal(
+        code: string,
+        message: string,
+        options?: {
+            statusCode?: HttpStatusType;
+            context?: Partial<ErrorContextType>;
+        }
+    ): AppError {
+        const error = new AppError(message, 'internal', code, {
+            statusCode: 500,
+            ...options,
+        });
+        error.name = 'InternalError';
+        return error;
     }
 }
