@@ -11,3 +11,4 @@ export * from './auth.js';
 export * from './user.js';
 export * from './tenantMembership.js';
 export * from './errors.js';
+export * from './tag.js';
