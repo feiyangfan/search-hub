@@ -43,30 +43,32 @@ export type TagListItemType = z.infer<typeof tagListItemSchema>;
 /**
  * POST /v1/tags - Create new tag
  */
-export const createTagRequestSchema = z.object({
-    name: z
-        .string()
-        .min(1, 'Tag name is required')
-        .max(50, 'Tag name must be 50 characters or less')
-        .trim()
-        .regex(
-            /^[a-zA-Z0-9-_ ]+$/,
-            'Tag name can only contain letters, numbers, spaces, hyphens, and underscores'
-        ),
-    color: z
-        .string()
-        .regex(
-            /^#[0-9A-Fa-f]{6}$/,
-            'Color must be a valid hex color (e.g., #FF5733)'
-        )
-        .optional()
-        .nullable(),
-    description: z
-        .string()
-        .max(200, 'Description must be 200 characters or less')
-        .optional()
-        .nullable(),
-});
+export const createTagRequestSchema = z
+    .object({
+        name: z
+            .string()
+            .min(1, 'Tag name is required')
+            .max(50, 'Tag name must be 50 characters or less')
+            .trim()
+            .regex(
+                /^[a-zA-Z0-9-_ ]+$/,
+                'Tag name can only contain letters, numbers, spaces, hyphens, and underscores'
+            ),
+        color: z
+            .string()
+            .regex(
+                /^#[0-9A-Fa-f]{6}$/,
+                'Color must be a valid hex color (e.g., #FF5733)'
+            )
+            .optional()
+            .nullable(),
+        description: z
+            .string()
+            .max(200, 'Description must be 200 characters or less')
+            .optional()
+            .nullable(),
+    })
+    .strict();
 
 export type CreateTagRequestType = z.infer<typeof createTagRequestSchema>;
 
@@ -79,31 +81,39 @@ export type CreateTagResponseType = z.infer<typeof createTagResponseSchema>;
 /**
  * PATCH /v1/tags/:id - Update tag
  */
-export const updateTagRequestSchema = z.object({
-    name: z
-        .string()
-        .min(1, 'Tag name is required')
-        .max(50, 'Tag name must be 50 characters or less')
-        .trim()
-        .regex(
-            /^[a-zA-Z0-9-_ ]+$/,
-            'Tag name can only contain letters, numbers, spaces, hyphens, and underscores'
-        )
-        .optional(),
-    color: z
-        .string()
-        .regex(
-            /^#[0-9A-Fa-f]{6}$/,
-            'Color must be a valid hex color (e.g., #FF5733)'
-        )
-        .optional()
-        .nullable(),
-    description: z
-        .string()
-        .max(200, 'Description must be 200 characters or less')
-        .optional()
-        .nullable(),
+export const updateTagParamsSchema = z.object({
+    id: Id,
 });
+
+export type UpdateTagParamsType = z.infer<typeof updateTagParamsSchema>;
+
+export const updateTagRequestSchema = z
+    .object({
+        name: z
+            .string()
+            .min(1, 'Tag name is required')
+            .max(50, 'Tag name must be 50 characters or less')
+            .trim()
+            .regex(
+                /^[a-zA-Z0-9-_ ]+$/,
+                'Tag name can only contain letters, numbers, spaces, hyphens, and underscores'
+            )
+            .optional(),
+        color: z
+            .string()
+            .regex(
+                /^#[0-9A-Fa-f]{6}$/,
+                'Color must be a valid hex color (e.g., #FF5733)'
+            )
+            .optional()
+            .nullable(),
+        description: z
+            .string()
+            .max(200, 'Description must be 200 characters or less')
+            .optional()
+            .nullable(),
+    })
+    .strict(); // Reject unknown keys
 
 export type UpdateTagRequestType = z.infer<typeof updateTagRequestSchema>;
 
@@ -149,6 +159,12 @@ export type ListTagsResponseType = z.infer<typeof listTagsResponseSchema>;
 /**
  * GET /v1/tags/:id - Get single tag details
  */
+export const getTagParamsSchema = z.object({
+    id: Id,
+});
+
+export type GetTagParamsType = z.infer<typeof getTagParamsSchema>;
+
 export const getTagResponseSchema = z.object({
     tag: tagSchema,
     documentCount: z.number().int().nonnegative(),
@@ -176,12 +192,14 @@ export type DocumentTagType = z.infer<typeof documentTagSchema>;
 /**
  * POST /v1/documents/:id/tags - Add tags to document
  */
-export const addTagsToDocumentRequestSchema = z.object({
-    tagIds: z
-        .array(Id)
-        .min(1, 'At least one tag is required')
-        .max(20, 'Cannot add more than 20 tags at once'),
-});
+export const addTagsToDocumentRequestSchema = z
+    .object({
+        tagIds: z
+            .array(Id)
+            .min(1, 'At least one tag is required')
+            .max(20, 'Cannot add more than 20 tags at once'),
+    })
+    .strict();
 
 export type AddTagsToDocumentRequestType = z.infer<
     typeof addTagsToDocumentRequestSchema
