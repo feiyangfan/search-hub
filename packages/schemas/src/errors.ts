@@ -151,8 +151,11 @@ export class AppError extends Error {
      * @example
      * throw AppError.validation('VALIDATION_ERROR', 'Invalid email format', {
      *   context: {
-     *     domain: 'user',
-     *     metadata: { field: 'email', pattern: /^.+@.+$/ }
+     *     origin: 'app',
+     *     domain: 'users',
+     *     resource: 'User',
+     *     operation: 'create',
+     *     metadata: { field: 'email', reason: 'invalid_format' }
      *   }
      * })
      */
@@ -173,7 +176,12 @@ export class AppError extends Error {
      * Create an authentication error (401)
      * @example
      * throw AppError.authentication('AUTH_INVALID', 'Invalid credentials', {
-     *   context: { metadata: { attemptCount: 3 } }
+     *   context: {
+     *     origin: 'app',
+     *     domain: 'auth',
+     *     operation: 'signin',
+     *     metadata: { attemptCount: 3, reason: 'invalid_password' }
+     *   }
      * })
      */
     static authentication(
@@ -194,10 +202,10 @@ export class AppError extends Error {
      * @example
      * throw AppError.authorization('AUTHZ_FORBIDDEN', 'Only admins can create tags', {
      *   context: {
+     *     origin: 'app',
      *     domain: 'tags',
+     *     resource: 'Tag',
      *     operation: 'create',
-     *     userId: userId,
-     *     tenantId: tenantId,
      *     metadata: { requiredRole: 'admin', userRole: 'member' }
      *   }
      * })
@@ -220,10 +228,11 @@ export class AppError extends Error {
      * @example
      * throw AppError.notFound('TAG_NOT_FOUND', 'Tag not found', {
      *   context: {
+     *     origin: 'app',
      *     domain: 'tags',
-     *     resource: 'tag',
+     *     resource: 'Tag',
      *     resourceId: tagId,
-     *     tenantId: tenantId
+     *     operation: 'get'
      *   }
      * })
      */
@@ -243,13 +252,13 @@ export class AppError extends Error {
     /**
      * Create a conflict error (409)
      * @example
-     * throw AppError.conflict('TAG_DUPLICATE', 'Tag with this name already exists', {
+     * throw AppError.conflict('USER_EMAIL_EXISTS', 'User with this email already exists', {
      *   context: {
-     *     domain: 'tags',
-     *     resource: 'tag',
+     *     origin: 'app',
+     *     domain: 'users',
+     *     resource: 'User',
      *     operation: 'create',
-     *     tenantId: tenantId,
-     *     metadata: { field: 'name', value: 'My Tag', existingId: 'tag-123' }
+     *     metadata: { field: 'email' }
      *   }
      * })
      */
@@ -270,9 +279,11 @@ export class AppError extends Error {
      * Create a rate limit error (429)
      * @example
      * throw AppError.rateLimit('RATE_LIMIT_EXCEEDED', 'Too many requests', {
-     *   retryAfterMs: 60000,
+     *   retryAfterMs: 60000, // retryable is set to true automatically
      *   context: {
-     *     userId: userId,
+     *     origin: 'app',
+     *     domain: 'api',
+     *     operation: 'search',
      *     metadata: { limit: 100, window: '1m', current: 150 }
      *   }
      * })
@@ -298,11 +309,13 @@ export class AppError extends Error {
      * Create a transient error (503) - temporary failures that can be retried
      * @example
      * throw AppError.transient('DB_CONNECTION_FAILED', 'Database unavailable', {
-     *   retryAfterMs: 5000,
+     *   retryAfterMs: 5000, // retryable is set to true automatically
      *   context: {
      *     origin: 'database',
+     *     domain: 'documents',
+     *     resource: 'Document',
      *     operation: 'query',
-     *     metadata: { query: 'SELECT ...', attempt: 3 }
+     *     metadata: { attempt: 3, timeout: 5000 }
      *   }
      * })
      */
@@ -327,11 +340,13 @@ export class AppError extends Error {
     /**
      * Create an internal error (500)
      * @example
-     * throw AppError.internal('INTERNAL_ERROR', 'Unexpected error', {
+     * throw AppError.internal('INTERNAL_ERROR', 'Unexpected error occurred', {
      *   context: {
      *     origin: 'app',
-     *     operation: 'processDocument',
-     *     metadata: { documentId: 'doc-123', stage: 'embedding' }
+     *     domain: 'documents',
+     *     resource: 'Document',
+     *     operation: 'processEmbeddings',
+     *     metadata: { documentId: 'doc-123', stage: 'embedding', error: 'vector_dimension_mismatch' }
      *   }
      * })
      */
