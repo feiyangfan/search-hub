@@ -188,7 +188,31 @@
           font-family: var(--font-geist-sans), theme('fontFamily.sans'), sans-serif !important;
         }
   
-    
+  /* Fix code block width to respect container and prevent horizontal scroll */
+  .milkdown .milkdown-code-block {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .milkdown .milkdown-code-block .cm-editor {
+    max-width: 100%;
+  }
+
+  .milkdown .milkdown-code-block .cm-scroller {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-width: 100%;
+  }
+
+  .milkdown .milkdown-code-block .cm-content {
+    max-width: 100%;
+  }
+
+  .milkdown .milkdown-code-block .cm-line {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
 
   @media (max-width: 768px) {
     .crepe.theme-frame .milkdown {
