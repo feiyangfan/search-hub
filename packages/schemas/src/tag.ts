@@ -11,7 +11,7 @@ import { Id, IsoDate } from './common.js';
 export const tagSchema = z.object({
     id: Id,
     tenantId: Id,
-    name: z.string().min(1).max(50),
+    name: z.string().trim().min(1).max(50),
     color: z
         .string()
         .regex(/^#[0-9A-Fa-f]{6}$/)
@@ -29,8 +29,11 @@ export type TagType = z.infer<typeof tagSchema>;
  */
 export const tagListItemSchema = z.object({
     id: Id,
-    name: z.string(),
-    color: z.string().nullable(),
+    name: z.string().trim().min(1).max(50),
+    color: z
+        .string()
+        .regex(/^#[0-9A-Fa-f]{6}$/)
+        .nullable(),
     documentCount: z.number().int().nonnegative().optional(),
 });
 
@@ -113,7 +116,14 @@ export const updateTagRequestSchema = z
             .optional()
             .nullable(),
     })
-    .strict(); // Reject unknown keys
+    .strict()
+    .refine(
+        (data) =>
+            data.name !== undefined ||
+            data.color !== undefined ||
+            data.description !== undefined,
+        { message: 'Provide at least one of name, color, or description.' }
+    ); // Reject unknown keys
 
 export type UpdateTagRequestType = z.infer<typeof updateTagRequestSchema>;
 
