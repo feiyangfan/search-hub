@@ -2,15 +2,15 @@ import { Router } from 'express';
 import { createTagService } from '../services/tagService.js';
 import {
     listTagsQuerySchema,
-    ListTagsQueryType,
+    type ListTagsQueryType,
     createTagRequestSchema,
-    CreateTagRequestType,
+    type CreateTagRequestType,
     getTagParamsSchema,
-    GetTagParamsType,
+    type GetTagParamsType,
     updateTagParamsSchema,
-    UpdateTagParamsType,
+    type UpdateTagParamsType,
     updateTagRequestSchema,
-    UpdateTagRequestType,
+    type UpdateTagRequestType,
     AppError,
 } from '@search-hub/schemas';
 

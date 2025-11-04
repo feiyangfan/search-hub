@@ -1,17 +1,14 @@
 import { Router } from 'express';
 
-import {
-    createDocumentRequestSchema,
-    CreateDocumentRequestType,
-} from '@search-hub/schemas';
+import {} from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
-import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
-import { validateBody } from '../middleware/validateMiddleware.js';
 import {
     createDocumentService,
     type DocumentService,
 } from '../services/documentService.js';
 import {
+    createDocumentRequestSchema,
+    type CreateDocumentRequestType,
     getDocumentDetailsParamsSchema,
     type GetDocumentDetailsParamsType,
     getDocumentListParamsSchema,
@@ -20,8 +17,11 @@ import {
     type UpdateDocumentTitlePayloadType,
     AppError,
 } from '@search-hub/schemas';
+
+import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import {
     validateParams,
+    validateBody,
     validateQuery,
 } from '../middleware/validateMiddleware.js';
 import type {
