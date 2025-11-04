@@ -1,4 +1,6 @@
-import { db } from '@search-hub/db';
+import { db as defaultDb } from '@search-hub/db';
+import { logger as defaultLogger } from '@search-hub/logger';
+import type { Logger } from 'pino';
 import {
     AppError,
     type TagType,
@@ -50,6 +52,11 @@ function toTagListItem(tag: {
     };
 }
 
+export interface TagServiceDependencies {
+    db?: typeof defaultDb;
+    logger?: Logger;
+}
+
 export interface TagService {
     findTagByIdWithCount: (
         tagId: string,
@@ -74,7 +81,12 @@ export interface TagService {
     ) => Promise<void>;
 }
 
-export function createTagService(): TagService {
+export function createTagService(
+    deps: TagServiceDependencies = {}
+): TagService {
+    const db = deps.db ?? defaultDb;
+    const logger = deps.logger ?? defaultLogger;
+
     // Service methods
     async function findTagByIdWithCount(
         tagId: string,
@@ -111,6 +123,13 @@ export function createTagService(): TagService {
         data: CreateTagRequestType,
         context: { tenantId: string; userId: string }
     ): Promise<TagType> {
+        logger.info(
+            {
+                tenantId: context.tenantId,
+                userId: context.userId,
+            },
+            'tag.create.start'
+        );
         // Check permissions - only owners/admins can create tags
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
@@ -138,6 +157,14 @@ export function createTagService(): TagService {
             userId: context.userId,
             ...data,
         });
+        logger.info(
+            {
+                tenantId: context.tenantId,
+                userId: context.userId,
+                tagId: tag.id,
+            },
+            'tag.create.succeeded'
+        );
         return toTagType(tag);
     }
 
@@ -146,6 +173,14 @@ export function createTagService(): TagService {
         data: UpdateTagRequestType,
         context: { tenantId: string; userId: string }
     ): Promise<TagType> {
+        logger.info(
+            {
+                tenantId: context.tenantId,
+                userId: context.userId,
+                tagId,
+            },
+            'tag.update.start'
+        );
         // Check permissions - only owners/admins can update tags
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
@@ -185,6 +220,14 @@ export function createTagService(): TagService {
                 },
             });
         }
+        logger.info(
+            {
+                tenantId: context.tenantId,
+                userId: context.userId,
+                tagId: tag.id,
+            },
+            'tag.update.succeeded'
+        );
         return toTagType(tag);
     }
 
@@ -192,6 +235,14 @@ export function createTagService(): TagService {
         tagId: string,
         context: { tenantId: string; userId: string }
     ): Promise<void> {
+        logger.info(
+            {
+                tenantId: context.tenantId,
+                userId: context.userId,
+                tagId,
+            },
+            'tag.delete.start'
+        );
         // Check permissions - only owners/admins can delete tags
         const membership =
             await db.tenantMembership.findMembershipByUserIdAndTenantId({
@@ -227,6 +278,14 @@ export function createTagService(): TagService {
                 },
             });
         }
+        logger.info(
+            {
+                tenantId: context.tenantId,
+                userId: context.userId,
+                tagId,
+            },
+            'tag.delete.succeeded'
+        );
     }
 
     return {
