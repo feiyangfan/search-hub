@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import {
-    CreateDocumentRequest,
+    createDocumentRequestSchema,
     CreateDocumentRequestType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
@@ -12,11 +12,11 @@ import {
     type DocumentService,
 } from '../services/documentService.js';
 import {
-    GetDocumentDetailsParams,
+    getDocumentDetailsParamsSchema,
     type GetDocumentDetailsParamsType,
-    GetDocumentListParams,
+    getDocumentListParamsSchema,
     type GetDocumentListParamsType,
-    UpdateDocumentTitlePayload,
+    updateDocumentTitlePayloadSchema,
     type UpdateDocumentTitlePayloadType,
     AppError,
 } from '@search-hub/schemas';
@@ -37,7 +37,7 @@ export function documentRoutes(
 
     router.get(
         '/',
-        validateQuery(GetDocumentListParams),
+        validateQuery(getDocumentListParamsSchema),
         async (req, res, next) => {
             try {
                 const authReq = req as AuthenticatedRequest;
@@ -82,7 +82,7 @@ export function documentRoutes(
 
     router.post(
         '/',
-        validateBody(CreateDocumentRequest),
+        validateBody(createDocumentRequestSchema),
         async (req, res, next) => {
             try {
                 const authReq = req as AuthenticatedRequest;
@@ -142,7 +142,7 @@ export function documentRoutes(
 
     router.get(
         '/:id',
-        validateParams(GetDocumentDetailsParams),
+        validateParams(getDocumentDetailsParamsSchema),
         async (req, res, next) => {
             try {
                 const authReq = req as AuthenticatedRequest;
@@ -199,7 +199,7 @@ export function documentRoutes(
 
     router.delete(
         '/:id',
-        validateParams(GetDocumentDetailsParams),
+        validateParams(getDocumentDetailsParamsSchema),
         async (req, res, next) => {
             try {
                 const authReq = req as AuthenticatedRequest;
@@ -239,8 +239,8 @@ export function documentRoutes(
 
     router.patch(
         '/:id/title',
-        validateParams(GetDocumentDetailsParams),
-        validateBody(UpdateDocumentTitlePayload),
+        validateParams(getDocumentDetailsParamsSchema),
+        validateBody(updateDocumentTitlePayloadSchema),
         async (req, res, next) => {
             try {
                 const authReq = req as AuthenticatedRequest;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
-import { DocumentSchema } from './document.js';
+import { documentSchema } from './document.js';
 import { TenantMembership } from './tenantMembership.js';
 
 // Tenant schema
@@ -14,7 +14,7 @@ export const Tenant = z.object({
         example: 'Software Inc',
     }),
 
-    documents: z.array(DocumentSchema).meta({
+    documents: z.array(documentSchema).meta({
         description: 'List of documents belonging to the tenant',
         example: [],
     }),

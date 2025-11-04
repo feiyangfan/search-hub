@@ -2,17 +2,21 @@ import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
 
 // Document source enum
-export const DocumentSource = z
+export const documentSourceSchema = z
     .enum(['editor', 'url'])
     .describe('How the document was created/imported');
 
+export type DocumentSourceType = z.infer<typeof documentSourceSchema>;
+
 // Arbitrary document metadata
-export const DocumentMetadata = z
+export const documentMetadataSchema = z
     .record(z.string(), z.any())
     .describe('Arbitrary document metadata such as tags or ingestion details.');
 
+export type DocumentMetadataType = z.infer<typeof documentMetadataSchema>;
+
 // Base Document schema - represents a complete database record
-export const DocumentSchema = z.object({
+export const documentSchema = z.object({
     id: Id.meta({
         description: 'Document identifier assigned by the server',
         example: 'doc_123',
@@ -25,7 +29,7 @@ export const DocumentSchema = z.object({
         .string()
         .min(1)
         .meta({ description: 'Document title', example: 'Launch plan' }),
-    source: DocumentSource.meta({
+    source: documentSourceSchema.meta({
         description: 'Creation source',
     }),
     sourceUrl: z.url().nullable().meta({
@@ -34,7 +38,7 @@ export const DocumentSchema = z.object({
     content: z.string().nullable().meta({
         description: 'Markdown or raw document body',
     }),
-    metadata: DocumentMetadata.meta({
+    metadata: documentMetadataSchema.meta({
         description: 'Additional metadata such as tags or ingestion info',
     }),
     createdById: Id.meta({
@@ -51,19 +55,25 @@ export const DocumentSchema = z.object({
     }),
 });
 
+export type DocumentType = z.infer<typeof documentSchema>;
+
 // Create Document request payload - only fields users can provide
 // Server will generate: id, createdById, updatedById, createdAt, updatedAt
 // tenantId comes from session context
-export const CreateDocumentRequest = z.object({
+export const createDocumentRequestSchema = z.object({
     title: z.string().min(1).optional(), // Optional for quick creates
-    source: DocumentSource.optional().default('editor'),
+    source: documentSourceSchema.optional().default('editor'),
     sourceUrl: z.url().nullable().optional(),
     content: z.string().nullable().optional(),
-    metadata: DocumentMetadata.optional().default({}),
+    metadata: documentMetadataSchema.optional().default({}),
 });
 
+export type CreateDocumentRequestType = z.infer<
+    typeof createDocumentRequestSchema
+>;
+
 // Create Document response payload
-export const CreateDocumentResponse = DocumentSchema.pick({
+export const createDocumentResponseSchema = documentSchema.pick({
     id: true,
     tenantId: true,
     title: true,
@@ -77,8 +87,12 @@ export const CreateDocumentResponse = DocumentSchema.pick({
     updatedAt: true,
 });
 
+export type CreateDocumentResponseType = z.infer<
+    typeof createDocumentResponseSchema
+>;
+
 // Document details schema - base document + computed/relational fields
-export const DocumentDetailsSchema = DocumentSchema.extend({
+export const documentDetailsSchema = documentSchema.extend({
     isFavorite: z.boolean().meta({
         description: 'Whether the current user has favorited this document',
     }),
@@ -96,38 +110,48 @@ export const DocumentDetailsSchema = DocumentSchema.extend({
         }),
 });
 
-export type DocumentDetailsType = z.infer<typeof DocumentDetailsSchema>;
+export type DocumentDetailsType = z.infer<typeof documentDetailsSchema>;
 
 // Update the response to use the new schema
-export const GetDocumentDetailsResponse = z.object({
-    document: DocumentDetailsSchema,
+export const getDocumentDetailsResponseSchema = z.object({
+    document: documentDetailsSchema,
 });
+
+export type GetDocumentDetailsResponseType = z.infer<
+    typeof getDocumentDetailsResponseSchema
+>;
 
 // Get Document details parameters
-export const GetDocumentDetailsParams = z.object({
+export const getDocumentDetailsParamsSchema = z.object({
     id: Id,
 });
 
+export type GetDocumentDetailsParamsType = z.infer<
+    typeof getDocumentDetailsParamsSchema
+>;
+
 // Document list item schema
-export const DocumentListItem = z.object({
+export const documentListItemSchema = z.object({
     id: Id,
-    title: DocumentSchema.shape.title,
-    updatedAt: DocumentSchema.shape.updatedAt,
+    title: documentSchema.shape.title,
+    updatedAt: documentSchema.shape.updatedAt,
     isFavorite: z.boolean().meta({
         description:
             'Indicator whether the document is marked as favorite by the user',
     }),
 });
-export type DocumentListItemType = z.infer<typeof DocumentListItem>;
+
+export type DocumentListItemType = z.infer<typeof documentListItemSchema>;
 
 // Document list result schema
-export const DocumentListResult = z.object({
-    items: z.array(DocumentListItem),
+export const documentListResultSchema = z.object({
+    items: z.array(documentListItemSchema),
     total: z.coerce.number().int().min(0),
 });
-export type DocumentListResultType = z.infer<typeof DocumentListResult>;
 
-const favoritesOnlyParam = z
+export type DocumentListResultType = z.infer<typeof documentListResultSchema>;
+
+const favoritesOnlyParamSchema = z
     .union([z.boolean(), z.literal('true'), z.literal('false')])
     .transform((value) =>
         typeof value === 'string' ? value === 'true' : value
@@ -135,39 +159,51 @@ const favoritesOnlyParam = z
     .optional();
 
 // Get Document list parameters
-export const GetDocumentListParams = z.object({
+export const getDocumentListParamsSchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     offset: z.coerce.number().int().min(0).default(0),
-    favoritesOnly: favoritesOnlyParam.default(false),
+    favoritesOnly: favoritesOnlyParamSchema.default(false),
 });
 
-export const GetDocumentListResponse = z.object({
-    documents: DocumentListResult,
-});
-export type GetDocumentListResponseType = z.infer<
-    typeof GetDocumentListResponse
+export type GetDocumentListParamsType = z.infer<
+    typeof getDocumentListParamsSchema
 >;
 
-export const UpdateDocumentTitlePayload = z.object({
+export const getDocumentListResponseSchema = z.object({
+    documents: documentListResultSchema,
+});
+export type GetDocumentListResponseType = z.infer<
+    typeof getDocumentListResponseSchema
+>;
+
+export const updateDocumentTitlePayloadSchema = z.object({
     title: z.string().trim().min(1, 'Title is required'),
 });
 
-export const UpdateDocumentTitleResponse = z.object({
+export type UpdateDocumentTitlePayloadType = z.infer<
+    typeof updateDocumentTitlePayloadSchema
+>;
+
+export const updateDocumentTitleResponseSchema = z.object({
     document: z.object({
         id: Id,
         title: z.string(),
     }),
 });
 
-export const UpdateDocumentContentPayload = z.object({
+export type UpdateDocumentTitleResponseType = z.infer<
+    typeof updateDocumentTitleResponseSchema
+>;
+
+export const updateDocumentContentPayloadSchema = z.object({
     content: z.string().optional(),
 });
 
 export type UpdateDocumentContentPayloadType = z.infer<
-    typeof UpdateDocumentContentPayload
+    typeof updateDocumentContentPayloadSchema
 >;
 
-export const UpdateDocumentContentResponse = z.object({
+export const updateDocumentContentResponseSchema = z.object({
     document: z.object({
         id: Id,
         updatedAt: IsoDate,
@@ -175,39 +211,47 @@ export const UpdateDocumentContentResponse = z.object({
 });
 
 export type UpdateDocumentContentResponseType = z.infer<
-    typeof UpdateDocumentContentResponse
+    typeof updateDocumentContentResponseSchema
 >;
 
 // Reindex document endpoint
-export const ReindexDocumentResponse = z.object({
+export const reindexDocumentResponseSchema = z.object({
     message: z.string(),
     jobId: z.string(),
 });
 
 export type ReindexDocumentResponseType = z.infer<
-    typeof ReindexDocumentResponse
+    typeof reindexDocumentResponseSchema
 >;
 
-export const DocumentFavorite = z.object({
+export const documentFavoriteSchema = z.object({
     id: Id,
     documentId: Id,
     userId: Id,
     createdAt: IsoDate,
 });
 
-export const DocumentCommandPayload = z
+export type DocumentFavoriteType = z.infer<typeof documentFavoriteSchema>;
+
+export const documentCommandPayloadSchema = z
     .record(z.string(), z.any())
     .describe('Structured representation of an inline document command');
 
-export const DocumentCommand = z.object({
+export type DocumentCommandPayloadType = z.infer<
+    typeof documentCommandPayloadSchema
+>;
+
+export const documentCommandSchema = z.object({
     id: Id,
     documentId: Id,
     userId: Id,
-    body: DocumentCommandPayload,
+    body: documentCommandPayloadSchema,
     createdAt: IsoDate,
 });
 
-export const RemindCommandPayload = z
+export type DocumentCommandType = z.infer<typeof documentCommandSchema>;
+
+export const remindCommandPayloadSchema = z
     .object({
         kind: z.literal('remind'),
         whenText: z.string().optional().default(''), // raw user text
@@ -222,25 +266,16 @@ export const RemindCommandPayload = z
     })
     .describe('Payload for an inline remind command');
 
-export type RemindCommandPayloadType = z.infer<typeof RemindCommandPayload>;
+export type RemindCommandPayloadType = z.infer<
+    typeof remindCommandPayloadSchema
+>;
 
-export const DeleteDocumentResponse = z.union([
+export const deleteDocumentResponseSchema = z.union([
     z.object({ status: z.literal('success') }),
     z.object({ status: z.literal('forbidden') }),
     z.object({ status: z.literal('not_found') }),
 ]);
 
-export type DocumentSourceType = z.infer<typeof DocumentSource>;
-export type DocumentMetadataType = z.infer<typeof DocumentMetadata>;
-export type DocumentRecord = z.infer<typeof DocumentSchema>;
-export type CreateDocumentRequestType = z.infer<typeof CreateDocumentRequest>;
-export type CreateDocumentResponseType = z.infer<typeof CreateDocumentResponse>;
-export type DocumentFavoriteRecord = z.infer<typeof DocumentFavorite>;
-export type DocumentCommandRecord = z.infer<typeof DocumentCommand>;
-export type GetDocumentDetailsParamsType = z.infer<
-    typeof GetDocumentDetailsParams
->;
-export type GetDocumentListParamsType = z.infer<typeof GetDocumentListParams>;
-export type UpdateDocumentTitlePayloadType = z.infer<
-    typeof UpdateDocumentTitlePayload
+export type DeleteDocumentResponseType = z.infer<
+    typeof deleteDocumentResponseSchema
 >;

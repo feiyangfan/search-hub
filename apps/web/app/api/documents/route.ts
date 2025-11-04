@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { SearchHubClient } from '@search-hub/sdk';
-import { GetDocumentListParams } from '@search-hub/schemas';
+import { getDocumentListParamsSchema } from '@search-hub/schemas';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const parseResult = GetDocumentListParams.safeParse({
+    const parseResult = getDocumentListParamsSchema.safeParse({
         limit: url.searchParams.get('limit') ?? undefined,
         offset: url.searchParams.get('offset') ?? undefined,
         favoritesOnly: url.searchParams.get('favoritesOnly') ?? undefined,

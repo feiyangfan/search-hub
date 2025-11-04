@@ -4,16 +4,16 @@ import type { oas31 } from 'zod-openapi';
 type OpenApiDocument = oas31.OpenAPIObject;
 import { ApiError } from './errors.js';
 import {
-    CreateDocumentRequest,
-    CreateDocumentResponse,
-    GetDocumentListParams,
-    GetDocumentListResponse,
-    GetDocumentDetailsResponse,
-    UpdateDocumentTitlePayload,
-    UpdateDocumentTitleResponse,
-    UpdateDocumentContentPayload,
-    UpdateDocumentContentResponse,
-    ReindexDocumentResponse,
+    createDocumentRequestSchema,
+    createDocumentResponseSchema,
+    getDocumentListParamsSchema,
+    getDocumentListResponseSchema,
+    getDocumentDetailsResponseSchema,
+    updateDocumentTitlePayloadSchema,
+    updateDocumentTitleResponseSchema,
+    updateDocumentContentPayloadSchema,
+    updateDocumentContentResponseSchema,
+    reindexDocumentResponseSchema,
 } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import {
@@ -142,13 +142,13 @@ export function buildOpenApi(
 
             '/v1/documents': {
                 get: {
-                    requestParams: { query: GetDocumentListParams },
+                    requestParams: { query: getDocumentListParamsSchema },
                     responses: {
                         200: {
                             description: 'OK',
                             content: {
                                 'application/json': {
-                                    schema: GetDocumentListResponse,
+                                    schema: getDocumentListResponseSchema,
                                 },
                             },
                         },
@@ -184,7 +184,7 @@ export function buildOpenApi(
                         required: true,
                         content: {
                             'application/json': {
-                                schema: CreateDocumentRequest,
+                                schema: createDocumentRequestSchema,
                             },
                         },
                     },
@@ -193,7 +193,7 @@ export function buildOpenApi(
                             description: 'Queued',
                             content: {
                                 'application/json': {
-                                    schema: CreateDocumentResponse,
+                                    schema: createDocumentResponseSchema,
                                 },
                             },
                         },
@@ -232,7 +232,7 @@ export function buildOpenApi(
                             description: 'OK',
                             content: {
                                 'application/json': {
-                                    schema: GetDocumentDetailsResponse,
+                                    schema: getDocumentDetailsResponseSchema,
                                 },
                             },
                         },
@@ -310,7 +310,7 @@ export function buildOpenApi(
                         required: true,
                         content: {
                             'application/json': {
-                                schema: UpdateDocumentTitlePayload,
+                                schema: updateDocumentTitlePayloadSchema,
                             },
                         },
                     },
@@ -319,7 +319,7 @@ export function buildOpenApi(
                             description: 'Document title updated',
                             content: {
                                 'application/json': {
-                                    schema: UpdateDocumentTitleResponse,
+                                    schema: updateDocumentTitleResponseSchema,
                                 },
                             },
                         },
@@ -363,7 +363,7 @@ export function buildOpenApi(
                         required: true,
                         content: {
                             'application/json': {
-                                schema: UpdateDocumentContentPayload,
+                                schema: updateDocumentContentPayloadSchema,
                             },
                         },
                     },
@@ -372,7 +372,7 @@ export function buildOpenApi(
                             description: 'Document content updated',
                             content: {
                                 'application/json': {
-                                    schema: UpdateDocumentContentResponse,
+                                    schema: updateDocumentContentResponseSchema,
                                 },
                             },
                         },
@@ -418,7 +418,7 @@ export function buildOpenApi(
                                 'Accepted - Re-index job queued successfully',
                             content: {
                                 'application/json': {
-                                    schema: ReindexDocumentResponse,
+                                    schema: reindexDocumentResponseSchema,
                                 },
                             },
                         },
