@@ -19,6 +19,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+    DEFAULT_TAG_COLOR,
+    EditorHeaderTagEditing,
+    type TagDraft,
+    type TagOption,
+} from '@/components/document-editor/editor-header-tag-editing';
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
@@ -59,6 +65,53 @@ export default function DocumentPage() {
     const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showTagDialog, setShowTagDialog] = useState(false);
+    const [availableTags, setAvailableTags] = useState<TagOption[]>(() => [
+        {
+            id: 'tag-product',
+            name: 'Product',
+            color: '#6366f1',
+            description: 'Product strategy and roadmap docs',
+        },
+        {
+            id: 'tag-research',
+            name: 'Research',
+            color: '#0ea5e9',
+            description: 'User interviews, discovery notes, research plans',
+        },
+        {
+            id: 'tag-ux',
+            name: 'UX',
+            color: '#14b8a6',
+            description: 'Design specs, flows, usability findings',
+        },
+        {
+            id: 'tag-backlog',
+            name: 'Backlog',
+            color: '#f97316',
+            description: 'Backlog grooming items and tasks',
+        },
+        {
+            id: 'tag-release',
+            name: 'Release',
+            color: '#ec4899',
+            description: 'Release checklists and launch coordination',
+        },
+    ]);
+    const [documentTags, setDocumentTags] = useState<TagOption[]>(() => [
+        {
+            id: 'tag-product',
+            name: 'Product',
+            color: '#6366f1',
+            description: 'Product strategy and roadmap docs',
+        },
+        {
+            id: 'tag-ux',
+            name: 'UX',
+            color: '#14b8a6',
+            description: 'Design specs, flows, usability findings',
+        },
+    ]);
     const [loadTiming, setLoadTiming] = useState<{
         frontend: number;
         backend: number;
@@ -265,12 +318,55 @@ export default function DocumentPage() {
         60000 // 60 seconds
     );
 
-    // Placeholder handlers
     const handleEditTags = () => {
-        console.log('Edit tags clicked - TODO: implement tags editor');
-        toast.info('Edit tags', {
-            description: 'Tags editor coming soon!',
+        setShowTagDialog(true);
+    };
+
+    const handleTagRemove = (tagId: string) => {
+        setDocumentTags((prev) => prev.filter((tag) => tag.id !== tagId));
+    };
+
+    const handleTagAdd = (tag: TagOption) => {
+        setDocumentTags((prev) => {
+            if (prev.some((existing) => existing.id === tag.id)) {
+                return prev;
+            }
+            return [...prev, tag];
         });
+        setAvailableTags((prev) => {
+            if (prev.some((existing) => existing.id === tag.id)) {
+                return prev;
+            }
+            return [...prev, tag];
+        });
+    };
+
+    const handleTagCreate = (draft: TagDraft): TagOption | null => {
+        const name = draft.name.trim();
+        if (!name) {
+            return null;
+        }
+        const existing = availableTags.find(
+            (tag) => tag.name.toLowerCase() === name.toLowerCase()
+        );
+        if (existing) {
+            handleTagAdd(existing);
+            return existing;
+        }
+
+        const color = draft.color?.trim() || DEFAULT_TAG_COLOR;
+        const id = `tag-${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+        const newTag: TagOption = {
+            id,
+            name,
+            color,
+            description:
+                draft.description?.trim() || 'Describe this tag for your workspace',
+        };
+
+        setAvailableTags((prev) => [...prev, newTag]);
+        setDocumentTags((prev) => [...prev, newTag]);
+        return newTag;
     };
 
     const handleDelete = () => {
@@ -620,6 +716,7 @@ export default function DocumentPage() {
                     onTitleChange={handleTitleChange}
                     onEditTags={handleEditTags}
                     canManageDocument={canManageDocument}
+                    documentTags={documentTags}
                     onDelete={handleDelete}
                 />
                 <div
@@ -636,6 +733,17 @@ export default function DocumentPage() {
                     </div>
                 )}
             </div>
+
+            <EditorHeaderTagEditing
+                open={showTagDialog}
+                onOpenChange={setShowTagDialog}
+                documentTitle={document.title}
+                documentTags={documentTags}
+                availableTags={availableTags}
+                onAddTag={handleTagAdd}
+                onRemoveTag={handleTagRemove}
+                onCreateTag={handleTagCreate}
+            />
 
             <AlertDialog
                 open={showDeleteDialog}

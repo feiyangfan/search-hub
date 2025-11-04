@@ -21,6 +21,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '../ui/badge';
+import type { TagOption } from './editor-header-tag-editing';
 
 type EditorHeaderProps = {
     title: string;
@@ -34,6 +35,7 @@ type EditorHeaderProps = {
     onEditTags?: () => void;
     canManageDocument?: boolean;
     onDelete?: () => void;
+    documentTags?: TagOption[];
     actions?: Array<{
         label: string;
         href?: string;
@@ -55,6 +57,7 @@ export function EditorHeader({
     onEditTags,
     canManageDocument = false,
     onDelete,
+    documentTags = [],
     actions,
     headerRight,
     commandsDropdown,
@@ -141,6 +144,7 @@ export function EditorHeader({
     const showEditTags = !!onEditTags && canManageDocument;
     const hasActions = Array.isArray(actions) && actions.length > 0;
     const showDelete = !!onDelete && canManageDocument;
+    const hasTags = documentTags.length > 0;
 
     return (
         <div className="sticky top-0 z-30 bg-background/95 px-6 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/75">
@@ -176,7 +180,23 @@ export function EditorHeader({
                                 {lastSavedLabel}
                             </span>
                         ) : null}
+                        {headerRight}
                     </div>
+                    {hasTags ? (
+                        <div className="flex flex-wrap gap-2">
+                            {documentTags.map((tag) => (
+                                <Badge
+                                    key={tag.id}
+                                    variant="secondary"
+                                    className="text-xs"
+                                    style={tagBadgeStyle(tag.color)}
+                                    title={tag.description}
+                                >
+                                    {tag.name}
+                                </Badge>
+                            ))}
+                        </div>
+                    ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                     {commandsDropdown}
@@ -283,11 +303,36 @@ export function EditorHeader({
                     </DropdownMenu>
                 </div>
             </div>
-            <div className="flex gap-2">
-                <Badge variant={'outline'} className="h-5 text-xs">
-                    Leetcode
-                </Badge>
-            </div>
         </div>
     );
+}
+
+function tagBadgeStyle(color?: string): React.CSSProperties {
+    if (!color) {
+        return {};
+    }
+    const background = hexToRgba(color, 0.16);
+    return {
+        backgroundColor: background,
+        borderColor: color,
+        color,
+    };
+}
+
+function hexToRgba(hex: string, alpha: number) {
+    let sanitized = hex.replace('#', '');
+    if (sanitized.length === 3) {
+        sanitized = sanitized
+            .split('')
+            .map((char) => char + char)
+            .join('');
+    }
+    const bigint = Number.parseInt(sanitized, 16);
+    if (Number.isNaN(bigint)) {
+        return `rgba(0, 0, 0, ${alpha})`;
+    }
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
