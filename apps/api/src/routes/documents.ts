@@ -1,6 +1,16 @@
 import { Router } from 'express';
 
-import {} from '@search-hub/schemas';
+import {
+    addTagsToDocumentRequestSchema,
+    AddTagsToDocumentRequestType,
+    AddTagsToDocumentResponseType,
+    DeleteDocumentTagParamsSchema,
+    type DeleteDocumentTagParamsType,
+    documentIdParamsSchema,
+    DocumentIdParamsType,
+    GetDocumentTagsResponseType,
+    RemoveTagFromDocumentResponseType,
+} from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import {
     createDocumentService,
@@ -358,6 +368,138 @@ export function documentRoutes(
             next(error);
         }
     });
+
+    router.get('/:id/tags', async (req, res, next) => {
+        try {
+            const authReq = req as AuthenticatedRequest;
+            const { userId } = authReq.session;
+
+            const activeTenantId = authReq.session?.currentTenantId;
+
+            if (!activeTenantId) {
+                throw AppError.validation(
+                    'NO_ACTIVE_TENANT',
+                    'No active tenant selected.',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'document',
+                            operation: 'getTags',
+                        },
+                    }
+                );
+            }
+
+            const documentId = req.params.id;
+
+            const tags = await service.getDocumentTags(documentId, {
+                userId,
+                tenantId: activeTenantId,
+            });
+
+            const response: GetDocumentTagsResponseType = { tags };
+
+            res.status(200).json(response);
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    router.post(
+        '/:id/tags',
+        validateBody(addTagsToDocumentRequestSchema),
+        validateParams(documentIdParamsSchema),
+        async (req, res, next) => {
+            try {
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
+
+                const activeTenantId = authReq.session?.currentTenantId;
+
+                if (!activeTenantId) {
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'addTags',
+                            },
+                        }
+                    );
+                }
+
+                const body = (
+                    req as RequestWithValidatedBody<AddTagsToDocumentRequestType>
+                ).validated.body;
+
+                const { id: documentId } = (
+                    req as RequestWithValidatedParams<DocumentIdParamsType>
+                ).validated.params;
+                const response: AddTagsToDocumentResponseType =
+                    await service.addTagsToDocument(
+                        documentId,
+                        {
+                            userId,
+                            tenantId: activeTenantId,
+                        },
+                        body
+                    );
+                res.status(200).json(response);
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
+
+    router.delete(
+        '/:id/tags/:tagId',
+        validateParams(DeleteDocumentTagParamsSchema),
+        async (req, res, next) => {
+            try {
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
+
+                const activeTenantId = authReq.session?.currentTenantId;
+
+                if (!activeTenantId) {
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'removeTag',
+                            },
+                        }
+                    );
+                }
+
+                const { id: documentId, tagId } = (
+                    req as RequestWithValidatedParams<DeleteDocumentTagParamsType>
+                ).validated.params;
+
+                await service.removeTagFromDocument(
+                    documentId,
+                    {
+                        userId,
+                        tenantId: activeTenantId,
+                    },
+                    { tagId }
+                );
+
+                const response: RemoveTagFromDocumentResponseType = {
+                    message: 'Tag removed from document',
+                };
+
+                res.status(200).json(response);
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
 
     return router;
 }

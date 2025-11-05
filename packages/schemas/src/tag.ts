@@ -199,6 +199,19 @@ export const documentTagSchema = z.object({
 
 export type DocumentTagType = z.infer<typeof documentTagSchema>;
 
+export const documentIdParamsSchema = z.object({
+    id: Id,
+});
+export type DocumentIdParamsType = z.infer<typeof documentIdParamsSchema>;
+
+export const DeleteDocumentTagParamsSchema = z.object({
+    id: Id,
+    tagId: Id,
+});
+export type DeleteDocumentTagParamsType = z.infer<
+    typeof DeleteDocumentTagParamsSchema
+>;
+
 /**
  * POST /v1/documents/:id/tags - Add tags to document
  */
@@ -217,8 +230,8 @@ export type AddTagsToDocumentRequestType = z.infer<
 
 export const addTagsToDocumentResponseSchema = z.object({
     added: z.array(tagListItemSchema),
-    alreadyExists: z.array(Id).optional(),
-    notFound: z.array(Id).optional(),
+    alreadyExists: z.array(Id).optional().nullable(),
+    notFound: z.array(Id).optional().nullable(),
 });
 
 export type AddTagsToDocumentResponseType = z.infer<
