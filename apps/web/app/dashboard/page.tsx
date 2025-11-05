@@ -8,6 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
+import { SearchHubClient } from '@search-hub/sdk';
+import { Tag, TagOption } from '@/components/ui/tag';
+import { MasonryGrid } from '@/components/dashboard/masonry-grid';
+import { SearchVolumeChart } from '@/components/dashboard/search-volume-chart';
+const apiBase = process.env.API_URL ?? 'http://localhost:3000';
+
 export default async function DashboardPage() {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -16,155 +22,295 @@ export default async function DashboardPage() {
 
     const memberships =
         (session.user as { memberships?: unknown[] })?.memberships ?? [];
-    console.log('sessions', session);
 
     if (memberships.length === 0) {
         return <EmptyStateCreateWorkspace />;
     }
 
-    return (
-        <div className="space-y-10 px-6 pb-12">
-            <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-semibold tracking-tight pt-">
-                    Workspace dashboard
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                    A quick snapshot of activity, health, and actions for your
-                    team.
-                </p>
-            </div>
+    let tags: TagOption[] = [];
+    try {
+        const apiSessionCookie = (session as { apiSessionCookie?: string })
+            .apiSessionCookie;
 
-            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-12">
+        if (apiSessionCookie) {
+            const client = new SearchHubClient({
+                baseUrl: apiBase,
+                headers: { cookie: apiSessionCookie },
+            });
+
+            const response = await client.getTags();
+
+            tags =
+                response.tags.map((tag: any) => ({
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                    description: tag.description,
+                })) || [];
+        }
+    } catch (error) {
+        console.error('Failed to fetch tags:', error);
+    }
+
+    return (
+        <div className="h-[calc(100vh-4rem)] overflow-y-auto px-6 py-6 bg-accent-foreground/3">
+            <MasonryGrid>
                 <DashboardCard
-                    variant="wide"
-                    title="Quick workspace actions"
-                    description="Jump into a search, ingest new documents, or invite collaborators."
-                    action={
-                        <Button variant="ghost" size="sm">
-                            View all actions
-                        </Button>
-                    }
+                    variant="medium"
+                    title="Quick Search"
+                    className="mb-6 break-inside-avoid"
                 >
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                            <Input
-                                placeholder="Search across documents, answers, and conversations…"
-                                className="w-full md:flex-1"
-                            />
-                            <div className="flex flex-col gap-2 md:flex-row">
-                                <Button className="w-full md:w-auto">
-                                    New search
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    className="w-full md:w-auto"
-                                >
-                                    Ingest documents
-                                </Button>
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder="Search across documents..."
+                            className="flex-1"
+                        />
+                        <Button>Search</Button>
+                    </div>
+                </DashboardCard>
+
+                <DashboardCard
+                    variant="medium"
+                    title="Workspace Overview"
+                    description="Content and collaboration"
+                    className="mb-6 break-inside-avoid"
+                >
+                    <div className="space-y-4">
+                        {/* Stats Grid - Content + Collaboration */}
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-0.5">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Documents
+                                </p>
+                                <p className="text-2xl font-bold">47</p>
+                                <p className="text-xs text-muted-foreground">
+                                    +3 this week
+                                </p>
+                            </div>
+                            <div className="space-y-0.5">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Collaborators
+                                </p>
+                                <p className="text-2xl font-bold">5</p>
+                                <p className="text-xs text-muted-foreground">
+                                    members
+                                </p>
+                            </div>
+                            <div className="space-y-0.5">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    Tags
+                                </p>
+                                <p className="text-2xl font-bold">
+                                    {tags.length}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    categories
+                                </p>
                             </div>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            {[
-                                {
-                                    title: 'Invite teammates',
-                                    body: 'Share access and set roles.',
-                                },
-                                {
-                                    title: 'Review access',
-                                    body: 'Check who can see what.',
-                                },
-                                {
-                                    title: 'Browse templates',
-                                    body: 'Kickstart new workflows.',
-                                },
-                            ].map((item) => (
-                                <div
-                                    key={item.title}
-                                    className="rounded-xl border border-border/60 bg-background/40 p-4"
-                                >
-                                    <p className="text-sm font-medium">
-                                        {item.title}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {item.body}
-                                    </p>
+
+                        {/* Tags Section */}
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-semibold tracking-tight">
+                                Workspace Tags
+                            </h4>
+                            {tags.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No tags yet
+                                </p>
+                            ) : (
+                                <div className="flex flex-wrap gap-2">
+                                    {tags.map((tag: any) => (
+                                        <Tag key={tag.id} tag={tag} />
+                                    ))}
                                 </div>
-                            ))}
+                            )}
                         </div>
                     </div>
                 </DashboardCard>
 
                 <DashboardCard
                     variant="large"
-                    title="Analytics overview"
-                    description="Performance snapshot for the last 7 days."
+                    title="Search Intelligence"
+                    description="Performance metrics"
+                    action={
+                        <Button variant="ghost" size="sm">
+                            Analytics
+                        </Button>
+                    }
+                    className="mb-6 break-inside-avoid"
                 >
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {[
-                            {
-                                label: 'Total searches',
-                                value: '1,248',
-                                trend: '+12%',
-                            },
-                            {
-                                label: 'Avg. latency',
-                                value: '480 ms',
-                                trend: '−6%',
-                            },
-                            {
-                                label: 'Active users',
-                                value: '32',
-                                trend: '+4%',
-                            },
-                        ].map((metric) => (
-                            <div
-                                key={metric.label}
-                                className="rounded-2xl border border-border/70 bg-background/60 p-4"
-                            >
-                                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                                    {metric.label}
-                                </p>
-                                <p className="mt-3 text-2xl font-semibold">
-                                    {metric.value}
-                                </p>
-                                <p className="text-xs text-emerald-600">
-                                    {metric.trend} vs last week
-                                </p>
-                                <div className="mt-4 h-14 rounded-xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" />
+                    <div className="space-y-4">
+                        {/* Primary Metrics Grid - 3 columns */}
+                        <div className="grid gap-2 md:grid-cols-3">
+                            {[
+                                {
+                                    label: 'Total searches',
+                                    value: '1,248',
+                                    trend: '+12%',
+                                    trendUp: true,
+                                },
+                                {
+                                    label: 'P95 latency',
+                                    value: '680ms',
+                                    trend: '−6%',
+                                    trendUp: false,
+                                },
+                                {
+                                    label: 'Success rate',
+                                    value: '94.2%',
+                                    trend: '+2.1%',
+                                    trendUp: true,
+                                },
+                            ].map((metric) => (
+                                <div
+                                    key={metric.label}
+                                    className="rounded-xl border border-border/60 bg-background/40 p-3"
+                                >
+                                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        {metric.label}
+                                    </p>
+                                    <p className="mt-1 text-xl font-bold">
+                                        {metric.value}
+                                    </p>
+                                    <p
+                                        className={`text-xs mt-0.5 ${
+                                            (metric.trendUp &&
+                                                metric.trend.startsWith('+')) ||
+                                            (!metric.trendUp &&
+                                                metric.trend.startsWith('−'))
+                                                ? 'text-emerald-600'
+                                                : 'text-amber-600'
+                                        }`}
+                                    >
+                                        {metric.trend}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Top Search Queries */}
+                        <div>
+                            <h4 className="text-xs font-semibold tracking-tight mb-2">
+                                Top Search Queries
+                            </h4>
+                            <div className="space-y-1.5">
+                                {[
+                                    { query: 'authentication flow', count: 47 },
+                                    { query: 'api documentation', count: 38 },
+                                    { query: 'deployment guide', count: 29 },
+                                ].map((item, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/20 px-2 py-1.5"
+                                    >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <span className="text-xs font-medium text-muted-foreground">
+                                                {idx + 1}
+                                            </span>
+                                            <p className="text-xs font-medium truncate">
+                                                "{item.query}"
+                                            </p>
+                                        </div>
+                                        <Badge
+                                            variant="secondary"
+                                            className="text-xs h-5"
+                                        >
+                                            {item.count}
+                                        </Badge>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        </div>
                     </div>
                 </DashboardCard>
 
                 <DashboardCard
                     variant="medium"
-                    title="Recent documents"
-                    description="Latest material added to the workspace."
+                    title="Search Volume Trend"
+                    description="7-day search activity"
+                    className="mb-6 break-inside-avoid"
                 >
-                    <ul className="space-y-4">
-                        {[1, 2, 3, 4].map((idx) => (
-                            <li
-                                key={idx}
-                                className="flex items-start justify-between gap-4"
-                            >
-                                <div>
-                                    <p className="text-sm font-medium">
-                                        Competitive Landscape Notes #{idx}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Updated {idx}h ago · PDF · 2
-                                        contributors
-                                    </p>
-                                </div>
-                                <Button variant="ghost" size="sm">
-                                    Open
-                                </Button>
-                            </li>
-                        ))}
-                    </ul>
+                    <SearchVolumeChart />
                 </DashboardCard>
 
                 <DashboardCard
+                    variant="medium"
+                    title="Recent activity"
+                    description="Latest workspace actions"
+                    action={
+                        <Button variant="ghost" size="sm">
+                            View all
+                        </Button>
+                    }
+                    className="mb-6 break-inside-avoid"
+                >
+                    <div className="space-y-2">
+                        {[
+                            {
+                                type: 'TAG_ADDED_TO_DOCUMENT',
+                                user: 'Mike Johnson',
+                                action: 'tagged',
+                                target: 'API Documentation',
+                                detail: 'with "engineering"',
+                                time: '15m ago',
+                                icon: '🏷️',
+                            },
+                            {
+                                type: 'DOCUMENT_FAVORITED',
+                                user: 'Alex Rivera',
+                                action: 'favorited',
+                                target: 'Team Handbook',
+                                time: '1h ago',
+                                icon: '⭐',
+                            },
+                            {
+                                type: 'DOCUMENT_UPDATED',
+                                user: 'Sarah Chen',
+                                action: 'updated',
+                                target: 'Design System Guidelines',
+                                time: '2h ago',
+                                icon: '✏️',
+                            },
+                        ].map((activity, idx) => (
+                            <div
+                                key={idx}
+                                className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 p-2 transition-colors hover:bg-muted/50"
+                            >
+                                <div className="text-lg leading-none mt-0.5">
+                                    {activity.icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs">
+                                        <span className="font-medium text-foreground">
+                                            {activity.user}
+                                        </span>{' '}
+                                        <span className="text-muted-foreground">
+                                            {activity.action}
+                                        </span>{' '}
+                                        <span className="font-medium text-foreground truncate">
+                                            {activity.target}
+                                        </span>
+                                        {activity.detail && (
+                                            <>
+                                                {' '}
+                                                <span className="text-muted-foreground">
+                                                    {activity.detail}
+                                                </span>
+                                            </>
+                                        )}
+                                        {' · '}
+                                        <span className="text-muted-foreground">
+                                            {activity.time}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </DashboardCard>
+
+                {/* <DashboardCard
                     variant="small"
                     title="Pipeline health"
                     description="Monitor ingestion and indexing at a glance."
@@ -220,88 +366,8 @@ export default async function DashboardPage() {
                             );
                         })}
                     </div>
-                </DashboardCard>
-
-                <DashboardCard
-                    variant="stacked"
-                    title="Pinned & recently viewed"
-                    description="Keep important work within one click."
-                >
-                    <div className="space-y-3">
-                        {[1, 2, 3].map((idx) => (
-                            <div
-                                key={idx}
-                                className="rounded-2xl border border-border/60 bg-background/60 p-4"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            Launch brief — Q{idx}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Last opened {idx} days ago · Shared
-                                            with 4 people
-                                        </p>
-                                    </div>
-                                    <Badge variant="outline">Pinned</Badge>
-                                </div>
-                                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                    <span className="rounded-md border border-dashed border-border px-2 py-0.5">
-                                        #product
-                                    </span>
-                                    <span className="rounded-md border border-dashed border-border px-2 py-0.5">
-                                        #launch
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </DashboardCard>
-
-                <DashboardCard
-                    variant="optional"
-                    title="Usage summary"
-                    description="Track consumption to stay within plan limits."
-                    className="border-dashed"
-                >
-                    <div className="space-y-5">
-                        {[
-                            {
-                                label: 'Document storage',
-                                value: '65% of 50 GB',
-                                percent: 0.74,
-                            },
-                            {
-                                label: 'API calls',
-                                value: '12,480 of 20,000',
-                                percent: 0.62,
-                            },
-                            {
-                                label: 'Vector credits',
-                                value: '40% remaining',
-                                percent: 0.4,
-                            },
-                        ].map((item) => (
-                            <div key={item.label} className="space-y-2">
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>{item.label}</span>
-                                    <span>{item.value}</span>
-                                </div>
-                                <div className="h-2 rounded-full bg-muted">
-                                    <div
-                                        className="h-full rounded-full bg-primary transition-[width]"
-                                        style={{
-                                            width: `${Math.round(
-                                                item.percent * 100
-                                            )}%`,
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </DashboardCard>
-            </div>
+                </DashboardCard> */}
+            </MasonryGrid>
         </div>
     );
 }
