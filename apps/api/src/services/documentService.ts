@@ -8,6 +8,7 @@ import {
     type IndexDocumentJob,
     type UpdateDocumentTitlePayloadType,
     type DocumentListResultType,
+    type TagListItemType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
@@ -70,6 +71,28 @@ export interface DocumentService {
         documentId: string,
         context: { tenantId: string; userId: string }
     ): Promise<string>;
+
+    // Tag-related methods
+    addTagsToDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: { tagIds: string[] }
+    ): Promise<{
+        added: TagListItemType[];
+        alreadyExists: string[] | null;
+        notFound: string[] | null;
+    }>;
+
+    removeTagFromDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: { tagId: string }
+    ): Promise<string>;
+
+    getDocumentTags(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<TagListItemType[]>;
 }
 
 export function createDocumentService(
@@ -526,6 +549,165 @@ export function createDocumentService(
         return String(job.id);
     }
 
+    async function getDocumentTags(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<TagListItemType[]> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            throw AppError.authorization(
+                'DOCUMENT_TAGS_FETCH_FORBIDDEN',
+                'You do not have permission to view tags on this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'view_tags',
+                    },
+                }
+            );
+        }
+
+        const tags = await db.document.getDocumentTags(
+            documentId,
+            context.tenantId
+        );
+
+        if (!tags) {
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'view_tags',
+                    },
+                }
+            );
+        }
+
+        const result = tags
+            ? tags.map((tag) => ({
+                  id: tag.tag.id,
+                  name: tag.tag.name,
+                  color: tag.tag.color,
+              }))
+            : [];
+
+        return result;
+    }
+
+    async function addTagsToDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: { tagIds: string[] }
+    ): Promise<{
+        added: TagListItemType[];
+        alreadyExists: string[] | null;
+        notFound: string[] | null;
+    }> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership || membership.role === 'member') {
+            throw AppError.authorization(
+                'DOCUMENT_TAG_UPDATE_FORBIDDEN',
+                'You do not have permission to update tags on this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update_tags',
+                    },
+                }
+            );
+        }
+
+        const result = await db.document.addTagsToDocument(
+            documentId,
+            payload.tagIds,
+            context.tenantId,
+            context.userId
+        );
+
+        // matching the return type to the response schema
+        return {
+            added: result.added.map((tag) => {
+                return {
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                };
+            }),
+            alreadyExists: result.alreadyExists,
+            notFound: result.notFound,
+        };
+    }
+
+    async function removeTagFromDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: { tagId: string }
+    ): Promise<string> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership || membership.role === 'member') {
+            throw AppError.authorization(
+                'DOCUMENT_TAG_UPDATE_FORBIDDEN',
+                'You do not have permission to update tags on this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update_tags',
+                    },
+                }
+            );
+        }
+
+        const result = await db.document.removeTagFromDocument(
+            documentId,
+            payload.tagId
+        );
+        if (result.count === 0) {
+            throw AppError.notFound(
+                'DOCUMENT_TAG_NOT_FOUND',
+                'Tag not found on document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'remove_tag',
+                    },
+                }
+            );
+        }
+        return 'success';
+    }
+
     return {
         createAndQueueDocument,
         getDocumentDetails,
@@ -534,5 +716,8 @@ export function createDocumentService(
         updateDocumentTitle,
         updateDocumentContent,
         queueDocumentReindexing,
+        addTagsToDocument,
+        removeTagFromDocument,
+        getDocumentTags,
     };
 }
