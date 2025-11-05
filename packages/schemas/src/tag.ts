@@ -218,6 +218,7 @@ export type AddTagsToDocumentRequestType = z.infer<
 export const addTagsToDocumentResponseSchema = z.object({
     added: z.array(tagListItemSchema),
     alreadyExists: z.array(Id).optional(),
+    notFound: z.array(Id).optional(),
 });
 
 export type AddTagsToDocumentResponseType = z.infer<
