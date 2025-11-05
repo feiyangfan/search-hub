@@ -24,6 +24,19 @@ import {
     ActiveTenantPayload,
 } from './tenant.js';
 import { AuthPayload, AuthResponse } from './auth.js';
+import {
+    addTagsToDocumentRequestSchema,
+    addTagsToDocumentResponseSchema,
+    getDocumentTagsResponseSchema,
+    removeTagFromDocumentResponseSchema,
+    createTagRequestSchema,
+    createTagResponseSchema,
+    updateTagRequestSchema,
+    updateTagResponseSchema,
+    listTagsQuerySchema,
+    listTagsResponseSchema,
+    getTagResponseSchema,
+} from './tag.js';
 
 /**
  * OpenAPI 3.0 for Zod schemas
@@ -36,6 +49,7 @@ export function buildOpenApi(
         info: { title: 'Search Hub API', version: '0.1.0' },
         servers: [{ url: baseUrl }],
         paths: {
+            // Auth routes
             '/v1/auth/sign-up': {
                 post: {
                     requestBody: {
@@ -140,6 +154,167 @@ export function buildOpenApi(
                 },
             },
 
+            // Tenant routes
+            '/v1/tenants': {
+                get: {
+                    responses: {
+                        200: {
+                            description:
+                                'List tenants the current user belongs to',
+                            content: {
+                                'application/json': {
+                                    schema: TenantListResponse,
+                                },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: CreateTenantPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        201: {
+                            description: 'Created',
+                            content: {
+                                'application/json': {
+                                    schema: CreateTenantResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - Validation error or tenant name exists',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+                delete: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: DeleteTenantPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        204: {
+                            description: 'Success',
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description:
+                                'Forbidden - Not authorized to delete this tenant',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tenant not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/tenants/active': {
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: ActiveTenantPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        204: {
+                            description: 'Success',
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description:
+                                'Forbidden - User not member of tenant',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tenant not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // Document routes
             '/v1/documents': {
                 get: {
                     requestParams: { query: getDocumentListParamsSchema },
@@ -450,6 +625,384 @@ export function buildOpenApi(
                     },
                 },
             },
+            '/v1/documents/{id}/tags': {
+                get: {
+                    responses: {
+                        200: {
+                            description: 'OK',
+                            content: {
+                                'application/json': {
+                                    schema: getDocumentTagsResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: addTagsToDocumentRequestSchema,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'Tags added to document',
+                            content: {
+                                'application/json': {
+                                    schema: addTagsToDocumentResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/tags/{tagId}': {
+                delete: {
+                    responses: {
+                        200: {
+                            description: 'Tag removed from document',
+                            content: {
+                                'application/json': {
+                                    schema: removeTagFromDocumentResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description:
+                                'Not Found - Document or tag not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // Tag routes
+            '/v1/tags': {
+                get: {
+                    requestParams: { query: listTagsQuerySchema },
+                    responses: {
+                        200: {
+                            description: 'OK',
+                            content: {
+                                'application/json': {
+                                    schema: listTagsResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: createTagRequestSchema,
+                            },
+                        },
+                    },
+                    responses: {
+                        201: {
+                            description: 'Tag created',
+                            content: {
+                                'application/json': {
+                                    schema: createTagResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        409: {
+                            description: 'Conflict - Tag already exists',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/tags/{id}': {
+                get: {
+                    responses: {
+                        200: {
+                            description: 'OK',
+                            content: {
+                                'application/json': {
+                                    schema: getTagResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tag does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+                patch: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: updateTagRequestSchema,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'Tag updated',
+                            content: {
+                                'application/json': {
+                                    schema: updateTagResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tag does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        409: {
+                            description: 'Conflict - Tag already exists',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+                delete: {
+                    responses: {
+                        204: {
+                            description:
+                                'No Content - Tag deleted successfully',
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tag does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // Search routes
             '/v1/search': {
                 get: {
                     requestParams: { query: SearchQuery },
@@ -494,164 +1047,6 @@ export function buildOpenApi(
                         },
                         502: {
                             description: 'Bad Gateway - AI service error',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                    },
-                },
-            },
-            '/v1/tenants': {
-                get: {
-                    responses: {
-                        200: {
-                            description:
-                                'List tenants the current user belongs to',
-                            content: {
-                                'application/json': {
-                                    schema: TenantListResponse,
-                                },
-                            },
-                        },
-                        401: {
-                            description:
-                                'Unauthorized - Authentication required',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        500: {
-                            description: 'Internal Server Error',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                    },
-                },
-                post: {
-                    requestBody: {
-                        required: true,
-                        content: {
-                            'application/json': {
-                                schema: CreateTenantPayload,
-                            },
-                        },
-                    },
-                    responses: {
-                        201: {
-                            description: 'Created',
-                            content: {
-                                'application/json': {
-                                    schema: CreateTenantResponse,
-                                },
-                            },
-                        },
-                        400: {
-                            description:
-                                'Bad Request - Validation error or tenant name exists',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        401: {
-                            description:
-                                'Unauthorized - Authentication required',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        500: {
-                            description: 'Internal Server Error',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                    },
-                },
-                delete: {
-                    requestBody: {
-                        required: true,
-                        content: {
-                            'application/json': {
-                                schema: DeleteTenantPayload,
-                            },
-                        },
-                    },
-                    responses: {
-                        204: {
-                            description: 'Success',
-                        },
-                        401: {
-                            description:
-                                'Unauthorized - Authentication required',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        403: {
-                            description:
-                                'Forbidden - Not authorized to delete this tenant',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        404: {
-                            description: 'Not Found - Tenant not found',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        500: {
-                            description: 'Internal Server Error',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                    },
-                },
-            },
-            '/v1/tenants/active': {
-                post: {
-                    requestBody: {
-                        required: true,
-                        content: {
-                            'application/json': {
-                                schema: ActiveTenantPayload,
-                            },
-                        },
-                    },
-                    responses: {
-                        204: {
-                            description: 'Success',
-                        },
-                        400: {
-                            description: 'Bad Request - Validation error',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        401: {
-                            description:
-                                'Unauthorized - Authentication required',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        403: {
-                            description:
-                                'Forbidden - User not member of tenant',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        404: {
-                            description: 'Not Found - Tenant not found',
-                            content: {
-                                'application/json': { schema: ApiError },
-                            },
-                        },
-                        500: {
-                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
