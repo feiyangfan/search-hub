@@ -580,7 +580,19 @@ export const documentRepository = {
             });
 
             if (!document) {
-                throw new Error('Document not found or access denied');
+                throw AppError.notFound(
+                    'DOCUMENT_NOT_FOUND',
+                    'Document not found',
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'documents',
+                            resource: 'Document',
+                            resourceId: documentId,
+                            operation: 'addTags',
+                        },
+                    }
+                );
             }
 
             // Verify all tags exist and belong to tenant
