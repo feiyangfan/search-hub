@@ -333,6 +333,132 @@ export class SearchHubClient {
         await this.ensureOk(res, 'reindexDocument');
     }
 
+    /** GET /v1/documents/{id}/tags */
+    async getDocumentTags(
+        id: string
+    ): Promise<
+        paths['/v1/documents/{id}/tags']['get']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/tags`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'getDocumentTags');
+        return (await res.json()) as paths['/v1/documents/{id}/tags']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** POST /v1/documents/{id}/tags */
+    async addTagsToDocument(
+        id: string,
+        body: paths['/v1/documents/{id}/tags']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/documents/{id}/tags']['post']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/tags`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'addTagsToDocument');
+        return (await res.json()) as paths['/v1/documents/{id}/tags']['post']['responses']['200']['content']['application/json'];
+    }
+
+    /** DELETE /v1/documents/{id}/tags/{tagId} */
+    async removeTagFromDocument(
+        id: string,
+        tagId: string
+    ): Promise<
+        paths['/v1/documents/{id}/tags/{tagId}']['delete']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/tags/${encodeURIComponent(tagId)}`;
+        const res = await this.fetcher(url, {
+            method: 'DELETE',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'removeTagFromDocument');
+        return (await res.json()) as paths['/v1/documents/{id}/tags/{tagId}']['delete']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/tags */
+    async getTags(): Promise<
+        paths['/v1/tags']['get']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/tags`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'getTags');
+        return (await res.json()) as paths['/v1/tags']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** POST /v1/tags */
+    async createTag(
+        body: paths['/v1/tags']['post']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/tags']['post']['responses']['201']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/tags`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'createTag');
+        return (await res.json()) as paths['/v1/tags']['post']['responses']['201']['content']['application/json'];
+    }
+
+    /** PATCH /v1/tags/{id} */
+    async updateTag(
+        id: string,
+        body: paths['/v1/tags/{id}']['patch']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/tags/{id}']['patch']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/tags/${encodeURIComponent(id)}`;
+        const res = await this.fetcher(url, {
+            method: 'PATCH',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'updateTag');
+        return (await res.json()) as paths['/v1/tags/{id}']['patch']['responses']['200']['content']['application/json'];
+    }
+
+    /** DELETE /v1/tags/{id} */
+    async deleteTag(id: string): Promise<void> {
+        const url = `${this.baseUrl}/v1/tags/${encodeURIComponent(id)}`;
+        const res = await this.fetcher(url, {
+            method: 'DELETE',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'deleteTag');
+    }
+
     /** GET /v1/search */
     async search(
         params: paths['/v1/search']['get']['parameters']['query']
