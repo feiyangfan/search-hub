@@ -61,7 +61,7 @@ export default async function RootLayout({
                                     session={session}
                                     showSidebarTrigger={hasWorkspaces}
                                 />
-                                <main className="flex-1 overflow-hidden">
+                                <main className="flex flex-1 flex-col overflow-hidden">
                                     {children}
                                 </main>
                             </SidebarInset>

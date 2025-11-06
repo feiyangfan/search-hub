@@ -24,7 +24,7 @@ import {
     type TagDraft,
     type TagOption,
 } from '@/components/document-editor/editor-header-tag-editing';
-import {  DEFAULT_TAG_COLOR } from '@/components/ui/tag';
+import { DEFAULT_TAG_COLOR } from '@/components/ui/tag';
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
@@ -80,15 +80,16 @@ const fetchTagsForDocument = async (
     documentId: string
 ): Promise<{ documentTags: TagOption[]; availableTags: TagOption[] }> => {
     try {
-        const [documentTagsResponse, workspaceTagsResponse] =
-            await Promise.all([
+        const [documentTagsResponse, workspaceTagsResponse] = await Promise.all(
+            [
                 fetch(`/api/documents/${documentId}/tags`, {
                     credentials: 'include',
                 }),
                 fetch('/api/tags', {
                     credentials: 'include',
                 }),
-            ]);
+            ]
+        );
 
         let documentTagOptions: TagOption[] = [];
 
@@ -126,7 +127,10 @@ const fetchTagsForDocument = async (
             );
         }
 
-        return { documentTags: documentTagOptions, availableTags: availableTagOptions };
+        return {
+            documentTags: documentTagOptions,
+            availableTags: availableTagOptions,
+        };
     } catch (error) {
         console.error('Failed to fetch tags:', error);
         return { documentTags: [], availableTags: [] };
@@ -186,9 +190,7 @@ export default function DocumentPage() {
 
                 if (!response.ok) {
                     const reason = await response.text();
-                    throw new Error(
-                        reason || 'Failed to fetch document'
-                    );
+                    throw new Error(reason || 'Failed to fetch document');
                 }
 
                 const data = await response.json();
@@ -454,17 +456,14 @@ export default function DocumentPage() {
         );
 
         try {
-            const response = await fetch(
-                `/api/documents/${documentId}/tags`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: JSON.stringify({ tagIds: [tag.id] }),
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                }
-            );
+            const response = await fetch(`/api/documents/${documentId}/tags`, {
+                method: 'POST',
+                credentials: 'include',
+                body: JSON.stringify({ tagIds: [tag.id] }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
 
             if (!response.ok) {
                 const reason = await response.text();
@@ -483,7 +482,9 @@ export default function DocumentPage() {
         }
     };
 
-    const handleTagCreate = async (draft: TagDraft): Promise<TagOption | null> => {
+    const handleTagCreate = async (
+        draft: TagDraft
+    ): Promise<TagOption | null> => {
         const name = draft.name.trim();
         if (!name || isCreatingTag) {
             return null;
@@ -517,7 +518,9 @@ export default function DocumentPage() {
 
             if (!response.ok) {
                 const reason = await response.text();
-                throw new Error(reason || `Failed with status ${response.status}`);
+                throw new Error(
+                    reason || `Failed with status ${response.status}`
+                );
             }
 
             const data = (await response.json()) as { tag?: ApiTag };
@@ -531,7 +534,8 @@ export default function DocumentPage() {
         } catch (error) {
             console.error('Failed to create tag:', error);
             toast.error('Failed to create tag', {
-                description: 'We could not create the new tag. Please try again.',
+                description:
+                    'We could not create the new tag. Please try again.',
             });
             return null;
         } finally {
@@ -878,7 +882,7 @@ export default function DocumentPage() {
 
     return (
         <>
-            <div className="flex flex-1 flex-col">
+            <div className="flex flex-1 flex-col bg-card">
                 <EditorHeader
                     title={document.title}
                     lastSavedLabel={getSaveStatusLabel()}
@@ -891,7 +895,7 @@ export default function DocumentPage() {
                 />
                 <div
                     ref={editorRootRef}
-                    className="crepe theme-frame h-full min-h-[560px] w-full"
+                    className="crepe theme-frame h-full min-h-[560px] w-full bg-card"
                 />
                 {loadTiming && process.env.NODE_ENV === 'development' && (
                     <div className="border-t bg-muted/30 px-4 py-1 text-xs text-muted-foreground">
