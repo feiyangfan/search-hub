@@ -1,6 +1,6 @@
 # Search Hub
 
-Search Hub is a multi-tenant knowledge platform that blends full-text and semantic retrieval with production-grade observability.
+A multi-tenant knowledge and productivity platform — blending search, semantic understanding, and inline AI commands that can execute even when you’re away.
 
 ## Table of Contents
 - [Search Hub](#search-hub)
@@ -96,8 +96,42 @@ Search Hub is a multi-tenant knowledge platform that blends full-text and semant
 
 ### Observability
 - Traces: OpenTelemetry → Grafana Cloud Tempo
-- Logs: Pino JSON logs enriched with `traceId/orgId/userId` → Grafana Cloud Loki
+- Logs: Pino JSON logs enriched with `traceId/tenantId/userId` → Grafana Cloud Loki
 - Metrics: `prom-client` → Grafana Cloud Prometheus; dashboards cover route latency (p50/p95/p99), error rates, DB performance, queue health, AI outcomes; two alerts watch API p99 latency and worker failure rate
+
+Centralized error classes with proper classification
+Structured error middleware with safe message filtering
+Multi-tenant context in every log entry
+Trace correlation from frontend → API → database → workers
+
+Why We Need Robust Logging & Observability
+The Problem Without Proper Observability
+Imagine these scenarios in your Search Hub platform:
+
+Scenario 1: "Search is slow"
+
+User complains search takes 10+ seconds
+Without observability: You guess it's the database, AI service, or network
+You waste hours checking everything manually
+Can't reproduce the issue consistently
+Scenario 2: "Users can't sign in"
+
+Authentication fails for some users
+Without observability: You don't know if it's rate limiting, session issues, or database problems
+You can't tell which users are affected or when it started
+Fix takes hours because you're debugging blind
+Scenario 3: "Background jobs are failing"
+
+Document indexing stops working
+Without observability: You don't know which documents failed, why, or when
+Users complain about missing search results
+You have to manually check every document
+How Proper Observability Solves These
+With observability:
+
+Scenario 1: Metrics show search latency spike at 2:15 PM, correlated with AI API timeout in logs
+Scenario 2: Error tracking shows specific users hitting rate limits, correlation IDs trace the exact failure path
+Scenario 3: Queue metrics show job failures, structured logs reveal specific error patterns and affected documents
 
 ### Reliability & Security
 - Graceful shutdown for API and workers

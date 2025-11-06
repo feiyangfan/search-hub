@@ -53,7 +53,7 @@
 
 ### `packages/schemas` — Zod contracts (+ OpenAPI builder)
 
-* **Role**: Defines request/response shapes (e.g., `SearchQuery`, `CreateDocumentRequest`) and common errors.
+* **Role**: Defines request/response shapes (e.g., `SearchQuery`, `createDocumentRequestSchema`) and common errors.
 * **Why needed**: One definition to validate server inputs and to generate OpenAPI → TypeScript types.
 * **How it helps**: Strong typing across boundaries; fewer runtime surprises; docs and SDK derive from the same source.
 
@@ -148,4 +148,3 @@
 * Keep the separation exactly the same.
 * Start with only the essential packages (`db`, `schemas`, `sdk`, `logger`, `config/env`). Add others when there’s a clear reuse.
 * Wire observability earlier—it pays off the first time something goes wrong.
-

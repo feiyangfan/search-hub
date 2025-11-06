@@ -62,7 +62,7 @@ Browser → Next.js proxy (/api/) → SDK → API (/v1/) → Prisma → Postgres
 
 ## 5) How does it actually work?
 
-1. **Contracts (Zod)**: I define request/response shapes using Zod (e.g., `SearchQuery`, `CreateDocumentRequest`).
+1. **Contracts (Zod)**: I define request/response shapes using Zod (e.g., `SearchQuery`, `createDocumentRequestSchema`).
 2. **OpenAPI**: I run a script that turns those Zod schemas into `openapi.json`.
 3. **Types generation**: `openapi-typescript` turns the OpenAPI file into `src/types.ts` (a big `paths` object with exact types).
 4. **Tiny client**: In `src/index.ts`, I import those types and write a very small class:
