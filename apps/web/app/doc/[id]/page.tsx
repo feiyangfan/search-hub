@@ -20,11 +20,11 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-    DEFAULT_TAG_COLOR,
     EditorHeaderTagEditing,
     type TagDraft,
     type TagOption,
 } from '@/components/document-editor/editor-header-tag-editing';
+import {  DEFAULT_TAG_COLOR } from '@/components/ui/tag';
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
@@ -50,6 +50,89 @@ type Document = {
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
+type ApiTag = {
+    id: string;
+    name: string;
+    color?: string | null;
+    description?: string | null;
+};
+
+const mapToTagOption = (tag: ApiTag): TagOption => ({
+    id: tag.id,
+    name: tag.name,
+    color: tag.color ?? DEFAULT_TAG_COLOR,
+    description: tag.description ?? undefined,
+});
+
+const mergeTagOptions = (...groups: TagOption[][]): TagOption[] => {
+    const tagById = new Map<string, TagOption>();
+    for (const group of groups) {
+        for (const tag of group) {
+            if (!tagById.has(tag.id)) {
+                tagById.set(tag.id, tag);
+            }
+        }
+    }
+    return Array.from(tagById.values());
+};
+
+const fetchTagsForDocument = async (
+    documentId: string
+): Promise<{ documentTags: TagOption[]; availableTags: TagOption[] }> => {
+    try {
+        const [documentTagsResponse, workspaceTagsResponse] =
+            await Promise.all([
+                fetch(`/api/documents/${documentId}/tags`, {
+                    credentials: 'include',
+                }),
+                fetch('/api/tags', {
+                    credentials: 'include',
+                }),
+            ]);
+
+        let documentTagOptions: TagOption[] = [];
+
+        if (documentTagsResponse.ok) {
+            const data = (await documentTagsResponse.json()) as {
+                tags?: ApiTag[];
+            };
+            documentTagOptions = (data.tags ?? []).map(mapToTagOption);
+        } else {
+            const reason = await documentTagsResponse.text();
+            console.error(
+                'Failed to fetch document tags:',
+                documentTagsResponse.status,
+                reason
+            );
+        }
+
+        let availableTagOptions = documentTagOptions;
+
+        if (workspaceTagsResponse.ok) {
+            const data = (await workspaceTagsResponse.json()) as {
+                tags?: ApiTag[];
+            };
+            const workspaceTagOptions = (data.tags ?? []).map(mapToTagOption);
+            availableTagOptions = mergeTagOptions(
+                workspaceTagOptions,
+                documentTagOptions
+            );
+        } else {
+            const reason = await workspaceTagsResponse.text();
+            console.error(
+                'Failed to fetch available tags:',
+                workspaceTagsResponse.status,
+                reason
+            );
+        }
+
+        return { documentTags: documentTagOptions, availableTags: availableTagOptions };
+    } catch (error) {
+        console.error('Failed to fetch tags:', error);
+        return { documentTags: [], availableTags: [] };
+    }
+};
+
 export default function DocumentPage() {
     const params = useParams();
     const router = useRouter();
@@ -66,52 +149,9 @@ export default function DocumentPage() {
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showTagDialog, setShowTagDialog] = useState(false);
-    const [availableTags, setAvailableTags] = useState<TagOption[]>(() => [
-        {
-            id: 'tag-product',
-            name: 'Product',
-            color: '#6366f1',
-            description: 'Product strategy and roadmap docs',
-        },
-        {
-            id: 'tag-research',
-            name: 'Research',
-            color: '#0ea5e9',
-            description: 'User interviews, discovery notes, research plans',
-        },
-        {
-            id: 'tag-ux',
-            name: 'UX',
-            color: '#14b8a6',
-            description: 'Design specs, flows, usability findings',
-        },
-        {
-            id: 'tag-backlog',
-            name: 'Backlog',
-            color: '#f97316',
-            description: 'Backlog grooming items and tasks',
-        },
-        {
-            id: 'tag-release',
-            name: 'Release',
-            color: '#ec4899',
-            description: 'Release checklists and launch coordination',
-        },
-    ]);
-    const [documentTags, setDocumentTags] = useState<TagOption[]>(() => [
-        {
-            id: 'tag-product',
-            name: 'Product',
-            color: '#6366f1',
-            description: 'Product strategy and roadmap docs',
-        },
-        {
-            id: 'tag-ux',
-            name: 'UX',
-            color: '#14b8a6',
-            description: 'Design specs, flows, usability findings',
-        },
-    ]);
+    const [availableTags, setAvailableTags] = useState<TagOption[]>([]);
+    const [documentTags, setDocumentTags] = useState<TagOption[]>([]);
+    const [isCreatingTag, setIsCreatingTag] = useState(false);
     const [loadTiming, setLoadTiming] = useState<{
         frontend: number;
         backend: number;
@@ -121,20 +161,42 @@ export default function DocumentPage() {
     const isSavingRef = useRef(false);
 
     useEffect(() => {
-        async function fetchDocument() {
+        if (!documentId) {
+            return;
+        }
+
+        let isCancelled = false;
+
+        const fetchDocumentAndTags = async () => {
+            setIsLoading(true);
+            setError(null);
             const startTime = performance.now();
 
             try {
-                const response = await fetch(`/api/documents/${documentId}`, {
+                const documentPromise = fetch(`/api/documents/${documentId}`, {
                     credentials: 'include',
                 });
 
+                const tagsPromise = fetchTagsForDocument(documentId);
+
+                const [response, tagData] = await Promise.all([
+                    documentPromise,
+                    tagsPromise,
+                ]);
+
                 if (!response.ok) {
-                    throw new Error('Failed to fetch document');
+                    const reason = await response.text();
+                    throw new Error(
+                        reason || 'Failed to fetch document'
+                    );
                 }
 
                 const data = await response.json();
                 const doc = data.document || data;
+
+                if (isCancelled) {
+                    return;
+                }
 
                 const totalTime = performance.now() - startTime;
                 const backendTime = parseFloat(
@@ -145,7 +207,6 @@ export default function DocumentPage() {
                 );
                 const frontendTime = totalTime - apiRouteTime;
 
-                // Only show timing in development
                 if (process.env.NODE_ENV === 'development') {
                     setLoadTiming({
                         frontend: frontendTime,
@@ -156,15 +217,25 @@ export default function DocumentPage() {
 
                 setDocument(doc);
                 lastSavedContentRef.current = doc.content || '';
-                setIsLoading(false);
+                setDocumentTags(tagData.documentTags);
+                setAvailableTags(tagData.availableTags);
             } catch (err) {
-                console.error('Failed to fetch document:', err);
-                setError('Failed to load document');
-                setIsLoading(false);
+                if (!isCancelled) {
+                    console.error('Failed to fetch document:', err);
+                    setError('Failed to load document');
+                }
+            } finally {
+                if (!isCancelled) {
+                    setIsLoading(false);
+                }
             }
-        }
+        };
 
-        fetchDocument();
+        fetchDocumentAndTags();
+
+        return () => {
+            isCancelled = true;
+        };
     }, [documentId]);
 
     const handleTitleChange = async (newTitle: string) => {
@@ -322,51 +393,150 @@ export default function DocumentPage() {
         setShowTagDialog(true);
     };
 
-    const handleTagRemove = (tagId: string) => {
+    const handleTagRemove = async (tagId: string) => {
+        const removedIndex = documentTags.findIndex((tag) => tag.id === tagId);
+        if (removedIndex < 0) {
+            return;
+        }
+        const removedTag = documentTags[removedIndex];
+
         setDocumentTags((prev) => prev.filter((tag) => tag.id !== tagId));
+
+        try {
+            const response = await fetch(
+                `/api/documents/${documentId}/tags/${tagId}`,
+                {
+                    method: 'DELETE',
+                    credentials: 'include',
+                }
+            );
+
+            if (!response.ok) {
+                const reason = await response.text();
+                throw new Error(
+                    reason || `Failed with status ${response.status}`
+                );
+            }
+
+            setAvailableTags((prev) =>
+                prev.some((tag) => tag.id === removedTag.id)
+                    ? prev
+                    : [...prev, removedTag]
+            );
+        } catch (error) {
+            console.error('Failed to remove tag:', error);
+            setDocumentTags((prev) => {
+                const next = [...prev];
+                const insertAt =
+                    removedIndex <= next.length ? removedIndex : next.length;
+                next.splice(insertAt, 0, removedTag);
+                return next;
+            });
+            toast.error('Failed to remove tag', {
+                description: 'The tag could not be removed from the document.',
+            });
+        }
     };
 
-    const handleTagAdd = (tag: TagOption) => {
-        setDocumentTags((prev) => {
-            if (prev.some((existing) => existing.id === tag.id)) {
-                return prev;
+    const handleTagAdd = async (tag: TagOption) => {
+        const alreadyApplied = documentTags.some(
+            (existing) => existing.id === tag.id
+        );
+        if (alreadyApplied) {
+            return;
+        }
+
+        setDocumentTags((prev) => [...prev, tag]);
+        setAvailableTags((prev) =>
+            prev.some((existing) => existing.id === tag.id)
+                ? prev
+                : [...prev, tag]
+        );
+
+        try {
+            const response = await fetch(
+                `/api/documents/${documentId}/tags`,
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: JSON.stringify({ tagIds: [tag.id] }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                const reason = await response.text();
+                throw new Error(
+                    reason || `Failed with status ${response.status}`
+                );
             }
-            return [...prev, tag];
-        });
-        setAvailableTags((prev) => {
-            if (prev.some((existing) => existing.id === tag.id)) {
-                return prev;
-            }
-            return [...prev, tag];
-        });
+        } catch (error) {
+            console.error('Failed to add tag:', error);
+            setDocumentTags((prev) =>
+                prev.filter((existing) => existing.id !== tag.id)
+            );
+            toast.error('Failed to add tag', {
+                description: 'The tag could not be added to the document.',
+            });
+        }
     };
 
-    const handleTagCreate = (draft: TagDraft): TagOption | null => {
+    const handleTagCreate = async (draft: TagDraft): Promise<TagOption | null> => {
         const name = draft.name.trim();
-        if (!name) {
+        if (!name || isCreatingTag) {
             return null;
         }
+
         const existing = availableTags.find(
             (tag) => tag.name.toLowerCase() === name.toLowerCase()
         );
         if (existing) {
-            handleTagAdd(existing);
+            await handleTagAdd(existing);
             return existing;
         }
 
-        const color = draft.color?.trim() || DEFAULT_TAG_COLOR;
-        const id = `tag-${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
-        const newTag: TagOption = {
-            id,
+        const payload = {
             name,
-            color,
-            description:
-                draft.description?.trim() || 'Describe this tag for your workspace',
+            color: draft.color?.trim() || DEFAULT_TAG_COLOR,
+            description: draft.description?.trim() || undefined,
         };
 
-        setAvailableTags((prev) => [...prev, newTag]);
-        setDocumentTags((prev) => [...prev, newTag]);
-        return newTag;
+        setIsCreatingTag(true);
+
+        try {
+            const response = await fetch('/api/tags', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const reason = await response.text();
+                throw new Error(reason || `Failed with status ${response.status}`);
+            }
+
+            const data = (await response.json()) as { tag?: ApiTag };
+            if (!data.tag) {
+                throw new Error('Malformed response when creating tag');
+            }
+
+            const createdTag = mapToTagOption(data.tag);
+            await handleTagAdd(createdTag);
+            return createdTag;
+        } catch (error) {
+            console.error('Failed to create tag:', error);
+            toast.error('Failed to create tag', {
+                description: 'We could not create the new tag. Please try again.',
+            });
+            return null;
+        } finally {
+            setIsCreatingTag(false);
+        }
     };
 
     const handleDelete = () => {
@@ -743,6 +913,7 @@ export default function DocumentPage() {
                 onAddTag={handleTagAdd}
                 onRemoveTag={handleTagRemove}
                 onCreateTag={handleTagCreate}
+                isCreatingTag={isCreatingTag}
             />
 
             <AlertDialog
