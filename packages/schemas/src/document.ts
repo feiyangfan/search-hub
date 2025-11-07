@@ -224,15 +224,6 @@ export type ReindexDocumentResponseType = z.infer<
     typeof reindexDocumentResponseSchema
 >;
 
-export const documentFavoriteSchema = z.object({
-    id: Id,
-    documentId: Id,
-    userId: Id,
-    createdAt: IsoDate,
-});
-
-export type DocumentFavoriteType = z.infer<typeof documentFavoriteSchema>;
-
 export const documentCommandPayloadSchema = z
     .record(z.string(), z.any())
     .describe('Structured representation of an inline document command');
@@ -278,4 +269,22 @@ export const deleteDocumentResponseSchema = z.union([
 
 export type DeleteDocumentResponseType = z.infer<
     typeof deleteDocumentResponseSchema
+>;
+
+// Favorite Document schemas
+export const favoriteDocumentResponseSchema = z.object({
+    message: z.string(),
+});
+
+export type FavoriteDocumentResponseType = z.infer<
+    typeof favoriteDocumentResponseSchema
+>;
+
+// Unfavorite Document schemas
+export const unfavoriteDocumentResponseSchema = z.object({
+    message: z.string(),
+});
+
+export type UnfavoriteDocumentResponseType = z.infer<
+    typeof unfavoriteDocumentResponseSchema
 >;

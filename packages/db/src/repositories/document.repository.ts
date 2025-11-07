@@ -653,4 +653,22 @@ export const documentRepository = {
             where: { documentId, tagId },
         });
     },
+    // Favorite document
+    favoriteDocument: async (documentId: string, userId: string) => {
+        return prisma.documentFavorite.create({
+            data: {
+                documentId,
+                userId,
+            },
+        });
+    },
+    // Unfavorite document
+    unfavoriteDocument: async (documentId: string, userId: string) => {
+        return prisma.documentFavorite.deleteMany({
+            where: {
+                documentId,
+                userId,
+            },
+        });
+    },
 };

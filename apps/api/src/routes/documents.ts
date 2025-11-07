@@ -10,6 +10,8 @@ import {
     DocumentIdParamsType,
     GetDocumentTagsResponseType,
     RemoveTagFromDocumentResponseType,
+    FavoriteDocumentResponseType,
+    UnfavoriteDocumentResponseType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import {
@@ -501,5 +503,91 @@ export function documentRoutes(
         }
     );
 
+    router.post(
+        '/:id/favorite',
+        validateParams(documentIdParamsSchema),
+        async (req, res, next) => {
+            try {
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
+
+                const activeTenantId = authReq.session?.currentTenantId;
+
+                if (!activeTenantId) {
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'favorite',
+                            },
+                        }
+                    );
+                }
+
+                const { id: documentId } = (
+                    req as RequestWithValidatedParams<DocumentIdParamsType>
+                ).validated.params;
+
+                await service.favoriteDocument(documentId, {
+                    userId,
+                    tenantId: activeTenantId,
+                });
+
+                const response: FavoriteDocumentResponseType = {
+                    message: 'Document favorited successfully',
+                };
+
+                res.status(200).json(response);
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
+
+    router.post(
+        '/:id/unfavorite',
+        validateParams(documentIdParamsSchema),
+        async (req, res, next) => {
+            try {
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
+
+                const activeTenantId = authReq.session?.currentTenantId;
+
+                if (!activeTenantId) {
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'unfavorite',
+                            },
+                        }
+                    );
+                }
+
+                const { id: documentId } = (
+                    req as RequestWithValidatedParams<DocumentIdParamsType>
+                ).validated.params;
+
+                await service.unfavoriteDocument(documentId, {
+                    userId,
+                    tenantId: activeTenantId,
+                });
+
+                const response: UnfavoriteDocumentResponseType = {
+                    message: 'Document unfavorited successfully',
+                };
+                res.status(200).json(response);
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
     return router;
 }

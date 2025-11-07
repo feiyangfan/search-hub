@@ -82,17 +82,26 @@ export interface DocumentService {
         alreadyExists: string[] | null;
         notFound: string[] | null;
     }>;
-
     removeTagFromDocument(
         documentId: string,
         context: { tenantId: string; userId: string },
         payload: { tagId: string }
     ): Promise<string>;
-
     getDocumentTags(
         documentId: string,
         context: { tenantId: string; userId: string }
     ): Promise<TagListItemType[]>;
+
+    // Favorite-related methods
+    favoriteDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<{ message: string }>;
+
+    unfavoriteDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<{ message: string }>;
 }
 
 export function createDocumentService(
@@ -708,6 +717,22 @@ export function createDocumentService(
         return 'success';
     }
 
+    async function favoriteDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<{ message: string }> {
+        await db.document.favoriteDocument(documentId, context.userId);
+        return { message: 'Document favorited successfully' };
+    }
+
+    async function unfavoriteDocument(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<{ message: string }> {
+        await db.document.unfavoriteDocument(documentId, context.userId);
+        return { message: 'Document unfavorited successfully' };
+    }
+
     return {
         createAndQueueDocument,
         getDocumentDetails,
@@ -719,5 +744,7 @@ export function createDocumentService(
         addTagsToDocument,
         removeTagFromDocument,
         getDocumentTags,
+        favoriteDocument,
+        unfavoriteDocument,
     };
 }
