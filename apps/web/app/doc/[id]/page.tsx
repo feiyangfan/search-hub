@@ -38,8 +38,11 @@ import {
     remindAutoParseProse,
     removeEmptyRemindProse,
     remindBackspaceDeleteProse,
+    createRemindShortcodeRegex,
+    parseRemindShortcodeMatch,
 } from '@/components/document-editor/milkdown-remind';
 import '@/components/document-editor/remind.css';
+import type { RemindStatus } from '@/components/document-editor/remindNode';
 
 type Document = {
     id: string;
@@ -842,6 +845,85 @@ export default function DocumentPage() {
             // Listen for content changes to trigger auto-save
             // Use ProseMirror's transaction listener
             const view = editor.editor.ctx.get(editorViewCtx);
+
+            const hydrateSavedReminds = () => {
+                const remindType = view.state.schema.nodes.remind;
+                if (!remindType) {
+                    return;
+                }
+
+                let tr = view.state.tr;
+                let changed = false;
+
+                view.state.doc.descendants((node, pos) => {
+                    if (!node.isBlock) {
+                        return true;
+                    }
+
+                    node.forEach((child, offset) => {
+                        if (child.type.name !== 'text') {
+                            return;
+                        }
+
+                        const text = child.text ?? '';
+                        const regex = createRemindShortcodeRegex();
+                        const matches: RegExpExecArray[] = [];
+                        let match: RegExpExecArray | null;
+                        while ((match = regex.exec(text)) !== null) {
+                            matches.push(match);
+                        }
+
+                        if (!matches.length) {
+                            return;
+                        }
+
+                        for (let idx = matches.length - 1; idx >= 0; idx -= 1) {
+                            const currentMatch = matches[idx];
+                            const { whenText, attrs } =
+                                parseRemindShortcodeMatch(currentMatch);
+                            const basePos = pos + 1 + offset;
+                            const from = basePos + currentMatch.index;
+                            const to = from + currentMatch[0].length;
+                            const content =
+                                whenText && whenText.length > 0
+                                    ? view.state.schema.text(whenText)
+                                    : view.state.schema.text('\u00A0');
+                            const remindNodeInstance = remindType.create(
+                                {
+                                    kind: 'remind',
+                                    whenText,
+                                    whenISO:
+                                        (attrs.whenISO as string | undefined) ??
+                                        null,
+                                    status:
+                                        (attrs.status as RemindStatus | undefined) ??
+                                        'scheduled',
+                                    id:
+                                        (attrs.id as string | undefined) ??
+                                        `r_${Date.now().toString(36)}_${Math.random()
+                                            .toString(36)
+                                            .slice(2, 8)}`,
+                                },
+                                content
+                            );
+                            tr = tr.replaceRangeWith(
+                                from,
+                                to,
+                                remindNodeInstance
+                            );
+                            changed = true;
+                        }
+                    });
+
+                    return true;
+                });
+
+                if (changed) {
+                    view.dispatch(tr);
+                }
+            };
+
+            hydrateSavedReminds();
             let previousContent = editor.getMarkdown();
 
             const originalDispatch = view.dispatch.bind(view);

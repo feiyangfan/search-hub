@@ -14,7 +14,11 @@ import * as chrono from 'chrono-node';
 import { remindSpec, type RemindStatus } from './remindNode';
 
 // shared regex for bracket parsing
-const BRACKET_RE = /\[\[\s*remind\s*:\s*([^|\]]+?)(?:\|([^\]]+))?\s*\]\]/gi;
+const REMIND_SHORTCODE_PATTERN =
+    '\\[\\[\\s*remind\\s*:\\s*([^|\\]]+?)(?:\\|([^\\]]+))?\\s*\\]\\]';
+export const createRemindShortcodeRegex = () =>
+    new RegExp(REMIND_SHORTCODE_PATTERN, 'gi');
+const BRACKET_RE = createRemindShortcodeRegex();
 
 type RemindAttrs = {
     kind: 'remind';
@@ -24,7 +28,7 @@ type RemindAttrs = {
     id?: string | null;
 };
 
-function parseBracketMatch(match: RegExpExecArray): {
+export function parseRemindShortcodeMatch(match: RegExpExecArray): {
     whenText: string;
     attrs: Record<string, unknown>;
 } {
@@ -75,10 +79,11 @@ export const remindNodeSchema = $nodeSchema('remind', (_ctx) => ({
             let lastIndex = 0;
             let m: RegExpExecArray | null;
             BRACKET_RE.lastIndex = 0;
+            BRACKET_RE.lastIndex = 0;
             while ((m = BRACKET_RE.exec(text)) !== null) {
                 const before = text.slice(lastIndex, m.index);
                 if (before) state.addText(before);
-                const { whenText, attrs } = parseBracketMatch(m);
+                const { whenText, attrs } = parseRemindShortcodeMatch(m);
                 state.openNode(type, attrs as Record<string, unknown>);
                 if (whenText) state.addText(whenText);
                 state.closeNode();

@@ -15,7 +15,7 @@ export default async function DocumentLayout({
     params,
 }: {
     children: ReactNode;
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -36,9 +36,10 @@ export default async function DocumentLayout({
     let headerData: DocumentHeaderData | null = null;
 
     try {
+        const { id } = await params;
         const [documentResponse, documentTagsResponse] = await Promise.all([
-            client.getDocumentDetails(params.id),
-            client.getDocumentTags(params.id),
+            client.getDocumentDetails(id),
+            client.getDocumentTags(id),
         ]);
 
         const document = (documentResponse as { document?: any }).document;
@@ -56,7 +57,7 @@ export default async function DocumentLayout({
             })) ?? [];
 
         headerData = {
-            documentId: params.id,
+            documentId: id,
             title: documentTitle,
             isFavorited: Boolean(document?.isFavorite),
             tags: tagOptions,
