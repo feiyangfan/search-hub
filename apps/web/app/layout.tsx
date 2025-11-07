@@ -8,6 +8,7 @@ import { AppToaster } from '@/components/layout/app-toaster';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { DocumentHeaderProvider } from '@/components/document/document-header-context';
 
 const geistSans = Geist({
     variable: '--font-geist-sans',
@@ -57,13 +58,15 @@ export default async function RootLayout({
                                 />
                             ) : null}
                             <SidebarInset>
-                                <AppHeader
-                                    session={session}
-                                    showSidebarTrigger={hasWorkspaces}
-                                />
-                                <main className="flex flex-1 flex-col overflow-hidden">
-                                    {children}
-                                </main>
+                                <DocumentHeaderProvider>
+                                    <AppHeader
+                                        session={session}
+                                        showSidebarTrigger={hasWorkspaces}
+                                    />
+                                    <main className="flex flex-1 flex-col overflow-hidden">
+                                        {children}
+                                    </main>
+                                </DocumentHeaderProvider>
                             </SidebarInset>
                         </div>
                     </SidebarProvider>

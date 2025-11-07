@@ -9,13 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 import { SearchHubClient } from '@search-hub/sdk';
-import { Tag, TagOption } from '@/components/ui/tag';
+import { TagOption, DEFAULT_TAG_COLOR } from '@/components/ui/tag';
 import {
     DashboardGrid,
     DashboardGridItem,
 } from '@/components/dashboard/dashboard-grid';
-import { SearchVolumeChart } from '@/components/dashboard/search-volume-chart';
 import { TagNetworkGraph } from '@/components/dashboard/tag-network-graph';
+import {
+    type TagNetworkEdge,
+    type TagNetworkNode,
+} from '@/components/dashboard/tag-network-graph.client';
 import { IndexingPipelineStatus } from '@/components/dashboard/indexing-pipeline-status';
 import { SearchIntelligence } from '@/components/dashboard/search-intelligence';
 import {
@@ -26,6 +29,7 @@ import {
     Star,
     Pencil,
 } from 'lucide-react';
+import type { TagListItemType } from '@search-hub/schemas';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -42,29 +46,146 @@ export default async function DashboardPage() {
         return <EmptyStateCreateWorkspace />;
     }
 
-    let tags: TagOption[] = [];
-    try {
-        const apiSessionCookie = (session as { apiSessionCookie?: string })
-            .apiSessionCookie;
+    const apiSessionCookie = (session as { apiSessionCookie?: string })
+        .apiSessionCookie;
 
-        if (apiSessionCookie) {
-            const client = new SearchHubClient({
-                baseUrl: apiBase,
-                headers: { cookie: apiSessionCookie },
+    let tags: TagOption[] = [];
+    let graphNodes: TagNetworkNode[] = [];
+    let graphEdges: TagNetworkEdge[] = [];
+
+    if (apiSessionCookie) {
+        const client = new SearchHubClient({
+            baseUrl: apiBase,
+            headers: { cookie: apiSessionCookie },
+        });
+
+        try {
+            const response = await client.getTags();
+            const apiTags = (response.tags ?? []) as TagListItemType[];
+            tags = apiTags.map((tag) => ({
+                id: tag.id,
+                name: tag.name,
+                color: tag.color ?? DEFAULT_TAG_COLOR,
+                description: undefined,
+            }));
+        } catch (error) {
+            console.error('Failed to fetch tags:', error);
+        }
+
+        try {
+            const maxDocuments = 12;
+            const documentsResponse = await client.listDocuments({
+                limit: maxDocuments,
             });
 
-            const response = await client.getTags();
+            const documents = documentsResponse.documents?.items ?? [];
 
-            tags =
-                response.tags.map((tag: any) => ({
-                    id: tag.id,
-                    name: tag.name,
-                    color: tag.color,
-                    description: tag.description,
-                })) || [];
+            const documentsWithTags = await Promise.all(
+                documents.map(async (document) => {
+                    try {
+                        const { tags: assignedTags = [] } =
+                            await client.getDocumentTags(document.id);
+                        return { document, tags: assignedTags ?? [] };
+                    } catch (error) {
+                        console.error(
+                            'Failed to fetch tags for document',
+                            document.id,
+                            error
+                        );
+                        return { document, tags: [] as { id: string; name: string; color?: string | null }[] };
+                    }
+                })
+            );
+
+            const tagUsage = new Map<string, number>();
+            const docTagIndex = new Map<
+                string,
+                { id: string; name: string; color?: string | null }
+            >();
+            const edges: TagNetworkEdge[] = [];
+            const documentNodes: TagNetworkNode[] = [];
+
+            for (const { document, tags: documentTags } of documentsWithTags) {
+                if (!documentTags.length) {
+                    continue;
+                }
+
+                const primaryTagWithColor = documentTags.find(
+                    (tag) => tag.color
+                );
+                const fallbackColor = documentTags[0]?.color;
+                const nodeColor =
+                    primaryTagWithColor?.color ??
+                    fallbackColor ??
+                    DEFAULT_TAG_COLOR;
+
+                documentNodes.push({
+                    id: `doc-${document.id}`,
+                    label: document.title ?? 'Untitled document',
+                    type: 'document',
+                    color: nodeColor,
+                    size: Math.min(11, 6 + documentTags.length * 1.3),
+                });
+
+                for (const tag of documentTags) {
+                    tagUsage.set(tag.id, (tagUsage.get(tag.id) ?? 0) + 1);
+                    if (!docTagIndex.has(tag.id)) {
+                        docTagIndex.set(tag.id, {
+                            id: tag.id,
+                            name: tag.name,
+                            color: tag.color,
+                        });
+                    }
+                    edges.push({
+                        source: `tag-${tag.id}`,
+                        target: `doc-${document.id}`,
+                    });
+                }
+            }
+
+            const tagNodes: TagNetworkNode[] = [];
+            const seenTagIds = new Set<string>();
+
+            for (const tag of tags) {
+                const usageCount = tagUsage.get(tag.id) ?? 0;
+                tagNodes.push({
+                    id: `tag-${tag.id}`,
+                    label: tag.name,
+                    type: 'tag' as const,
+                    color: tag.color ?? DEFAULT_TAG_COLOR,
+                    size: Math.min(14, 8 + usageCount * 1.5),
+                });
+                seenTagIds.add(tag.id);
+            }
+
+            for (const tag of docTagIndex.values()) {
+                if (seenTagIds.has(tag.id)) {
+                    continue;
+                }
+                const usageCount = tagUsage.get(tag.id) ?? 0;
+                tagNodes.push({
+                    id: `tag-${tag.id}`,
+                    label: tag.name,
+                    type: 'tag',
+                    color: tag.color ?? DEFAULT_TAG_COLOR,
+                    size: Math.min(14, 8 + usageCount * 1.5),
+                });
+            }
+
+            const validNodeIds = new Set([
+                ...tagNodes.map((node) => node.id),
+                ...documentNodes.map((node) => node.id),
+            ]);
+
+            graphNodes = [...tagNodes, ...documentNodes];
+            graphEdges = edges.filter(
+                (edge) =>
+                    validNodeIds.has(edge.source) &&
+                    validNodeIds.has(edge.target)
+            );
+        } catch (error) {
+            console.error('Failed to build tag network graph:', error);
         }
-    } catch (error) {
-        console.error('Failed to fetch tags:', error);
     }
 
     return (
@@ -285,123 +406,7 @@ export default async function DashboardPage() {
                         }
                         className="h-full"
                     >
-                        <TagNetworkGraph
-                            nodes={[
-                                // Tags (larger, inner circle)
-                                {
-                                    id: 'tag-1',
-                                    label: 'Engineering',
-                                    type: 'tag',
-                                    color: '#3b82f6',
-                                    size: 16,
-                                },
-                                {
-                                    id: 'tag-2',
-                                    label: 'Design',
-                                    type: 'tag',
-                                    color: '#ec4899',
-                                    size: 14,
-                                },
-                                {
-                                    id: 'tag-3',
-                                    label: 'Product',
-                                    type: 'tag',
-                                    color: '#8b5cf6',
-                                    size: 15,
-                                },
-                                {
-                                    id: 'tag-4',
-                                    label: 'Documentation',
-                                    type: 'tag',
-                                    color: '#10b981',
-                                    size: 13,
-                                },
-                                // Documents (smaller, outer circle)
-                                {
-                                    id: 'doc-1',
-                                    label: 'API Guide',
-                                    type: 'document',
-                                    color: '#3b82f6',
-                                    size: 8,
-                                },
-                                {
-                                    id: 'doc-2',
-                                    label: 'Team Handbook',
-                                    type: 'document',
-                                    color: '#3b82f6',
-                                    size: 7,
-                                },
-                                {
-                                    id: 'doc-3',
-                                    label: 'Design System',
-                                    type: 'document',
-                                    color: '#ec4899',
-                                    size: 9,
-                                },
-                                {
-                                    id: 'doc-4',
-                                    label: 'UI Components',
-                                    type: 'document',
-                                    color: '#ec4899',
-                                    size: 6,
-                                },
-                                {
-                                    id: 'doc-5',
-                                    label: 'Roadmap Q4',
-                                    type: 'document',
-                                    color: '#8b5cf6',
-                                    size: 7,
-                                },
-                                {
-                                    id: 'doc-6',
-                                    label: 'User Research',
-                                    type: 'document',
-                                    color: '#8b5cf6',
-                                    size: 6,
-                                },
-                                {
-                                    id: 'doc-7',
-                                    label: 'Setup Guide',
-                                    type: 'document',
-                                    color: '#10b981',
-                                    size: 8,
-                                },
-                                {
-                                    id: 'doc-8',
-                                    label: 'Architecture',
-                                    type: 'document',
-                                    color: '#3b82f6',
-                                    size: 7,
-                                },
-                                {
-                                    id: 'doc-9',
-                                    label: 'Guidelines',
-                                    type: 'document',
-                                    color: '#10b981',
-                                    size: 6,
-                                },
-                            ]}
-                            edges={[
-                                // Engineering tag connections
-                                { source: 'tag-1', target: 'doc-1' },
-                                { source: 'tag-1', target: 'doc-2' },
-                                { source: 'tag-1', target: 'doc-8' },
-                                // Design tag connections
-                                { source: 'tag-2', target: 'doc-3' },
-                                { source: 'tag-2', target: 'doc-4' },
-                                // Product tag connections
-                                { source: 'tag-3', target: 'doc-5' },
-                                { source: 'tag-3', target: 'doc-6' },
-                                { source: 'tag-3', target: 'doc-2' }, // Cross-connection
-                                // Documentation tag connections
-                                { source: 'tag-4', target: 'doc-7' },
-                                { source: 'tag-4', target: 'doc-9' },
-                                { source: 'tag-4', target: 'doc-1' }, // Cross-connection
-                                // Additional cross-connections
-                                { source: 'tag-2', target: 'doc-9' },
-                                { source: 'tag-1', target: 'doc-7' },
-                            ]}
-                        />
+                        <TagNetworkGraph nodes={graphNodes} edges={graphEdges} />
                     </DashboardCard>
                 </DashboardGridItem>
 

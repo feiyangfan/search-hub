@@ -64,12 +64,19 @@ type TagProps = {
 /**
  * Tag component - displays a tag badge with optional remove button
  */
-export function Tag({ tag, variant = 'default', onRemove, className }: TagProps) {
+export function Tag({
+    tag,
+    variant = 'default',
+    onRemove,
+    className,
+}: TagProps) {
     if (variant === 'removable') {
         return (
             <Badge
                 variant="secondary"
-                className={`inline-flex items-center gap-2 pr-1 ${className ?? ''}`}
+                className={`inline-flex items-center gap-2 pr-1 ${
+                    className ?? ''
+                }`}
                 style={getTagBadgeStyle(tag.color)}
                 title={tag.description}
             >

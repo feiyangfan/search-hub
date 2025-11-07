@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -25,10 +25,11 @@ import {
     type TagOption,
 } from '@/components/document-editor/editor-header-tag-editing';
 import { DEFAULT_TAG_COLOR } from '@/components/ui/tag';
+import { useDocumentHeader } from '@/components/document/document-header-context';
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
-import { EditorHeader } from '@/components/document-editor/editor-header';
+// import { EditorHeader } from '@/components/document-editor/editor-header';
 import {
     remindNodeSchema,
     remindBracketInputRule,
@@ -142,6 +143,7 @@ export default function DocumentPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { data: session } = useSession();
+    const { setData: setDocumentHeaderData } = useDocumentHeader();
     const documentId = params.id as string;
     const editorRootRef = useRef<HTMLDivElement>(null);
     const editorInstanceRef = useRef<Crepe | null>(null);
@@ -391,9 +393,9 @@ export default function DocumentPage() {
         60000 // 60 seconds
     );
 
-    const handleEditTags = () => {
+    const handleEditTags = useCallback(() => {
         setShowTagDialog(true);
-    };
+    }, []);
 
     const handleTagRemove = async (tagId: string) => {
         const removedIndex = documentTags.findIndex((tag) => tag.id === tagId);
@@ -543,9 +545,9 @@ export default function DocumentPage() {
         }
     };
 
-    const handleDelete = () => {
+    const handleDelete = useCallback(() => {
         setShowDeleteDialog(true);
-    };
+    }, []);
 
     const handleDeleteConfirm = async () => {
         try {
@@ -626,6 +628,27 @@ export default function DocumentPage() {
         // Reindex only happens via the 60s debounced timer
     };
 
+    const getSaveStatusLabel = useCallback(() => {
+        if (!document) return 'Loading...';
+
+        switch (saveStatus) {
+            case 'saving':
+                return 'Saving...';
+            case 'saved':
+                return 'Saved';
+            case 'error':
+                return 'Failed to save';
+            case 'idle':
+            default:
+                if (hasUnsavedChanges) {
+                    return 'Unsaved changes';
+                }
+                return `Updated ${new Date(
+                    document.updatedAt
+                ).toLocaleString()}`;
+        }
+    }, [document, saveStatus, hasUnsavedChanges]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -646,6 +669,31 @@ export default function DocumentPage() {
             debouncedReindex.cancel();
         };
     }, [debouncedSave, debouncedReindex]);
+
+    useEffect(() => {
+        if (!document) {
+            return;
+        }
+        setDocumentHeaderData((prev) => ({
+            ...(prev ?? {}),
+            documentId,
+            title: document.title ?? 'Untitled document',
+            isFavorited: document.isFavorite,
+            tags: documentTags,
+            updatedAt: document.updatedAt,
+            statusLabel: getSaveStatusLabel(),
+            onEditTags: handleEditTags,
+            onDeleteDocument: handleDelete,
+        }));
+    }, [
+        document,
+        documentId,
+        documentTags,
+        setDocumentHeaderData,
+        getSaveStatusLabel,
+        handleEditTags,
+        handleDelete,
+    ]);
 
     // Create Crepe editor when document is loaded
     useEffect(() => {
@@ -850,28 +898,6 @@ export default function DocumentPage() {
         );
     }
 
-    // Generate save status label
-    const getSaveStatusLabel = () => {
-        if (!document) return 'Loading...';
-
-        switch (saveStatus) {
-            case 'saving':
-                return 'Saving...';
-            case 'saved':
-                return 'Saved';
-            case 'error':
-                return 'Failed to save';
-            case 'idle':
-            default:
-                if (hasUnsavedChanges) {
-                    return 'Unsaved changes';
-                }
-                return `Updated ${new Date(
-                    document.updatedAt
-                ).toLocaleString()}`;
-        }
-    };
-
     const activeMembership = session?.user?.memberships?.find(
         (membership) => membership.tenantId === session?.activeTenantId
     );
@@ -883,7 +909,7 @@ export default function DocumentPage() {
     return (
         <>
             <div className="flex flex-1 flex-col bg-card">
-                <EditorHeader
+                {/* <EditorHeader
                     title={document.title}
                     lastSavedLabel={getSaveStatusLabel()}
                     isFavorited={document.isFavorite}
@@ -892,7 +918,7 @@ export default function DocumentPage() {
                     canManageDocument={canManageDocument}
                     documentTags={documentTags}
                     onDelete={handleDelete}
-                />
+                /> */}
                 <div
                     ref={editorRootRef}
                     className="crepe theme-frame h-full min-h-[560px] w-full bg-card"
