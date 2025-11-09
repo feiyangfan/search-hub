@@ -19,10 +19,10 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-    EditorHeaderTagEditing,
+    TagEditingDialog,
     type TagDraft,
     type TagOption,
-} from '@/components/document-editor/editor-header-tag-editing';
+} from '@/components/document-editor/tag-editing-dialog';
 import { DEFAULT_TAG_COLOR } from '@/components/ui/tag';
 import { useDocumentHeader } from '@/components/document/document-header-context';
 import '@milkdown/crepe/theme/common/style.css';
@@ -761,7 +761,7 @@ export default function DocumentPage() {
                 />
             </div>
 
-            <EditorHeaderTagEditing
+            <TagEditingDialog
                 open={showTagDialog}
                 onOpenChange={setShowTagDialog}
                 documentTitle={document.title}

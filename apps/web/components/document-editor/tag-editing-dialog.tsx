@@ -24,7 +24,7 @@ export type TagDraft = {
     description?: string;
 };
 
-type EditorHeaderTagEditingProps = {
+type TagEditingDialogProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     documentTitle: string;
@@ -37,7 +37,7 @@ type EditorHeaderTagEditingProps = {
     isTagMutationPending: boolean;
 };
 
-export function EditorHeaderTagEditing({
+export function TagEditingDialog({
     open,
     onOpenChange,
     documentTitle,
@@ -48,7 +48,7 @@ export function EditorHeaderTagEditing({
     onCreateTag,
     isCreatingTag,
     isTagMutationPending,
-}: EditorHeaderTagEditingProps) {
+}: TagEditingDialogProps) {
     const [query, setQuery] = useState('');
     const [createOpen, setCreateOpen] = useState(false);
     const [draftName, setDraftName] = useState('');
