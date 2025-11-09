@@ -1,8 +1,8 @@
-import { ChevronDown, Loader2, Plus, File, MoreHorizontal } from 'lucide-react';
+import { ChevronDown, Plus, File } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 
-import { Button } from '../ui/button';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -13,7 +13,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useToast } from '@/components/ui/use-toast';
 import {
     Collapsible,
     CollapsibleContent,
@@ -29,31 +28,18 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
-import Link from 'next/link';
-
 import { NavDocumentActions } from './nav-document-actions';
+import { useDocumentActions } from '@/hooks/use-document-actions';
+import { useDocumentsListQuery } from '@/hooks/use-documents';
 
-export function NavDocuments({
-    documents,
-    isLoading,
-    hasMore = false,
-    onLoadMore,
-    isLoadingMore = false,
-}: {
-    documents: {
-        id: string;
-        title: string;
-        updatedAt?: string | undefined;
-        isFavorite: boolean;
-    }[];
-    isLoading: boolean;
-    hasMore?: boolean;
-    onLoadMore?: () => void;
-    isLoadingMore?: boolean;
-}) {
-    const router = useRouter();
+export function NavDocuments() {
     const pathname = usePathname();
-    const { toast } = useToast();
+    const { data: documentsData, isLoading } = useDocumentsListQuery({
+        limit: 20,
+    });
+
+    const documents = documentsData?.items ?? [];
+
     const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
         null
     );
@@ -63,6 +49,11 @@ export function NavDocuments({
         title: string;
     } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [favoriteActionId, setFavoriteActionId] = useState<string | null>(
+        null
+    );
+    const { renameDocument, deleteDocument, toggleFavorite, editDocumentTags } =
+        useDocumentActions();
 
     useEffect(() => {
         if (editingDocumentId && inputRef.current) {
@@ -78,38 +69,13 @@ export function NavDocuments({
 
     const handleRenameSubmit = async (documentId: string, newTitle: string) => {
         const trimmedTitle = newTitle.trim();
-
-        // Cancel if empty or unchanged
         if (!trimmedTitle || trimmedTitle === originalTitle) {
             setEditingDocumentId(null);
             return;
         }
 
-        try {
-            const response = await fetch(`/api/documents/${documentId}/title`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title: trimmedTitle }),
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to rename document');
-            }
-
-            // Trigger event to refresh document list
-            window.dispatchEvent(
-                new CustomEvent('documentUpdated', {
-                    detail: { documentId, title: trimmedTitle },
-                })
-            );
-        } catch (error) {
-            console.error('Failed to rename document:', error);
-        } finally {
-            setEditingDocumentId(null);
-        }
+        renameDocument(documentId, trimmedTitle);
+        setEditingDocumentId(null);
     };
 
     const handleRenameCancel = () => {
@@ -123,64 +89,18 @@ export function NavDocuments({
     const handleDeleteConfirm = async () => {
         if (!deletingDocument) return;
 
-        try {
-            const response = await fetch(
-                `/api/documents/${deletingDocument.id}`,
-                {
-                    method: 'DELETE',
-                    credentials: 'include',
-                }
-            );
+        await deleteDocument(deletingDocument.id, deletingDocument.title);
+        setDeletingDocument(null);
+    };
 
-            if (!response.ok) {
-                throw new Error('Failed to delete document');
-            }
-
-            // Trigger event to refresh the sidebar
-            window.dispatchEvent(
-                new CustomEvent('documentDeleted', {
-                    detail: { documentId: deletingDocument.id },
-                })
-            );
-
-            toast.success('Document deleted', {
-                description: 'The document has been permanently deleted.',
-            });
-
-            // Check if we're currently viewing the deleted document
-            if (window.location.pathname.includes(deletingDocument.id)) {
-                // Fetch the most recent document
-                const docsResponse = await fetch(
-                    '/api/documents?limit=1&offset=0',
-                    {
-                        credentials: 'include',
-                    }
-                );
-
-                if (docsResponse.ok) {
-                    const data = await docsResponse.json();
-                    const docs = data.documents?.items || [];
-
-                    if (docs.length > 0) {
-                        // Redirect to the most recent document
-                        router.push(`/doc/${docs[0].id}`);
-                    } else {
-                        // No documents, redirect to new document page
-                        router.push('/dashboard/new');
-                    }
-                } else {
-                    // Fallback to new document page if fetch fails
-                    router.push('/dashboard/new');
-                }
-            }
-        } catch (error) {
-            console.error('Failed to delete document:', error);
-            toast.error('Failed to delete document', {
-                description: 'An error occurred while deleting the document.',
-            });
-        } finally {
-            setDeletingDocument(null);
-        }
+    const handleFavoriteToggle = (
+        documentId: string,
+        makeFavorite: boolean
+    ) => {
+        setFavoriteActionId(documentId);
+        toggleFavorite(documentId, makeFavorite).finally(() => {
+            setFavoriteActionId(null);
+        });
     };
 
     return (
@@ -236,7 +156,9 @@ export function NavDocuments({
                                                                   document.title
                                                               }
                                                               className="flex-1 bg-transparent text-sm outline-none border border-transparent rounded px-1 py-0.5 focus:border-gray-300"
-                                                              onKeyDown={(e) => {
+                                                              onKeyDown={(
+                                                                  e
+                                                              ) => {
                                                                   if (
                                                                       e.key ===
                                                                       'Enter'
@@ -291,13 +213,33 @@ export function NavDocuments({
                                                               onRename={() =>
                                                                   handleRename(
                                                                       document.id,
-                                                                      document.title
+                                                                      document.title ||
+                                                                          'Untitled document'
                                                                   )
                                                               }
                                                               onDelete={() =>
                                                                   handleDelete(
                                                                       document.id,
-                                                                      document.title
+                                                                      document.title ||
+                                                                          'Untitled document'
+                                                                  )
+                                                              }
+                                                              onToggleFavorite={() =>
+                                                                  handleFavoriteToggle(
+                                                                      document.id,
+                                                                      !document.isFavorite
+                                                                  )
+                                                              }
+                                                              isFavorite={
+                                                                  document.isFavorite
+                                                              }
+                                                              favoriteToggleDisabled={
+                                                                  favoriteActionId ===
+                                                                  document.id
+                                                              }
+                                                              onEditTags={() =>
+                                                                  editDocumentTags(
+                                                                      document.id
                                                                   )
                                                               }
                                                               isActive={
@@ -309,24 +251,6 @@ export function NavDocuments({
                                               </SidebarMenuItem>
                                           );
                                       })}
-                                {!isLoading && hasMore ? (
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            onClick={() => onLoadMore?.()}
-                                            disabled={
-                                                isLoadingMore || !onLoadMore
-                                            }
-                                            className="text-sidebar-foreground/70"
-                                        >
-                                            {isLoadingMore ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <MoreHorizontal />
-                                            )}
-                                            <span>More</span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ) : null}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </CollapsibleContent>

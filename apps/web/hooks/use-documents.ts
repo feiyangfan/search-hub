@@ -1,219 +1,118 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DocumentListItemType } from '@search-hub/schemas';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import type {
+    GetDocumentDetailsResponseType,
+    GetDocumentListResponseType,
+    GetDocumentTagsResponseType,
+} from '@search-hub/schemas';
 
-type Status = 'idle' | 'loading' | 'done' | 'error';
+export type ApiTag = {
+    id: string;
+    name: string;
+    color?: string | null;
+    description?: string | null;
+};
 
-type UseDocumentsParams = {
+type DocumentDetails = GetDocumentDetailsResponseType['document'];
+type DocumentsList = GetDocumentListResponseType['documents'];
+
+const defaultFetchInit: RequestInit = {
+    credentials: 'include',
+};
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(url, {
+        ...defaultFetchInit,
+        ...init,
+    });
+
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'Request failed');
+    }
+
+    return (await response.json()) as T;
+}
+
+export function useDocumentQuery<TData = DocumentDetails>(
+    documentId: string,
+    options?: Omit<
+        UseQueryOptions<
+            GetDocumentDetailsResponseType,
+            Error,
+            TData,
+            ['document', string]
+        >,
+        'queryKey' | 'queryFn'
+    >
+) {
+    return useQuery({
+        queryKey: ['document', documentId],
+        queryFn: () =>
+            fetchJson<GetDocumentDetailsResponseType>(
+                `/api/documents/${documentId}`
+            ),
+        select: (data) => data.document as TData,
+        enabled: Boolean(documentId),
+        ...options,
+    });
+}
+
+export function useDocumentTagsQuery(documentId: string) {
+    return useQuery({
+        queryKey: ['document', documentId, 'tags'],
+        queryFn: () =>
+            fetchJson<GetDocumentTagsResponseType>(
+                `/api/documents/${documentId}/tags`
+            ),
+        select: (data) => data.tags as ApiTag[],
+        enabled: Boolean(documentId),
+    });
+}
+
+type WorkspaceTagsResponse = {
+    tags: ApiTag[];
+};
+
+export function useWorkspaceTagsQuery(enabled = true) {
+    return useQuery({
+        queryKey: ['workspace', 'tags'],
+        queryFn: () => fetchJson<WorkspaceTagsResponse>('/api/tags'),
+        select: (data) => data.tags,
+        enabled,
+        staleTime: 1000 * 60,
+    });
+}
+
+type UseDocumentsListOptions = {
     favoritesOnly?: boolean;
     limit?: number;
+    offset?: number;
+    enabled?: boolean;
 };
 
-type DocumentsResponse = {
-    documents: { items: DocumentListItemType[]; total: number };
-};
-
-export function useDocuments({
+export function useDocumentsListQuery({
     favoritesOnly = false,
     limit = 10,
-}: UseDocumentsParams = {}) {
-    const [status, setStatus] = useState<Status>('idle');
-    const [items, setItems] = useState<DocumentListItemType[]>([]);
-    const [total, setTotal] = useState(0);
-    const [error, setError] = useState<string>();
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [offset, setOffset] = useState(0);
-
-    const [refreshKey, setRefreshKey] = useState(0);
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-    const buildQuery = useCallback(
-        (nextOffset: number) => {
-            const qs = new URLSearchParams();
-            qs.set('limit', String(limit));
-            qs.set('offset', String(nextOffset));
+    offset = 0,
+    enabled = true,
+}: UseDocumentsListOptions = {}) {
+    return useQuery({
+        queryKey: ['documents', { favoritesOnly, limit, offset }],
+        queryFn: () => {
+            const params = new URLSearchParams();
+            params.set('limit', String(limit));
+            params.set('offset', String(offset));
             if (favoritesOnly) {
-                qs.set('favoritesOnly', 'true');
+                params.set('favoritesOnly', 'true');
             }
-            return qs.toString();
+
+            return fetchJson<GetDocumentListResponseType>(
+                `/api/documents?${params.toString()}`
+            );
         },
-        [favoritesOnly, limit]
-    );
-
-    const refresh = useCallback(() => {
-        setRefreshKey((prev) => prev + 1);
-    }, []);
-
-    useEffect(() => {
-        const controller = new AbortController();
-
-        async function fetchInitial() {
-            setStatus('loading');
-            setError(undefined);
-            try {
-                const res = await fetch(`/api/documents?${buildQuery(0)}`, {
-                    signal: controller.signal,
-                    credentials: 'include',
-                });
-                if (!res.ok) {
-                    throw new Error(await res.text());
-                }
-                const body = (await res.json()) as DocumentsResponse;
-                setItems(body.documents.items);
-                setTotal(body.documents.total);
-                setOffset(body.documents.items.length);
-                setStatus('done');
-                setIsInitialLoad(false);
-            } catch (err) {
-                if ((err as Error).name === 'AbortError') {
-                    return;
-                }
-                setItems([]);
-                setTotal(0);
-                setStatus('error');
-                setError((err as Error).message ?? 'Failed to load documents');
-            }
-        }
-
-        // Only clear items if this is a manual refresh (not initial load)
-        if (!isInitialLoad) {
-            setItems([]);
-            setTotal(0);
-            setOffset(0);
-        }
-        fetchInitial();
-
-        return () => {
-            controller.abort();
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshKey]);
-
-    // Listen for custom document update events
-    useEffect(() => {
-        const handleDocumentUpdate = (event: Event) => {
-            const customEvent = event as CustomEvent<{
-                documentId: string;
-                title: string;
-            }>;
-            if (customEvent.detail) {
-                // Update the document and move it to the top of the list
-                setItems((prev) => {
-                    const updatedItem = prev.find(
-                        (item) => item.id === customEvent.detail.documentId
-                    );
-                    if (!updatedItem) return prev;
-
-                    // Remove the item from its current position
-                    const otherItems = prev.filter(
-                        (item) => item.id !== customEvent.detail.documentId
-                    );
-
-                    // Create updated item with new title and current timestamp
-                    const updated = {
-                        ...updatedItem,
-                        title: customEvent.detail.title,
-                        updatedAt: new Date().toISOString(),
-                    };
-
-                    // Add it to the top
-                    return [updated, ...otherItems];
-                });
-            } else {
-                // Fallback to full refresh if no detail provided
-                refresh();
-            }
-        };
-
-        const handleDocumentCreated = (event: Event) => {
-            const customEvent = event as CustomEvent<DocumentListItemType>;
-            if (customEvent.detail) {
-                // Add new document to the top of the list
-                setItems((prev) => [customEvent.detail, ...prev]);
-                setTotal((prev) => prev + 1);
-            }
-        };
-
-        const handleDocumentDeleted = (event: Event) => {
-            const customEvent = event as CustomEvent<{ documentId: string }>;
-            if (customEvent.detail) {
-                // Remove the document from the list
-                setItems((prev) =>
-                    prev.filter(
-                        (item) => item.id !== customEvent.detail.documentId
-                    )
-                );
-                setTotal((prev) => prev - 1);
-            }
-        };
-
-        const handleWorkspaceSwitched = () => {
-            // Force refresh document list when workspace changes
-            refresh();
-        };
-
-        window.addEventListener('documentUpdated', handleDocumentUpdate);
-        window.addEventListener('documentCreated', handleDocumentCreated);
-        window.addEventListener('documentDeleted', handleDocumentDeleted);
-        window.addEventListener('workspaceSwitched', handleWorkspaceSwitched);
-
-        return () => {
-            window.removeEventListener('documentUpdated', handleDocumentUpdate);
-            window.removeEventListener(
-                'documentCreated',
-                handleDocumentCreated
-            );
-            window.removeEventListener(
-                'documentDeleted',
-                handleDocumentDeleted
-            );
-            window.removeEventListener(
-                'workspaceSwitched',
-                handleWorkspaceSwitched
-            );
-        };
-    }, [refresh]);
-
-    const hasMore = useMemo(() => items.length < total, [items.length, total]);
-
-    const loadMore = useCallback(async () => {
-        if (isLoadingMore || status === 'loading' || !hasMore) {
-            return;
-        }
-
-        setIsLoadingMore(true);
-        try {
-            const res = await fetch(`/api/documents?${buildQuery(offset)}`, {
-                credentials: 'include',
-            });
-            if (!res.ok) {
-                throw new Error(await res.text());
-            }
-            const body = (await res.json()) as DocumentsResponse;
-            setItems((prev) => [...prev, ...body.documents.items]);
-            setTotal(body.documents.total);
-            setOffset((prevOffset) => prevOffset + body.documents.items.length);
-            setError(undefined);
-            setStatus('done');
-        } catch (err) {
-            if ((err as Error).name === 'AbortError') {
-                return;
-            }
-            setError((err as Error).message ?? 'Failed to load documents');
-        } finally {
-            setIsLoadingMore(false);
-        }
-    }, [buildQuery, hasMore, isLoadingMore, offset, status]);
-
-    return {
-        status,
-        items,
-        total,
-        error,
-        loadMore,
-        hasMore,
-        isLoadingMore,
-        refresh,
-    };
+        select: (data) => data.documents as DocumentsList,
+        enabled,
+    });
 }

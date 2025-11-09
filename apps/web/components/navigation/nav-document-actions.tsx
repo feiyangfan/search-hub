@@ -6,7 +6,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction } from '@/components/ui/sidebar';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Star, StarOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function NavDocumentActions({
@@ -14,11 +14,19 @@ export function NavDocumentActions({
     onRename,
     onDelete,
     isActive = false,
+    onToggleFavorite,
+    isFavorite,
+    favoriteToggleDisabled = false,
+    onEditTags,
 }: {
     documentId: string;
     onRename?: () => void;
     onDelete?: () => void;
     isActive?: boolean;
+    onToggleFavorite?: () => void;
+    isFavorite?: boolean;
+    favoriteToggleDisabled?: boolean;
+    onEditTags?: () => void;
 }) {
     return (
         <DropdownMenu>
@@ -46,7 +54,33 @@ export function NavDocumentActions({
                 align="start"
             >
                 <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
-                <DropdownMenuItem>Edit tags</DropdownMenuItem>
+                {onToggleFavorite ? (
+                    <DropdownMenuItem
+                        disabled={favoriteToggleDisabled}
+                        onSelect={(event) => {
+                            event.preventDefault();
+                            if (favoriteToggleDisabled) return;
+                            onToggleFavorite();
+                        }}
+                    >
+                        {isFavorite ? (
+                            <StarOff className="mr-2 h-4 w-4" />
+                        ) : (
+                            <Star className="mr-2 h-4 w-4" />
+                        )}
+                        {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    </DropdownMenuItem>
+                ) : null}
+                {onEditTags ? (
+                    <DropdownMenuItem
+                        onSelect={(event) => {
+                            event.preventDefault();
+                            onEditTags();
+                        }}
+                    >
+                        Edit tags
+                    </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                     onSelect={onDelete}
