@@ -44,5 +44,9 @@
         "overrides": {
             "eslint-plugin-react-hooks": "6.1.0"
         }
+    },
+    "dependencies": {
+        "@tanstack/react-query": "^5.90.7",
+        "@tanstack/react-query-devtools": "^5.90.2"
     }
 }

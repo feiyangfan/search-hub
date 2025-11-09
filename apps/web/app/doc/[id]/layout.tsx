@@ -1,12 +1,21 @@
 import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
+import {
+    HydrationBoundary,
+    QueryClient,
+    dehydrate,
+} from '@tanstack/react-query';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { DocumentHeaderHydrator } from '@/components/document/document-header-hydrator';
 import type { DocumentHeaderData } from '@/components/document/document-header-context';
 import { DEFAULT_TAG_COLOR, type TagOption } from '@/components/ui/tag';
 import { SearchHubClient } from '@search-hub/sdk';
+import type {
+    GetDocumentDetailsResponseType,
+    GetDocumentTagsResponseType,
+} from '@search-hub/schemas';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -33,16 +42,24 @@ export default async function DocumentLayout({
         headers: { cookie: apiSessionCookie },
     });
 
+    const queryClient = new QueryClient();
     let headerData: DocumentHeaderData | null = null;
 
     try {
         const { id } = await params;
+
         const [documentResponse, documentTagsResponse] = await Promise.all([
             client.getDocumentDetails(id),
             client.getDocumentTags(id),
         ]);
 
-        const document = (documentResponse as { document?: any }).document;
+        queryClient.setQueryData(['document', id], documentResponse);
+        queryClient.setQueryData(
+            ['document', id, 'tags'],
+            documentTagsResponse
+        );
+
+        const document = documentResponse.document;
 
         const documentTitle =
             document?.title?.trim()?.length > 0
@@ -68,9 +85,9 @@ export default async function DocumentLayout({
     }
 
     return (
-        <>
+        <HydrationBoundary state={dehydrate(queryClient)}>
             <DocumentHeaderHydrator data={headerData} />
             {children}
-        </>
+        </HydrationBoundary>
     );
 }
