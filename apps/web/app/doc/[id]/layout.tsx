@@ -12,10 +12,6 @@ import { DocumentHeaderHydrator } from '@/components/document/document-header-hy
 import type { DocumentHeaderData } from '@/components/document/document-header-context';
 import { DEFAULT_TAG_COLOR, type TagOption } from '@/components/ui/tag';
 import { SearchHubClient } from '@search-hub/sdk';
-import type {
-    GetDocumentDetailsResponseType,
-    GetDocumentTagsResponseType,
-} from '@search-hub/schemas';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
