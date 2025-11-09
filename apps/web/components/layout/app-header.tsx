@@ -33,6 +33,7 @@ import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Tag as TagBadge } from '@/components/ui/tag';
 import { useDocumentHeader } from '@/components/document/document-header-context';
+import { Skeleton } from '../ui/skeleton';
 
 interface AppHeaderProps {
     session: Session | null;
@@ -49,6 +50,10 @@ export function AppHeader({
     const segments =
         pathname?.split('/').filter((segment) => segment.length > 0) ?? [];
     const { data: documentHeaderData } = useDocumentHeader();
+
+    const isDocumentContext = Boolean(documentHeaderData?.documentId);
+    const isLoadingDoc = isDocumentRoute && !documentHeaderData;
+
     const documentName = documentHeaderData?.title ?? null;
     const documentTags = documentHeaderData?.tags ?? [];
     const isFavorited = documentHeaderData?.isFavorited ?? false;
@@ -113,6 +118,7 @@ export function AppHeader({
         label: string;
         href?: string;
         accent?: boolean;
+        isDocumentTitle?: boolean;
     };
 
     const breadcrumbs: BreadcrumbEntry[] = (() => {
@@ -161,6 +167,7 @@ export function AppHeader({
             if (docId) {
                 crumbs.push({
                     label: documentName ?? formatSegmentLabel(docId),
+                    isDocumentTitle: true,
                 });
             }
             if (docId && segments.length > 2) {
@@ -212,6 +219,8 @@ export function AppHeader({
                                 {breadcrumbs.map((crumb, index) => {
                                     const isLast =
                                         index === breadcrumbs.length - 1;
+                                    const shouldShowSkeleton =
+                                        crumb.isDocumentTitle && isLoadingDoc;
                                     const labelClass = crumb.accent
                                         ? 'text-lg font-semibold tracking-tight text-foreground'
                                         : isLast
@@ -236,7 +245,11 @@ export function AppHeader({
                                                     <BreadcrumbPage
                                                         className={labelClass}
                                                     >
-                                                        {crumb.label}
+                                                        {shouldShowSkeleton ? (
+                                                            <Skeleton className="h-5 w-40 rounded bg-emerald-200/60" />
+                                                        ) : (
+                                                            crumb.label
+                                                        )}
                                                     </BreadcrumbPage>
                                                 )}
                                             </BreadcrumbItem>
@@ -250,88 +263,111 @@ export function AppHeader({
                         </Breadcrumb>
                         {isDocumentRoute ? (
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                                {statusLabel}
+                                {isLoadingDoc ? (
+                                    <Skeleton className="h-4 w-32 rounded-full bg-emerald-200/60" />
+                                ) : (
+                                    <>
+                                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                                        {statusLabel}
+                                    </>
+                                )}
                             </div>
                         ) : null}
                     </div>
                 </div>
-                {/* Document Tags */}
+                {/* Document Header */}
                 {isDocumentRoute ? (
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            {documentTags.length > 0 ? (
-                                documentTags.map((tag) => (
-                                    <TagBadge
-                                        key={tag.id}
-                                        tag={tag}
-                                        className="text-xs"
-                                    />
-                                ))
-                            ) : (
-                                <span className="text-xs text-muted-foreground">
-                                    No tags yet
-                                </span>
-                            )}
+                    isLoadingDoc ? (
+                        <div className="flex flex-col gap-2">
+                            <Skeleton className="h-5 w-48 bg-emerald-200/60" />
+                            <Skeleton className="h-4 w-24 rounded-full bg-emerald-200/60" />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm" className="gap-1">
-                                <Star
-                                    className={`h-4 w-4 ${
-                                        isFavorited ? 'fill-current' : ''
-                                    }`}
-                                />
-                                {isFavorited ? 'Favorited' : 'Favorite'}
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1"
-                                onClick={documentHeaderData?.onEditTags}
-                                disabled={!documentHeaderData?.onEditTags}
-                            >
-                                <TagIcon className="h-4 w-4" />
-                                Edit Tags
-                            </Button>
-                            <Button variant="ghost" size="sm" className="gap-1">
-                                <Share2 className="h-4 w-4" />
-                                Share
-                            </Button>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">
-                                            More actions
-                                        </span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                    align="end"
-                                    className="w-48"
+                    ) : (
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {documentTags.length > 0 ? (
+                                    documentTags.map((tag) => (
+                                        <TagBadge
+                                            key={tag.id}
+                                            tag={tag}
+                                            className="text-xs"
+                                        />
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                        No tags yet
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1"
                                 >
-                                    {canDeleteDocument ? (
-                                        <>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                className="text-destructive focus:text-destructive"
-                                                disabled={
-                                                    !documentHeaderData?.onDeleteDocument
-                                                }
-                                                onSelect={(event) => {
-                                                    event.preventDefault();
-                                                    documentHeaderData?.onDeleteDocument?.();
-                                                }}
-                                            >
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Delete Document
-                                            </DropdownMenuItem>
-                                        </>
-                                    ) : null}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                                    <Star
+                                        className={`h-4 w-4 ${
+                                            isFavorited
+                                                ? 'fill-current text-green-600'
+                                                : ''
+                                        }`}
+                                    />
+                                    {isFavorited ? 'Favorited' : 'Favorite'}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1"
+                                    onClick={documentHeaderData?.onEditTags}
+                                    disabled={!documentHeaderData?.onEditTags}
+                                >
+                                    <TagIcon className="h-4 w-4" />
+                                    Edit Tags
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1"
+                                >
+                                    <Share2 className="h-4 w-4" />
+                                    Share
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">
+                                                More actions
+                                            </span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        align="end"
+                                        className="w-48"
+                                    >
+                                        {canDeleteDocument ? (
+                                            <>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-destructive focus:text-destructive"
+                                                    disabled={
+                                                        !documentHeaderData?.onDeleteDocument
+                                                    }
+                                                    onSelect={(event) => {
+                                                        event.preventDefault();
+                                                        documentHeaderData?.onDeleteDocument?.();
+                                                    }}
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete Document
+                                                </DropdownMenuItem>
+                                            </>
+                                        ) : null}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
-                    </div>
+                    )
                 ) : null}
             </div>
             <Separator />

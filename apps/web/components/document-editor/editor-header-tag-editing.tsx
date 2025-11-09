@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Search, Palette, Loader2 } from 'lucide-react';
 import { SketchPicker, type ColorResult } from 'react-color';
-
+// # TODO REMOVETHIS THING
 import {
     Dialog,
     DialogContent,
@@ -14,12 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import {
-    Tag,
-    getTagBadgeStyle,
-    DEFAULT_TAG_COLOR,
-    type TagOption,
-} from '@/components/ui/tag';
+import { Tag, DEFAULT_TAG_COLOR, type TagOption } from '@/components/ui/tag';
 
 export type { TagOption } from '@/components/ui/tag';
 
@@ -39,6 +34,7 @@ type EditorHeaderTagEditingProps = {
     onRemoveTag: (tagId: string) => void;
     onCreateTag: (draft: TagDraft) => Promise<TagOption | null>;
     isCreatingTag: boolean;
+    isTagMutationPending: boolean;
 };
 
 export function EditorHeaderTagEditing({
@@ -51,6 +47,7 @@ export function EditorHeaderTagEditing({
     onRemoveTag,
     onCreateTag,
     isCreatingTag,
+    isTagMutationPending,
 }: EditorHeaderTagEditingProps) {
     const [query, setQuery] = useState('');
     const [createOpen, setCreateOpen] = useState(false);
@@ -82,6 +79,9 @@ export function EditorHeaderTagEditing({
         );
 
     const handleSelect = (tag: TagOption) => {
+        if (isTagMutationPending) {
+            return;
+        }
         onAddTag(tag);
         setQuery('');
     };
@@ -149,7 +149,11 @@ export function EditorHeaderTagEditing({
                                     key={tag.id}
                                     tag={tag}
                                     variant="removable"
-                                    onRemove={() => onRemoveTag(tag.id)}
+                                    onRemove={() => {
+                                        if (!isTagMutationPending) {
+                                            onRemoveTag(tag.id);
+                                        }
+                                    }}
                                 />
                             ))}
                         </div>
@@ -179,7 +183,8 @@ export function EditorHeaderTagEditing({
                                 <li key={tag.id}>
                                     <button
                                         type="button"
-                                        className="flex w-full items-center justify-between gap-4 rounded-sm px-2 py-2 text-left hover:bg-muted"
+                                        className="flex w-full items-center justify-between gap-4 rounded-sm px-2 py-2 text-left hover:bg-muted disabled:opacity-60"
+                                        disabled={isTagMutationPending}
                                         onClick={() => handleSelect(tag)}
                                     >
                                         <span className="flex flex-1 flex-col gap-1">
@@ -210,7 +215,7 @@ export function EditorHeaderTagEditing({
                         <Button
                             type="button"
                             onClick={openCreateDialog}
-                            disabled={!canCreate}
+                            disabled={!canCreate || isTagMutationPending}
                         >
                             Create “{trimmedQuery || 'tag'}”
                         </Button>
@@ -238,6 +243,7 @@ export function EditorHeaderTagEditing({
                 onColorChange={setDraftColor}
                 onSubmit={handleCreateSubmit}
                 isSubmitting={isCreatingTag}
+                isDisabled={isTagMutationPending}
             />
         </Dialog>
     );
@@ -262,6 +268,7 @@ type TagCreateDialogProps = {
     onColorChange: (value: string) => void;
     onSubmit: () => Promise<void>;
     isSubmitting: boolean;
+    isDisabled?: boolean;
 };
 
 function TagCreateDialog({
@@ -275,8 +282,10 @@ function TagCreateDialog({
     onColorChange,
     onSubmit,
     isSubmitting,
+    isDisabled = false,
 }: TagCreateDialogProps) {
     const canSave = name.trim().length > 0;
+    const actionDisabled = isSubmitting || isDisabled;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -341,7 +350,7 @@ function TagCreateDialog({
                         type="button"
                         variant="outline"
                         onClick={() => onOpenChange(false)}
-                        disabled={isSubmitting}
+                        disabled={actionDisabled}
                     >
                         Cancel
                     </Button>
@@ -350,12 +359,12 @@ function TagCreateDialog({
                         onClick={() => {
                             void onSubmit();
                         }}
-                        disabled={!canSave || isSubmitting}
+                        disabled={!canSave || actionDisabled}
                     >
-                        {isSubmitting ? (
+                        {actionDisabled ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Creating…
+                                {isSubmitting ? 'Creating…' : 'Working…'}
                             </>
                         ) : (
                             'Create tag'
