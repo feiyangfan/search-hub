@@ -1317,6 +1317,13 @@
                       "minimum": 0,
                       "maximum": 9007199254740991
                     },
+                    "documentsCreatedThisWeek": {
+                      "description": "Number of documents created in the last 7 days",
+                      "example": 5,
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
                     "memberCount": {
                       "description": "Total number of members in the tenant",
                       "example": 10,
@@ -1399,6 +1406,7 @@
                     "name",
                     "createdAt",
                     "documentCount",
+                    "documentsCreatedThisWeek",
                     "memberCount",
                     "tagCount",
                     "documents",

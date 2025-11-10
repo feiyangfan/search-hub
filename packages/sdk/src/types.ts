@@ -773,6 +773,11 @@ export interface paths {
                              */
                             documentCount: number;
                             /**
+                             * @description Number of documents created in the last 7 days
+                             * @example 5
+                             */
+                            documentsCreatedThisWeek: number;
+                            /**
                              * @description Total number of members in the tenant
                              * @example 10
                              */

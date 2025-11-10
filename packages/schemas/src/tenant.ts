@@ -73,6 +73,10 @@ export const GetTenantWithStatsResponseSchema = z.object({
         description: 'Total number of documents in the tenant',
         example: 150,
     }),
+    documentsCreatedThisWeek: z.number().int().nonnegative().meta({
+        description: 'Number of documents created in the last 7 days',
+        example: 5,
+    }),
     memberCount: z.number().int().nonnegative().meta({
         description: 'Total number of members in the tenant',
         example: 10,

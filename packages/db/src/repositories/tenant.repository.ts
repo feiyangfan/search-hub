@@ -293,41 +293,58 @@ export const tenantRepository = {
     },
     getByIdWithStats: async (tenantId: string) => {
         try {
-            return await prisma.tenant.findUnique({
-                where: {
-                    id: tenantId,
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    createdAt: true,
-                    _count: {
-                        select: {
-                            memberships: true, // total members
-                            documents: true,
-                            tags: true,
+            const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const [tenant, documentsCreatedThisWeek] = await Promise.all([
+                prisma.tenant.findUnique({
+                    where: { id: tenantId },
+                    select: {
+                        id: true,
+                        name: true,
+                        createdAt: true,
+                        _count: {
+                            select: {
+                                memberships: true,
+                                documents: true,
+                                tags: true,
+                            },
+                        },
+                        documents: {
+                            select: {
+                                id: true,
+                                title: true,
+                                updatedAt: true,
+                                createdAt: true,
+                            },
+                            orderBy: { updatedAt: 'desc' },
+                            take: 5,
+                        },
+                        tags: {
+                            select: {
+                                id: true,
+                                name: true,
+                                color: true,
+                                description: true,
+                            },
+                            take: 10,
                         },
                     },
-                    documents: {
-                        select: {
-                            id: true,
-                            title: true,
-                            updatedAt: true,
-                        },
-                        orderBy: { updatedAt: 'desc' },
-                        take: 5, // optional: latest documents
+                }),
+                prisma.document.count({
+                    where: {
+                        tenantId,
+                        createdAt: { gte: weekAgo },
                     },
-                    tags: {
-                        select: {
-                            id: true,
-                            name: true,
-                            color: true,
-                            description: true,
-                        },
-                        take: 10, // optional: small sample for dashboard
-                    },
-                },
-            });
+                }),
+            ]);
+
+            if (!tenant) {
+                return null;
+            }
+
+            return {
+                ...tenant,
+                documentsCreatedThisWeek,
+            };
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError) {
                 switch (error.code) {

@@ -260,6 +260,7 @@ export function tenantRoutes() {
                 name: tenant.name,
                 createdAt: tenant.createdAt.toISOString(),
                 documentCount: tenant._count.documents,
+                documentsCreatedThisWeek: tenant.documentsCreatedThisWeek ?? 0,
                 memberCount: tenant._count.memberships,
                 tagCount: tenant._count.tags,
                 documents: tenant.documents.map((doc) => ({
