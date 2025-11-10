@@ -14,6 +14,7 @@ import { metrics } from '@search-hub/observability';
 import { indexQueue as defaultIndexQueue } from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
 import type { Logger } from 'pino';
+import { extractRemindCommands, syncReminders } from '../lib/reminders.js';
 
 const DEFAULT_QUEUE_OPTIONS = {
     attempts: 3,
@@ -468,12 +469,22 @@ export function createDocumentService(
             content
         );
 
+        // Extract and sync reminders from document content
+        const reminders = extractRemindCommands(content);
+        await syncReminders({
+            documentId,
+            userId: context.userId,
+            tenantId: context.tenantId,
+            reminders,
+        });
+
         logger.info(
             {
                 documentId,
                 userId: context.userId,
                 tenantId: context.tenantId,
                 contentLength: content.length,
+                remindersCount: reminders.length,
             },
             'document.update_content.succeeded'
         );

@@ -1,5 +1,5 @@
 import { Worker, QueueEvents, Job } from 'bullmq';
-import { db } from '@search-hub/db';
+import { db, prisma } from '@search-hub/db';
 import { logger as base } from '@search-hub/logger';
 import { chunkText, sha256 } from '@search-hub/schemas';
 import { createVoyageHelpers } from '@search-hub/ai';
@@ -9,6 +9,8 @@ import {
     JOBS,
     IndexDocumentJobSchema,
     type IndexDocumentJob,
+    SendReminderJobSchema,
+    type SendReminderJob,
 } from '@search-hub/schemas';
 
 const VOYAGE_API_KEY = loadAiEnv().VOYAGE_API_KEY;
@@ -281,11 +283,129 @@ worker.on('failed', (job, err) =>
     )
 );
 
+// ===== Reminder Worker =====
+const reminderProcessor = async (job: Job<SendReminderJob>) => {
+    const { tenantId, documentCommandId } = SendReminderJobSchema.parse(
+        job.data
+    );
+
+    logger.info(
+        { documentCommandId, tenantId },
+        'Processing reminder notification'
+    );
+
+    try {
+        // Fetch the reminder command
+        const command = await prisma.documentCommand.findUnique({
+            where: { id: documentCommandId },
+            include: {
+                document: {
+                    select: {
+                        id: true,
+                        title: true,
+                    },
+                },
+            },
+        });
+
+        if (!command) {
+            logger.warn(
+                { documentCommandId },
+                'DocumentCommand not found, may have been deleted'
+            );
+            return { ok: true, reason: 'not-found' };
+        }
+
+        const body = command.body as {
+            kind: string;
+            status?: string;
+            whenText?: string;
+            whenISO?: string;
+        };
+        const currentStatus = body?.status;
+
+        // Only notify if still scheduled (not already done/snoozed)
+        if (currentStatus !== 'scheduled') {
+            logger.info(
+                { documentCommandId, status: currentStatus },
+                'Reminder already processed or cancelled'
+            );
+            return { ok: true, reason: 'already-processed' };
+        }
+
+        // Update status to 'notified'
+        await prisma.documentCommand.update({
+            where: { id: documentCommandId },
+            data: {
+                body: {
+                    ...body,
+                    status: 'notified',
+                    notifiedAt: new Date().toISOString(),
+                },
+            },
+        });
+
+        logger.info(
+            {
+                documentCommandId,
+                userId: command.userId,
+                documentId: command.documentId,
+                whenText: body?.whenText,
+            },
+            'Reminder notification sent'
+        );
+
+        return { ok: true, documentCommandId };
+    } catch (error) {
+        logger.error(
+            { error, documentCommandId, tenantId },
+            'Failed to process reminder'
+        );
+        throw error;
+    }
+};
+
+const reminderQueueEvents = new QueueEvents(JOBS.SEND_REMINDER, {
+    connection,
+});
+
+reminderQueueEvents.on('completed', ({ jobId }) => {
+    logger.info({ jobId }, 'Reminder job completed');
+    metrics.jobsProcessed.inc({
+        job_type: 'send_reminder',
+        result: 'success',
+    });
+});
+
+reminderQueueEvents.on('failed', ({ jobId, failedReason }) => {
+    logger.error({ jobId, failedReason }, 'Reminder job failed');
+    metrics.jobsProcessed.inc({
+        job_type: 'send_reminder',
+        result: 'failure',
+    });
+});
+
+const reminderWorker = new Worker<SendReminderJob>(
+    JOBS.SEND_REMINDER,
+    reminderProcessor,
+    {
+        connection,
+        concurrency: 5, // Process up to 5 reminders concurrently
+    }
+);
+
+reminderWorker.on('ready', () => logger.info('Reminder worker started'));
+reminderWorker.on('error', (err) =>
+    logger.error({ err }, 'Reminder worker error')
+);
+
 // Graceful shutdown
 const handleSigint = async () => {
-    logger.info('Shutting down worker...');
+    logger.info('Shutting down workers...');
     await worker.close();
+    await reminderWorker.close();
     await queueEvents.close();
+    await reminderQueueEvents.close();
     process.exit(0);
 };
 

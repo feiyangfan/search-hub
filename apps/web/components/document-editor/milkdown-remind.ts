@@ -15,7 +15,7 @@ import { remindSpec, type RemindStatus } from './remindNode';
 
 // shared regex for bracket parsing
 const REMIND_SHORTCODE_PATTERN =
-    '\\[\\[\\s*remind\\s*:\\s*([^|\\]]+?)(?:\\|([^\\]]+))?\\s*\\]\\]';
+    '%%\\s*remind\\s*:\\s*([^|%]+?)(?:\\|([^%]+))?\\s*%%';
 export const createRemindShortcodeRegex = () =>
     new RegExp(REMIND_SHORTCODE_PATTERN, 'gi');
 const BRACKET_RE = createRemindShortcodeRegex();
@@ -73,12 +73,11 @@ export const remindNodeSchema = $nodeSchema('remind', (_ctx) => ({
         match: ({ type, value }: { type: string; value?: unknown }) =>
             type === 'text' &&
             typeof value === 'string' &&
-            /\[\[\s*remind\s*:/i.test(value),
+            /%%\s*remind\s*:/i.test(value),
         runner: (state: any, node: any, type: any) => {
             const text: string = String(node.value ?? '');
             let lastIndex = 0;
             let m: RegExpExecArray | null;
-            BRACKET_RE.lastIndex = 0;
             BRACKET_RE.lastIndex = 0;
             while ((m = BRACKET_RE.exec(text)) !== null) {
                 const before = text.slice(lastIndex, m.index);
@@ -111,7 +110,7 @@ export const remindNodeSchema = $nodeSchema('remind', (_ctx) => ({
             if (id) parts.push(`id=${id}`);
             const suffix = parts.length ? ` | ${parts.join(',')}` : '';
             state.addNode('text', undefined, undefined, {
-                value: `[[remind: ${whenText}${suffix}]]`,
+                value: `%%remind: ${whenText}${suffix}%%`,
             });
         },
     },
@@ -120,15 +119,17 @@ export const remindNodeSchema = $nodeSchema('remind', (_ctx) => ({
 export const remindNode = remindNodeSchema.node;
 
 // --- Input rules
-// [[remind: <text> | ...]]
-const REMIND_BRACKET_RE = /\[\[\s*remind\s*:\s*([^|\]]+?)(?:\|([^\]]+))?\]\]$/i;
+// %%remind: <text> | ...%%
+const REMIND_BRACKET_RE = /%%\s*remind\s*:\s*([^|%]+?)(?:\|([^%]+))?%%$/i;
 // /remind[space] → insert empty remind node
 const REMIND_SLASH_RE = /(^|\s)\/remind\s$/i;
 
 export const remindBracketInputRule = $inputRule((ctx: Ctx) => {
     const type = remindNode.type(ctx);
     return new InputRule(REMIND_BRACKET_RE, (state, match, start, end) => {
-        const { whenText, attrs } = parseBracketMatch(match as RegExpExecArray);
+        const { whenText, attrs } = parseRemindShortcodeMatch(
+            match as RegExpExecArray
+        );
         // ensure an id exists
         if (!('id' in attrs) || !attrs.id) {
             attrs.id = `r_${Date.now().toString(36)}_${Math.random()

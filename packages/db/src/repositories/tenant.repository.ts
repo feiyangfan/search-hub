@@ -490,4 +490,75 @@ export const tenantRepository = {
             throw error;
         }
     },
+    getActivity: async ({ tenantId }: { tenantId: string }) => {
+        try {
+            const activities = { tenantId };
+
+            return activities;
+        } catch (error) {
+            // Re-throw AppError as-is
+            if (error instanceof AppError) {
+                throw error;
+            }
+
+            // Handle Prisma errors
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                switch (error.code) {
+                    case 'P1001': // Can't reach database
+                    case 'P1002': // Database timeout
+                        throw AppError.transient(
+                            'DB_CONNECTION_FAILED',
+                            'Database connection failed',
+                            {
+                                retryAfterMs: 5000,
+                                context: {
+                                    origin: 'database',
+                                    domain: 'tenants',
+                                    resource: 'TenantActivity',
+                                    operation: 'getActivity',
+                                    metadata: { prismaCode: error.code },
+                                },
+                            }
+                        );
+
+                    default:
+                        throw AppError.internal(
+                            'DB_OPERATION_FAILED',
+                            'Failed to fetch tenant activity',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'tenants',
+                                    resource: 'TenantActivity',
+                                    operation: 'getActivity',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        message: error.message,
+                                    },
+                                },
+                            }
+                        );
+                }
+            }
+
+            if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                throw AppError.internal(
+                    'DB_UNKNOWN_ERROR',
+                    'Database query failed',
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'tenants',
+                            resource: 'TenantActivity',
+                            operation: 'getActivity',
+                            metadata: { message: error.message },
+                        },
+                    }
+                );
+            }
+
+            // Re-throw unexpected errors
+            throw error;
+        }
+    },
 };

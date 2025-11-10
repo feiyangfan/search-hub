@@ -109,3 +109,37 @@ export const GetTenantWithStatsResponseSchema = z.object({
 export type GetTenantWithStatsResponse = z.infer<
     typeof GetTenantWithStatsResponseSchema
 >;
+
+// Activity
+export const TenantActivitySchema = z.object({
+    id: Id,
+    tenantId: Id,
+    type: z.enum([
+        'document_created',
+        'document_updated',
+        'document_deleted',
+        'document_tagged',
+        'document_favorited',
+    ]),
+    user: z.object({
+        id: Id,
+        name: z.string(),
+    }),
+    target: z.object({
+        id: Id,
+        title: z.string(),
+        kind: z.enum(['document', 'tag', 'other']),
+    }),
+    detail: z.string().nullable(),
+    occuredAt: IsoDate,
+    metadata: z.record(z.string(), z.any()).nullable(), // Additional metadata as key-value pairs such as icon
+});
+
+export type TenantActivityType = z.infer<typeof TenantActivitySchema>;
+
+export const TenantActivityResponse = z.object({
+    tenantId: Id,
+    items: z.array(TenantActivitySchema),
+});
+
+export type TenantActivityResponseType = z.infer<typeof TenantActivityResponse>;

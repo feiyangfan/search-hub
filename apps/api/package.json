@@ -17,6 +17,7 @@
         "@types/express-session": "^1.18.2",
         "bcrypt": "^6.0.0",
         "bullmq": "^5.58.7",
+        "chrono-node": "^2.9.0",
         "compression": "^1.8.1",
         "connect-redis": "^9.0.0",
         "cors": "^2.8.5",
