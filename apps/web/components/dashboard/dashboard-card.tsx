@@ -47,7 +47,6 @@ const accentClasses: Record<
 export function DashboardCard({
     title,
     description,
-    eyebrow,
     action,
     footer,
     children,
@@ -68,13 +67,8 @@ export function DashboardCard({
             )}
             {...props}
         >
-            <div className="flex items-center justify-between px-5 pt-4 gap-4">
+            <div className="flex items-center justify-between px-4 pt-2 gap-4">
                 <div className="header-section">
-                    {eyebrow ? (
-                        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground/60">
-                            {eyebrow}
-                        </p>
-                    ) : null}
                     <h3 className="text-sm font-semibold tracking-tight">
                         {title}
                     </h3>
@@ -87,7 +81,7 @@ export function DashboardCard({
                 {action ? <div className="action-section">{action}</div> : null}
             </div>
 
-            <div className="flex-1 px-5 py-4 min-h-0">{children}</div>
+            <div className="flex-1 px-4 py-3 min-h-0">{children}</div>
         </section>
     );
 }

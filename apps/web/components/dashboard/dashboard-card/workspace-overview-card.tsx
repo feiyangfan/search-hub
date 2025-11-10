@@ -32,15 +32,17 @@ export function WorkspaceOverviewCard({
     }
 
     return (
-        <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3 ">
+        <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="min-w-0 flex flex-col">
                 <p className="text-[0.6rem] font-semibold text-muted-foreground uppercase tracking-wide">
                     Documents
                 </p>
-                <p className="text-xl font-bold">
-                    {data.documentCount}
-                    <span className="ml-1 text-[0.6rem] font-medium text-muted-foreground wrap-anywhere">
-                        +3 this week
+                <p className="flex text-xl font-bold">
+                    <span className="text-emerald-800">
+                        {data.documentCount}
+                    </span>
+                    <span className="ml-1 text-[0.6rem] font-medium leading-tight text-muted-foreground place-self-end">
+                        +{data.documentsCreatedThisWeek ?? 0} this week
                     </span>
                 </p>
             </div>
@@ -48,13 +50,17 @@ export function WorkspaceOverviewCard({
                 <p className="text-[0.6rem] font-semibold text-muted-foreground uppercase tracking-wide">
                     Members
                 </p>
-                <p className="text-xl font-bold">{data.memberCount}</p>
+                <p className="text-xl font-bold">
+                    <span className="text-emerald-800">{data.memberCount}</span>
+                </p>
             </div>
             <div className="min-w-0">
                 <p className="text-[0.6rem] font-semibold text-muted-foreground uppercase tracking-wide">
                     Tags
                 </p>
-                <p className="text-xl font-bold">{data.tagCount}</p>
+                <p className="flex text-xl font-bold">
+                    <span className="text-emerald-800 ">{data.tagCount}</span>
+                </p>
             </div>
         </div>
     );

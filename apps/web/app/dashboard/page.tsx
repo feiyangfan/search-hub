@@ -30,6 +30,7 @@ import {
     Pencil,
 } from 'lucide-react';
 import type { TagListItemType } from '@search-hub/schemas';
+import { WorkspaceOverviewCard } from '@/components/dashboard/dashboard-card/workspace-overview-card';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -92,7 +93,14 @@ export default async function DashboardPage() {
                             document.id,
                             error
                         );
-                        return { document, tags: [] as { id: string; name: string; color?: string | null }[] };
+                        return {
+                            document,
+                            tags: [] as {
+                                id: string;
+                                name: string;
+                                color?: string | null;
+                            }[],
+                        };
                     }
                 })
             );
@@ -199,7 +207,7 @@ export default async function DashboardPage() {
                         title="Quick Search"
                         className="h-full"
                     >
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 h-full">
                             <Input
                                 placeholder="Search across documents..."
                                 className="flex-1"
@@ -214,7 +222,6 @@ export default async function DashboardPage() {
                     <DashboardCard
                         variant="large"
                         title="Search Intelligence"
-                        description="Performance metrics"
                         action={
                             <Button variant="ghost" size="sm">
                                 Analytics
@@ -276,40 +283,9 @@ export default async function DashboardPage() {
                         title="Workspace Overview"
                         className="h-full"
                     >
-                        <div className="h-full flex items-center">
-                            {/* Stats Grid - Content + Collaboration */}
-                            <div className="grid grid-cols-3 gap-3 w-full">
-                                <div className="space-y-0.5">
-                                    <p className="text-[0.65rem] font-medium text-muted-foreground uppercase tracking-wide">
-                                        Documents
-                                    </p>
-                                    <p className="text-xl font-bold">47</p>
-                                    <p className="text-[0.65rem] text-muted-foreground">
-                                        +3 this week
-                                    </p>
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[0.65rem] font-medium text-muted-foreground uppercase tracking-wide">
-                                        Collaborators
-                                    </p>
-                                    <p className="text-xl font-bold">5</p>
-                                    <p className="text-[0.65rem] text-muted-foreground">
-                                        members
-                                    </p>
-                                </div>
-                                <div className="space-y-0.5">
-                                    <p className="text-[0.65rem] font-medium text-muted-foreground uppercase tracking-wide">
-                                        Tags
-                                    </p>
-                                    <p className="text-xl font-bold">
-                                        {tags.length}
-                                    </p>
-                                    <p className="text-[0.65rem] text-muted-foreground">
-                                        categories
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                        <WorkspaceOverviewCard
+                            tenantId={session.activeTenantId}
+                        />
                     </DashboardCard>
                 </DashboardGridItem>
 
@@ -318,7 +294,6 @@ export default async function DashboardPage() {
                     <DashboardCard
                         variant="medium"
                         title="Reminders"
-                        description="Upcoming notifications"
                         action={
                             <Button variant="ghost" size="sm">
                                 View all
@@ -398,7 +373,6 @@ export default async function DashboardPage() {
                     <DashboardCard
                         variant="medium"
                         title="Knowledge Network"
-                        description="Document and tag relationships"
                         action={
                             <Button variant="ghost" size="sm">
                                 Explore
@@ -406,16 +380,18 @@ export default async function DashboardPage() {
                         }
                         className="h-full"
                     >
-                        <TagNetworkGraph nodes={graphNodes} edges={graphEdges} />
+                        <TagNetworkGraph
+                            nodes={graphNodes}
+                            edges={graphEdges}
+                        />
                     </DashboardCard>
                 </DashboardGridItem>
 
-                {/* Row 5: Index Pipeline Status - 2 columns, 3 rows */}
+                {/* Index Pipeline Status - 2 columns, 3 rows */}
                 <DashboardGridItem colSpan={2} rowSpan={3}>
                     <DashboardCard
                         variant="large"
                         title="Indexing Pipeline Status"
-                        description="Document processing and embedding generation"
                         action={
                             <Button variant="ghost" size="sm">
                                 View Queue
@@ -487,7 +463,6 @@ export default async function DashboardPage() {
                     <DashboardCard
                         variant="medium"
                         title="Recent Activity"
-                        description="Latest workspace actions"
                         action={
                             <Button variant="ghost" size="sm">
                                 View all
