@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { createDocument } from 'zod-openapi';
 import type { oas31 } from 'zod-openapi';
 
@@ -22,7 +23,9 @@ import {
     DeleteTenantPayload,
     TenantListResponse,
     ActiveTenantPayload,
+    GetTenantWithStatsResponseSchema,
 } from './tenant.js';
+import { Id } from './common.js';
 import { AuthPayload, AuthResponse } from './auth.js';
 import {
     addTagsToDocumentRequestSchema,
@@ -44,6 +47,10 @@ import {
 export function buildOpenApi(
     baseUrl = 'http://localhost:3000'
 ): OpenApiDocument {
+    const tenantIdPathParams = z.object({
+        tenantId: Id,
+    });
+
     return createDocument({
         openapi: '3.0.3',
         info: { title: 'Search Hub API', version: '0.1.0' },
@@ -282,6 +289,49 @@ export function buildOpenApi(
                             description: 'Bad Request - Validation error',
                             content: {
                                 'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description:
+                                'Forbidden - User not member of tenant',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Tenant not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/tenants/{tenantId}/stats': {
+                get: {
+                    requestParams: {
+                        path: tenantIdPathParams,
+                    },
+                    responses: {
+                        200: {
+                            description: 'Workspace stats and recent activity',
+                            content: {
+                                'application/json': {
+                                    schema: GetTenantWithStatsResponseSchema,
+                                },
                             },
                         },
                         401: {

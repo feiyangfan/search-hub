@@ -291,11 +291,41 @@ export const tenantRepository = {
             throw error;
         }
     },
-    findById: async (tenantId: string) => {
+    getByIdWithStats: async (tenantId: string) => {
         try {
             return await prisma.tenant.findUnique({
                 where: {
                     id: tenantId,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    createdAt: true,
+                    _count: {
+                        select: {
+                            memberships: true, // total members
+                            documents: true,
+                            tags: true,
+                        },
+                    },
+                    documents: {
+                        select: {
+                            id: true,
+                            title: true,
+                            updatedAt: true,
+                        },
+                        orderBy: { updatedAt: 'desc' },
+                        take: 5, // optional: latest documents
+                    },
+                    tags: {
+                        select: {
+                            id: true,
+                            name: true,
+                            color: true,
+                            description: true,
+                        },
+                        take: 10, // optional: small sample for dashboard
+                    },
                 },
             });
         } catch (error) {

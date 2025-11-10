@@ -9,6 +9,7 @@ import {
     ActiveTenantPayload,
     type ActiveTenantPayload as ActiveTenantPayloadBody,
     AppError,
+    GetTenantWithStatsResponse,
 } from '@search-hub/schemas';
 
 import { validateBody } from '../middleware/validateMiddleware.js';
@@ -143,7 +144,7 @@ export function tenantRoutes() {
 
                 const userId = reqWithUser.session.userId;
 
-                const tenant = await db.tenant.findById(tenantId);
+                const tenant = await db.tenant.getByIdWithStats(tenantId);
                 if (!tenant) {
                     throw AppError.notFound(
                         'TENANT_NOT_FOUND',
@@ -208,6 +209,77 @@ export function tenantRoutes() {
             }
         }
     );
+
+    router.get('/:tenantId/stats', async (req, res, next) => {
+        try {
+            const authReq = req as AuthenticatedGetRequest;
+            const { userId } = authReq.session;
+            const { tenantId } = req.params;
+
+            const memberships = await db.tenant.listForUser({ userId });
+            const membership = memberships.find(
+                (item) => item.tenantId === tenantId
+            );
+
+            if (!membership) {
+                throw AppError.authorization(
+                    'TENANT_ACCESS_DENIED',
+                    'User is not a member of this tenant',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'tenant',
+                            resource: 'Tenant',
+                            resourceId: tenantId,
+                            operation: 'getStats',
+                            userId,
+                        },
+                    }
+                );
+            }
+
+            const tenant = await db.tenant.getByIdWithStats(tenantId);
+            if (!tenant) {
+                throw AppError.notFound(
+                    'TENANT_NOT_FOUND',
+                    'Tenant not found',
+                    {
+                        context: {
+                            origin: 'server',
+                            domain: 'tenant',
+                            resource: 'Tenant',
+                            resourceId: tenantId,
+                            operation: 'getStats',
+                        },
+                    }
+                );
+            }
+
+            const response: GetTenantWithStatsResponse = {
+                id: tenant.id,
+                name: tenant.name,
+                createdAt: tenant.createdAt.toISOString(),
+                documentCount: tenant._count.documents,
+                memberCount: tenant._count.memberships,
+                tagCount: tenant._count.tags,
+                documents: tenant.documents.map((doc) => ({
+                    id: doc.id,
+                    title: doc.title,
+                    updatedAt: doc.updatedAt.toISOString(),
+                })),
+                tags: tenant.tags.map((tag) => ({
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color,
+                    description: tag.description,
+                })),
+            };
+
+            res.json(response);
+        } catch (error) {
+            next(error);
+        }
+    });
 
     return router;
 }

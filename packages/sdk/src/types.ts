@@ -729,6 +729,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenants/{tenantId}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description A unique identifier string */
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Workspace stats and recent activity */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /**
+                             * @description A unique identifier string
+                             * @example abc123
+                             */
+                            id: string;
+                            /**
+                             * @description Name of the tenant
+                             * @example Software Inc
+                             */
+                            name: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /**
+                             * @description Total number of documents in the tenant
+                             * @example 150
+                             */
+                            documentCount: number;
+                            /**
+                             * @description Total number of members in the tenant
+                             * @example 10
+                             */
+                            memberCount: number;
+                            /**
+                             * @description Total number of tags in the tenant
+                             * @example 25
+                             */
+                            tagCount: number;
+                            /**
+                             * @description List of documents belonging to the tenant
+                             * @example []
+                             */
+                            documents: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                id: string;
+                                title: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                            }[];
+                            tags: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                id: string;
+                                name: string;
+                                color: string | null;
+                                description: string | null;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden - User not member of tenant */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Not Found - Tenant not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/documents": {
         parameters: {
             query?: never;

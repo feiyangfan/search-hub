@@ -63,3 +63,45 @@ export const ActiveTenantPayload = z.object({
     id: Tenant.shape.id,
 });
 export type ActiveTenantPayload = z.infer<typeof ActiveTenantPayload>;
+
+// Get tenant statistics response
+export const GetTenantWithStatsResponseSchema = z.object({
+    id: Id,
+    name: Tenant.shape.name,
+    createdAt: IsoDate,
+    documentCount: z.number().int().nonnegative().meta({
+        description: 'Total number of documents in the tenant',
+        example: 150,
+    }),
+    memberCount: z.number().int().nonnegative().meta({
+        description: 'Total number of members in the tenant',
+        example: 10,
+    }),
+    tagCount: z.number().int().nonnegative().meta({
+        description: 'Total number of tags in the tenant',
+        example: 25,
+    }),
+    documents: z
+        .array(
+            z.object({
+                id: Id,
+                title: z.string(),
+                updatedAt: IsoDate,
+            })
+        )
+        .meta({
+            description: 'List of documents belonging to the tenant',
+            example: [],
+        }),
+    tags: z.array(
+        z.object({
+            id: Id,
+            name: z.string(),
+            color: z.string().nullable(),
+            description: z.string().nullable(),
+        })
+    ),
+});
+export type GetTenantWithStatsResponse = z.infer<
+    typeof GetTenantWithStatsResponseSchema
+>;

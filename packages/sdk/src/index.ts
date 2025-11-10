@@ -192,6 +192,22 @@ export class SearchHubClient {
         return (await res.json()) as paths['/v1/tenants']['get']['responses']['200']['content']['application/json'];
     }
 
+    /** GET /v1/tenants/{tenantId}/stats */
+    async getTenantStats(
+        tenantId: string
+    ): Promise<
+        paths['/v1/tenants/{tenantId}/stats']['get']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/tenants/${tenantId}/stats`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'getTenantStats');
+        return (await res.json()) as paths['/v1/tenants/{tenantId}/stats']['get']['responses']['200']['content']['application/json'];
+    }
+
     /** POST /v1/document */
     async createDocument(
         body: paths['/v1/documents']['post']['requestBody']['content']['application/json']
