@@ -8,7 +8,7 @@ const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
 export async function GET(
     request: NextRequest,
-    context: { params: { tenantId: string } }
+    context: { params: Promise<{ tenantId: string }> }
 ) {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -21,7 +21,7 @@ export async function GET(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const tenantId = context.params.tenantId;
+    const { tenantId } = await context.params;
     if (!tenantId) {
         return NextResponse.json(
             { error: 'Tenant id is required' },

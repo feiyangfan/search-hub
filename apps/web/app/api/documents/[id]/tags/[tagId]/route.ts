@@ -8,9 +8,9 @@ const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
 export async function DELETE(
     _request: NextRequest,
-    { params }: { params: { id: string; tagId: string } }
+    { params }: { params: Promise<{ id: string; tagId: string }> }
 ) {
-    const { id, tagId } = params;
+    const { id, tagId } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session) {

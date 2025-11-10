@@ -8,9 +8,9 @@ const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
 export async function GET(
     _request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = params;
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -42,9 +42,9 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = params;
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session) {
