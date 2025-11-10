@@ -5,13 +5,22 @@ import type { Session } from 'next-auth';
 import { usePathname } from 'next/navigation';
 import {
     MoreHorizontal,
+    PencilLine,
     Share2,
     Star,
     Tag as TagIcon,
     Trash2,
 } from 'lucide-react';
 
-import { Fragment, useMemo } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +43,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Tag as TagBadge } from '@/components/ui/tag';
 import { useDocumentHeader } from '@/components/document/document-header-context';
 import { Skeleton } from '../ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { useDocumentActions } from '@/hooks/use-document-actions';
 
 interface AppHeaderProps {
     session: Session | null;
@@ -49,7 +60,9 @@ export function AppHeader({
     const isDocumentRoute = pathname?.startsWith('/doc/');
     const segments =
         pathname?.split('/').filter((segment) => segment.length > 0) ?? [];
-    const { data: documentHeaderData } = useDocumentHeader();
+    const { data: documentHeaderData, setData: setDocumentHeaderData } =
+        useDocumentHeader();
+    const { renameDocument, renamePending } = useDocumentActions();
 
     const isDocumentContext = Boolean(documentHeaderData?.documentId);
     const isLoadingDoc = isDocumentRoute && !documentHeaderData;
@@ -206,10 +219,91 @@ export function AppHeader({
         return role === 'owner' || role === 'admin';
     });
 
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [titleDraft, setTitleDraft] = useState(documentName ?? '');
+    const titleInputRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        if (!isEditingTitle) {
+            setTitleDraft(documentName ?? '');
+        }
+    }, [documentName, isEditingTitle]);
+
+    useEffect(() => {
+        if (isEditingTitle) {
+            titleInputRef.current?.focus();
+            titleInputRef.current?.select();
+        }
+    }, [isEditingTitle]);
+
+    const beginEditingTitle = useCallback(() => {
+        if (!documentHeaderData?.documentId || isLoadingDoc) {
+            return;
+        }
+        setIsEditingTitle(true);
+    }, [documentHeaderData?.documentId, isLoadingDoc]);
+
+    const cancelEditingTitle = useCallback(() => {
+        setTitleDraft(documentName ?? '');
+        setIsEditingTitle(false);
+    }, [documentName]);
+
+    const handleRenameSubmit = useCallback(async () => {
+        if (!documentHeaderData?.documentId) {
+            setIsEditingTitle(false);
+            return;
+        }
+
+        const trimmedDraft = titleDraft.trim();
+        const currentTitle = (documentName ?? '').trim();
+
+        if (!trimmedDraft) {
+            cancelEditingTitle();
+            return;
+        }
+
+        if (trimmedDraft === currentTitle) {
+            setIsEditingTitle(false);
+            return;
+        }
+
+        try {
+            renameDocument(documentHeaderData.documentId, trimmedDraft);
+            setDocumentHeaderData((prev) =>
+                prev && prev.documentId === documentHeaderData.documentId
+                    ? { ...prev, title: trimmedDraft }
+                    : prev
+            );
+            setIsEditingTitle(false);
+        } catch {
+            // leave the input open so the user can retry
+        }
+    }, [
+        cancelEditingTitle,
+        documentHeaderData,
+        documentName,
+        renameDocument,
+        setDocumentHeaderData,
+        titleDraft,
+    ]);
+
+    const handleRenameKeyDown = useCallback(
+        (event: ReactKeyboardEvent<HTMLInputElement>) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                void handleRenameSubmit();
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                cancelEditingTitle();
+            }
+        },
+        [cancelEditingTitle, handleRenameSubmit]
+    );
+
     return (
         <header className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-            <div className="mx-auto flex flex-col px-3 pt-3 pb-1">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="mx-auto flex flex-col px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-1">
                     <div className="flex flex-wrap items-center gap-2">
                         {user && showSidebarTrigger ? (
                             <SidebarTrigger className="-ml-2" />
@@ -221,10 +315,14 @@ export function AppHeader({
                                         index === breadcrumbs.length - 1;
                                     const shouldShowSkeleton =
                                         crumb.isDocumentTitle && isLoadingDoc;
+                                    const isEditableDocumentTitle =
+                                        crumb.isDocumentTitle &&
+                                        isDocumentContext &&
+                                        !shouldShowSkeleton;
                                     const labelClass = crumb.accent
-                                        ? 'text-lg font-semibold tracking-tight text-foreground'
+                                        ? 'text-base font-semibold tracking-tight text-foreground'
                                         : isLast
-                                        ? 'text-sm font-medium text-foreground'
+                                        ? 'text-xs font-medium text-foreground'
                                         : 'text-xs font-medium text-muted-foreground';
 
                                     return (
@@ -247,6 +345,55 @@ export function AppHeader({
                                                     >
                                                         {shouldShowSkeleton ? (
                                                             <Skeleton className="h-5 w-40 rounded bg-emerald-200/60" />
+                                                        ) : isEditableDocumentTitle ? (
+                                                            isEditingTitle ? (
+                                                                <Input
+                                                                    ref={
+                                                                        titleInputRef
+                                                                    }
+                                                                    value={
+                                                                        titleDraft
+                                                                    }
+                                                                    onChange={(
+                                                                        event
+                                                                    ) =>
+                                                                        setTitleDraft(
+                                                                            event
+                                                                                .target
+                                                                                .value
+                                                                        )
+                                                                    }
+                                                                    onBlur={() => {
+                                                                        void handleRenameSubmit();
+                                                                    }}
+                                                                    onKeyDown={
+                                                                        handleRenameKeyDown
+                                                                    }
+                                                                    disabled={
+                                                                        renamePending
+                                                                    }
+                                                                    className="h-7 w-[220px] border-border bg-background/80 px-2 text-xs font-medium text-foreground"
+                                                                />
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={
+                                                                        beginEditingTitle
+                                                                    }
+                                                                    className="inline-flex items-center gap-1 rounded-sm text-left text-inherit outline-none transition hover:text-primary focus-visible:ring-1 focus-visible:ring-ring"
+                                                                    disabled={
+                                                                        renamePending
+                                                                    }
+                                                                    title="Rename document"
+                                                                >
+                                                                    <span className="truncate">
+                                                                        {
+                                                                            crumb.label
+                                                                        }
+                                                                    </span>
+                                                                    <PencilLine className="h-3.5 w-3.5 text-muted-foreground" />
+                                                                </button>
+                                                            )
                                                         ) : (
                                                             crumb.label
                                                         )}
@@ -274,31 +421,14 @@ export function AppHeader({
                             </div>
                         ) : null}
                     </div>
-                </div>
-                {/* Document Header */}
-                {isDocumentRoute ? (
-                    isLoadingDoc ? (
-                        <div className="flex flex-col gap-2">
-                            <Skeleton className="h-5 w-48 bg-emerald-200/60" />
-                            <Skeleton className="h-4 w-24 rounded-full bg-emerald-200/60" />
-                        </div>
-                    ) : (
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                                {documentTags.length > 0 ? (
-                                    documentTags.map((tag) => (
-                                        <TagBadge
-                                            key={tag.id}
-                                            tag={tag}
-                                            className="text-xs"
-                                        />
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-muted-foreground">
-                                        No tags yet
-                                    </span>
-                                )}
+                    {isDocumentRoute ? (
+                        isLoadingDoc ? (
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-8 w-20 rounded-md bg-emerald-200/60" />
+                                <Skeleton className="h-8 w-24 rounded-md bg-emerald-200/60" />
+                                <Skeleton className="h-8 w-8 rounded-md bg-emerald-200/60" />
                             </div>
+                        ) : (
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="ghost"
@@ -366,8 +496,30 @@ export function AppHeader({
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
-                        </div>
-                    )
+                        )
+                    ) : null}
+                </div>
+                {isDocumentRoute ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                        {isLoadingDoc ? (
+                            <>
+                                <Skeleton className="h-4 w-28 rounded-full bg-emerald-200/60" />
+                                <Skeleton className="h-4 w-20 rounded-full bg-emerald-200/60" />
+                            </>
+                        ) : documentTags.length > 0 ? (
+                            documentTags.map((tag) => (
+                                <TagBadge
+                                    key={tag.id}
+                                    tag={tag}
+                                    className="text-xs"
+                                />
+                            ))
+                        ) : (
+                            <span className="text-xs text-muted-foreground">
+                                No tags yet
+                            </span>
+                        )}
+                    </div>
                 ) : null}
             </div>
             <Separator />

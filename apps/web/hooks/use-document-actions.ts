@@ -333,6 +333,7 @@ export function useDocumentActions() {
     return {
         renameDocument: (documentId: string, title: string) =>
             renameMutation.mutateAsync({ documentId, title }),
+        renamePending: renameMutation.isPending,
         deleteDocument: (documentId: string, title?: string) =>
             deleteMutation.mutateAsync({ documentId, title }),
         toggleFavorite: (documentId: string, makeFavorite: boolean) =>
