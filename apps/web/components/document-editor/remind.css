@@ -48,6 +48,13 @@
     border-color: #ffb3b3;
 }
 
+.pm-remind-notified {
+    background: #fff8e1;
+    /* light yellow/amber */
+    border-color: #ffd54f;
+    font-weight: 700;
+}
+
 .pm-remind-done {
     background: #eefaf0;
     /* light green */
