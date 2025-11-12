@@ -116,3 +116,33 @@ export function useDocumentsListQuery({
         enabled,
     });
 }
+
+type ReminderStatus = 'scheduled' | 'notified' | 'done';
+
+export type DocumentReminder = {
+    id: string;
+    reminderId?: string;
+    status: ReminderStatus;
+    whenISO?: string;
+    whenText?: string;
+};
+
+type DocumentRemindersResponse = {
+    reminders: DocumentReminder[];
+};
+
+export function useDocumentRemindersQuery(
+    documentId: string,
+    options?: { refetchInterval?: number }
+) {
+    return useQuery({
+        queryKey: ['document', documentId, 'reminders'],
+        queryFn: () =>
+            fetchJson<DocumentRemindersResponse>(
+                `/api/reminders/document/${documentId}`
+            ),
+        select: (data) => data.reminders,
+        enabled: Boolean(documentId),
+        refetchInterval: options?.refetchInterval,
+    });
+}

@@ -46,6 +46,7 @@ import {
     useDocumentQuery,
     useDocumentTagsQuery,
     useWorkspaceTagsQuery,
+    useDocumentRemindersQuery,
     type ApiTag,
 } from '@/hooks/use-documents';
 import { useDocumentActions } from '@/hooks/use-document-actions';
@@ -104,6 +105,9 @@ export default function DocumentPage() {
     } = useDocumentQuery(documentId);
     const { data: documentTagsData } = useDocumentTagsQuery(documentId);
     const { data: workspaceTagsData } = useWorkspaceTagsQuery();
+    const { data: documentReminders } = useDocumentRemindersQuery(documentId, {
+        refetchInterval: 60000, // Poll every 5 seconds for status updates
+    });
     const {
         addTagToDocument,
         removeTagFromDocument,
@@ -618,8 +622,12 @@ export default function DocumentPage() {
                     return;
                 }
 
-                let tr = view.state.tr;
-                let changed = false;
+                // Collect all replacements first, then apply in reverse order
+                const replacements: Array<{
+                    from: number;
+                    to: number;
+                    node: any;
+                }> = [];
 
                 view.state.doc.descendants((node, pos) => {
                     if (!node.isBlock) {
@@ -643,8 +651,7 @@ export default function DocumentPage() {
                             return;
                         }
 
-                        for (let idx = matches.length - 1; idx >= 0; idx -= 1) {
-                            const currentMatch = matches[idx];
+                        for (const currentMatch of matches) {
                             const { whenText, attrs } =
                                 parseRemindShortcodeMatch(currentMatch);
                             const basePos = pos + 1 + offset;
@@ -675,19 +682,25 @@ export default function DocumentPage() {
                                 },
                                 content
                             );
-                            tr = tr.replaceRangeWith(
+                            replacements.push({
                                 from,
                                 to,
-                                remindNodeInstance
-                            );
-                            changed = true;
+                                node: remindNodeInstance,
+                            });
                         }
                     });
 
                     return true;
                 });
 
-                if (changed) {
+                // Apply replacements in reverse order to maintain valid positions
+                if (replacements.length > 0) {
+                    let tr = view.state.tr;
+                    // Sort by position (descending) to process from end to start
+                    replacements.sort((a, b) => b.from - a.from);
+                    for (const { from, to, node } of replacements) {
+                        tr = tr.replaceRangeWith(from, to, node);
+                    }
                     view.dispatch(tr);
                 }
             };
@@ -728,6 +741,56 @@ export default function DocumentPage() {
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [document?.id]); // Only recreate editor when document loads or ID changes, not on title/updatedAt changes
+
+    // Update reminder statuses when they change in the database
+    useEffect(() => {
+        if (!editorInstanceRef.current || !documentReminders) {
+            return;
+        }
+
+        const editor = editorInstanceRef.current;
+        const view = editor.editor.ctx.get(editorViewCtx);
+
+        // Build a map of reminderId -> status
+        const statusMap = new Map<string, RemindStatus>();
+        for (const reminder of documentReminders) {
+            if (reminder.reminderId) {
+                statusMap.set(
+                    reminder.reminderId,
+                    reminder.status as RemindStatus
+                );
+            }
+        }
+
+        // Update all remind nodes that have changed status
+        let tr = view.state.tr;
+        let hasChanges = false;
+
+        view.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'remind') {
+                const nodeId = node.attrs.id as string | undefined;
+                if (nodeId && statusMap.has(nodeId)) {
+                    const newStatus = statusMap.get(nodeId);
+                    const currentStatus = node.attrs.status as
+                        | RemindStatus
+                        | undefined;
+
+                    if (newStatus !== currentStatus) {
+                        const newAttrs = {
+                            ...node.attrs,
+                            status: newStatus,
+                        };
+                        tr = tr.setNodeMarkup(pos, undefined, newAttrs);
+                        hasChanges = true;
+                    }
+                }
+            }
+        });
+
+        if (hasChanges) {
+            view.dispatch(tr);
+        }
+    }, [documentReminders]);
 
     const isLoading =
         (isDocumentLoading && !document) || !documentData || !document;

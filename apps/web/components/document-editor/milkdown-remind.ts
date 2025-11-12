@@ -124,6 +124,11 @@ const REMIND_BRACKET_RE = /%%\s*remind\s*:\s*([^|%]+?)(?:\|([^%]+))?%%$/i;
 // /remind[space] → insert empty remind node
 const REMIND_SLASH_RE = /(^|\s)\/remind\s$/i;
 
+// Generate a stable reminder ID using crypto.randomUUID (required for all browsers)
+function generateReminderId(): string {
+    return crypto.randomUUID();
+}
+
 export const remindBracketInputRule = $inputRule((ctx: Ctx) => {
     const type = remindNode.type(ctx);
     return new InputRule(REMIND_BRACKET_RE, (state, match, start, end) => {
@@ -132,9 +137,7 @@ export const remindBracketInputRule = $inputRule((ctx: Ctx) => {
         );
         // ensure an id exists
         if (!('id' in attrs) || !attrs.id) {
-            attrs.id = `r_${Date.now().toString(36)}_${Math.random()
-                .toString(36)
-                .slice(2, 8)}`;
+            attrs.id = generateReminderId();
         }
         const content = whenText
             ? state.schema.text(whenText)
@@ -157,9 +160,7 @@ export const remindSlashInputRule = $inputRule((ctx: Ctx) => {
             const attrs: Record<string, unknown> = {
                 kind: 'remind',
                 whenText: '',
-                id: `r_${Date.now().toString(36)}_${Math.random()
-                    .toString(36)
-                    .slice(2, 8)}`,
+                id: generateReminderId(),
             };
             const content = state.schema.text('\u00A0');
             const node = type.create(attrs, content);

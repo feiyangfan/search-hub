@@ -26,7 +26,9 @@ function parseRemindAttributes(attrString: string): Record<string, string> {
     for (const pair of attrString.split(',').map((s) => s.trim())) {
         const [key, value] = pair.split('=').map((s) => s.trim());
         if (key && value) {
-            attrs[key.toLowerCase()] = value;
+            // Unescape markdown-escaped underscores in values (e.g., r\_abc -> r_abc)
+            const unescapedValue = value.replace(/\\_/g, '_');
+            attrs[key.toLowerCase()] = unescapedValue;
         }
     }
     return attrs;
@@ -82,6 +84,7 @@ export function extractRemindCommands(
             whenText: whenText || '',
             whenISO: whenISO,
             status,
+            id: attrs.id, // Extract ID from markdown attributes
         });
     }
     console.log('Extracted reminders:', reminders);

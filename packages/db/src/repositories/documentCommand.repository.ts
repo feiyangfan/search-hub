@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { AppError, RemindCommandPayloadType } from '@search-hub/schemas';
 import { prisma } from '../client.js';
@@ -559,10 +558,13 @@ export const documentCommandRepository = {
 
                 // Create or update reminders from content
                 for (const reminder of reminders) {
-                    const reminderId: string =
-                        reminder.id && reminder.id.trim().length > 0
-                            ? reminder.id
-                            : randomUUID();
+                    // Require ID from frontend - no fallback generation
+                    if (!reminder.id || reminder.id.trim().length === 0) {
+                        throw new Error(
+                            'Reminder ID is required but was missing from frontend'
+                        );
+                    }
+                    const reminderId = reminder.id;
                     seen.add(reminderId);
 
                     const payload: RemindCommandPayloadType & { id: string } = {
