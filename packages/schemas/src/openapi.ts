@@ -15,6 +15,9 @@ import {
     updateDocumentContentPayloadSchema,
     updateDocumentContentResponseSchema,
     reindexDocumentResponseSchema,
+    getPendingRemindersResponseSchema,
+    getDocumentRemindersResponseSchema,
+    dismissReminderResponseSchema,
 } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import {
@@ -1038,6 +1041,137 @@ export function buildOpenApi(
                         },
                         404: {
                             description: 'Not Found - Tag does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // Reminder routes
+            '/v1/reminders/pending': {
+                get: {
+                    responses: {
+                        200: {
+                            description: 'OK - Returns pending reminders',
+                            content: {
+                                'application/json': {
+                                    schema: getPendingRemindersResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - No active tenant',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/reminders/document/{documentId}': {
+                get: {
+                    requestParams: {
+                        path: z.object({
+                            documentId: Id,
+                        }),
+                    },
+                    responses: {
+                        200: {
+                            description:
+                                'OK - Returns reminders for a document',
+                            content: {
+                                'application/json': {
+                                    schema: getDocumentRemindersResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - No active tenant',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/reminders/{id}/dismiss': {
+                patch: {
+                    requestParams: {
+                        path: z.object({
+                            id: Id,
+                        }),
+                    },
+                    responses: {
+                        200: {
+                            description: 'OK - Reminder marked as done',
+                            content: {
+                                'application/json': {
+                                    schema: dismissReminderResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - No active tenant',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description:
+                                'Forbidden - Not authorized to dismiss this reminder',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Reminder not found',
                             content: {
                                 'application/json': { schema: ApiError },
                             },

@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { prisma } from '@search-hub/db';
 import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { logger } from '@search-hub/logger';
 import { AppError } from '@search-hub/schemas';
+import { createDocumentService } from '../services/documentService.js';
 
 const router = Router();
+const documentService = createDocumentService();
 
 /**
  * GET /v1/reminders/pending
@@ -29,25 +30,10 @@ router.get('/pending', async (req, res, next) => {
                 }
             );
         }
-        const reminders = await prisma.documentCommand.findMany({
-            where: {
-                userId,
-                body: {
-                    path: ['kind'],
-                    equals: 'remind',
-                },
-            },
-            include: {
-                document: {
-                    select: {
-                        id: true,
-                        title: true,
-                    },
-                },
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
+
+        const reminders = await documentService.listUserReminders({
+            userId,
+            tenantId,
         });
 
         // Filter by status in memory (JsonFilter doesn't support nested status check easily)
@@ -83,6 +69,64 @@ router.get('/pending', async (req, res, next) => {
 });
 
 /**
+ * GET /v1/reminders/document/:documentId
+ * Returns all reminders for a specific document
+ */
+router.get('/document/:documentId', async (req, res, next) => {
+    try {
+        const authReq = req as AuthenticatedRequest;
+        const { userId } = authReq.session;
+        const tenantId = authReq.session?.currentTenantId;
+        const { documentId } = req.params;
+
+        if (!tenantId) {
+            throw AppError.validation(
+                'NO_ACTIVE_TENANT',
+                'No active tenant selected.',
+                {
+                    context: {
+                        origin: 'server',
+                        domain: 'reminder',
+                        operation: 'list_document_reminders',
+                    },
+                }
+            );
+        }
+
+        const reminders = await documentService.listDocumentReminders(
+            documentId,
+            { userId, tenantId }
+        );
+
+        const reminderStatuses = reminders.map((cmd) => {
+            const body = cmd.body as {
+                kind: string;
+                status?: string;
+                whenText?: string;
+                whenISO?: string;
+                id?: string;
+            };
+            return {
+                id: cmd.id,
+                reminderId: body.id,
+                status: body.status ?? 'scheduled',
+                whenISO: body.whenISO,
+                whenText: body.whenText,
+            };
+        });
+
+        logger.info(
+            { userId, tenantId, documentId, count: reminderStatuses.length },
+            'Fetched document reminders'
+        );
+
+        res.json({ reminders: reminderStatuses });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * PATCH /v1/reminders/:id/dismiss
  * Marks a reminder as done
  */
@@ -106,46 +150,10 @@ router.patch('/:id/dismiss', async (req, res, next) => {
                 }
             );
         }
-        const command = await prisma.documentCommand.findUnique({
-            where: { id: reminderId },
-        });
 
-        if (!command) {
-            throw AppError.notFound('REMINDER_NOT_FOUND', 'Reminder not found');
-        }
-
-        if (command.userId !== userId) {
-            throw AppError.authorization(
-                'UNAUTHORIZED_REMINDER_ACCESS',
-                'You do not have permission to dismiss this reminder',
-                {
-                    context: {
-                        origin: 'server',
-                        domain: 'reminder',
-                        operation: 'dismiss',
-                        resourceId: reminderId,
-                    },
-                }
-            );
-        }
-
-        const body = command.body as {
-            kind: string;
-            status?: string;
-            whenText?: string;
-            whenISO?: string;
-        };
-
-        // Update status to 'done'
-        await prisma.documentCommand.update({
-            where: { id: reminderId },
-            data: {
-                body: {
-                    ...body,
-                    status: 'done',
-                    dismissedAt: new Date().toISOString(),
-                },
-            },
+        await documentService.dismissReminder(reminderId, {
+            userId,
+            tenantId,
         });
 
         logger.info(

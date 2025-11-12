@@ -9,12 +9,16 @@ import {
     type UpdateDocumentTitlePayloadType,
     type DocumentListResultType,
     type TagListItemType,
+    type RemindCommandPayloadType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
-import { indexQueue as defaultIndexQueue } from '../queue.js';
+import {
+    indexQueue as defaultIndexQueue,
+    reminderQueue as defaultReminderQueue,
+} from '../queue.js';
 import { logger as defaultLogger } from '@search-hub/logger';
 import type { Logger } from 'pino';
-import { extractRemindCommands, syncReminders } from '../lib/reminders.js';
+import { extractRemindCommands } from '../lib/reminders.js';
 
 const DEFAULT_QUEUE_OPTIONS = {
     attempts: 3,
@@ -29,6 +33,7 @@ const DEFAULT_QUEUE_OPTIONS = {
 export interface DocumentServiceDependencies {
     db?: typeof defaultDb;
     indexQueue?: typeof defaultIndexQueue;
+    reminderQueue?: typeof defaultReminderQueue;
     logger?: Logger;
 }
 
@@ -103,6 +108,49 @@ export interface DocumentService {
         documentId: string,
         context: { tenantId: string; userId: string }
     ): Promise<{ message: string }>;
+
+    listUserReminders(context: { tenantId: string; userId: string }): Promise<
+        {
+            id: string;
+            documentId: string;
+            userId: string;
+            body: unknown;
+            createdAt: Date;
+            document: {
+                id: string;
+                title: string;
+            };
+        }[]
+    >;
+
+    listDocumentReminders(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<
+        {
+            id: string;
+            documentId: string;
+            userId: string;
+            body: unknown;
+            createdAt: Date;
+        }[]
+    >;
+
+    deleteDocumentReminders(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<void>;
+
+    dismissReminder(
+        reminderId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<void>;
+
+    syncDocumentReminders(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        reminders: RemindCommandPayloadType[]
+    ): Promise<void>;
 }
 
 export function createDocumentService(
@@ -110,6 +158,7 @@ export function createDocumentService(
 ): DocumentService {
     const db = deps.db ?? defaultDb;
     const indexQueue = deps.indexQueue ?? defaultIndexQueue;
+    const reminderQueue = deps.reminderQueue ?? defaultReminderQueue;
     const logger = deps.logger ?? defaultLogger;
 
     async function createAndQueueDocument(
@@ -471,12 +520,7 @@ export function createDocumentService(
 
         // Extract and sync reminders from document content
         const reminders = extractRemindCommands(content);
-        await syncReminders({
-            documentId,
-            userId: context.userId,
-            tenantId: context.tenantId,
-            reminders,
-        });
+        await syncDocumentReminders(documentId, context, reminders);
 
         logger.info(
             {
@@ -744,6 +788,242 @@ export function createDocumentService(
         return { message: 'Document unfavorited successfully' };
     }
 
+    async function listUserReminders(context: {
+        tenantId: string;
+        userId: string;
+    }): Promise<
+        {
+            id: string;
+            documentId: string;
+            userId: string;
+            body: unknown;
+            createdAt: Date;
+            document: {
+                id: string;
+                title: string;
+            };
+        }[]
+    > {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            throw AppError.authorization(
+                'REMINDER_ACCESS_FORBIDDEN',
+                'You do not have permission to view reminders.',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        operation: 'list_user_reminders',
+                    },
+                }
+            );
+        }
+
+        return db.documentCommand.getDocumentReminders(context.userId);
+    }
+
+    async function listDocumentReminders(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<
+        {
+            id: string;
+            documentId: string;
+            userId: string;
+            body: unknown;
+            createdAt: Date;
+            document: {
+                id: string;
+                title: string;
+            };
+        }[]
+    > {
+        const document = await db.document.findUnique(documentId);
+        if (!document || document.tenantId !== context.tenantId) {
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'list_document_reminders',
+                    },
+                }
+            );
+        }
+
+        return db.documentCommand.getRemindersForDocument(
+            documentId,
+            context.userId
+        );
+    }
+
+    async function deleteDocumentReminders(
+        documentId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<void> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            throw AppError.authorization(
+                'REMINDER_DELETE_FORBIDDEN',
+                'You do not have permission to delete reminders on this document.',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'delete_document_reminders',
+                    },
+                }
+            );
+        }
+
+        await db.documentCommand.deleteDocumentReminders(documentId);
+    }
+
+    async function dismissReminder(
+        reminderId: string,
+        context: { tenantId: string; userId: string }
+    ): Promise<void> {
+        const reminder = await db.documentCommand.getById(reminderId);
+        if (!reminder) {
+            throw AppError.notFound(
+                'REMINDER_NOT_FOUND',
+                'Reminder not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        resource: 'DocumentCommand',
+                        resourceId: reminderId,
+                        operation: 'dismiss',
+                    },
+                }
+            );
+        }
+
+        if (reminder.userId !== context.userId) {
+            throw AppError.authorization(
+                'REMINDER_DISMISS_FORBIDDEN',
+                'You do not have permission to dismiss this reminder.',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        resource: 'DocumentCommand',
+                        resourceId: reminderId,
+                        operation: 'dismiss',
+                    },
+                }
+            );
+        }
+
+        await db.documentCommand.updateToDone(reminderId);
+    }
+
+    async function syncDocumentReminders(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        reminders: RemindCommandPayloadType[]
+    ): Promise<void> {
+        const document = await db.document.findUnique(documentId);
+        if (!document || document.tenantId !== context.tenantId) {
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'sync_document_reminders',
+                    },
+                }
+            );
+        }
+
+        // Sync reminders to database
+        await db.documentCommand.syncDocumentReminders({
+            documentId,
+            userId: context.userId,
+            reminders,
+        });
+
+        // Fetch the synced reminder commands to get their IDs
+        const commands = await db.documentCommand.getDocumentReminders(
+            context.userId
+        );
+
+        // Filter commands for this document
+        const documentCommands = commands.filter(
+            (cmd) => cmd.documentId === documentId
+        );
+
+        // Schedule BullMQ jobs for each reminder
+        for (const command of documentCommands) {
+            const body = command.body as RemindCommandPayloadType;
+
+            // Only schedule jobs for reminders that are still scheduled (not done/dismissed)
+            if (body.status !== 'scheduled') {
+                continue;
+            }
+
+            // Calculate delay until reminder should fire
+            const whenISO = body.whenISO;
+            if (!whenISO) {
+                logger.warn(
+                    { commandId: command.id, body },
+                    'Reminder missing whenISO, skipping job scheduling'
+                );
+                continue;
+            }
+
+            const targetTime = new Date(whenISO).getTime();
+            const now = Date.now();
+            const delay = Math.max(0, targetTime - now);
+
+            // Schedule the reminder job
+            await reminderQueue.add(
+                JOBS.SEND_REMINDER,
+                {
+                    tenantId: context.tenantId,
+                    documentCommandId: command.id,
+                },
+                {
+                    delay, // Delay in milliseconds
+                    jobId: `reminder-${command.id}`, // Use stable job ID to prevent duplicates
+                    removeOnComplete: true,
+                    removeOnFail: false,
+                }
+            );
+
+            logger.info(
+                {
+                    commandId: command.id,
+                    documentId,
+                    delay,
+                    whenISO,
+                },
+                'Scheduled reminder job'
+            );
+        }
+    }
+
     return {
         createAndQueueDocument,
         getDocumentDetails,
@@ -757,5 +1037,10 @@ export function createDocumentService(
         getDocumentTags,
         favoriteDocument,
         unfavoriteDocument,
+        listUserReminders,
+        listDocumentReminders,
+        deleteDocumentReminders,
+        dismissReminder,
+        syncDocumentReminders,
     };
 }

@@ -1,7 +1,5 @@
 import * as chrono from 'chrono-node';
-import { type RemindCommandPayloadType, JOBS } from '@search-hub/schemas';
-import { prisma } from '@search-hub/db';
-import { reminderQueue } from '../queue.js';
+import { type RemindCommandPayloadType } from '@search-hub/schemas';
 
 /**
  * Regular expression to match reminder shortcodes in markdown:
@@ -88,65 +86,4 @@ export function extractRemindCommands(
     }
     console.log('Extracted reminders:', reminders);
     return reminders;
-}
-
-/**
- * Syncs reminders from document content to DocumentCommand table
- * Creates new, updates existing, and removes stale remind commands
- * Schedules BullMQ jobs for future notifications
- */
-export async function syncReminders({
-    documentId,
-    userId,
-    tenantId,
-    reminders,
-}: {
-    documentId: string;
-    userId: string;
-    tenantId: string;
-    reminders: RemindCommandPayloadType[];
-}): Promise<void> {
-    // Delete all existing remind commands for this document
-    await prisma.documentCommand.deleteMany({
-        where: {
-            documentId,
-            body: {
-                path: ['kind'],
-                equals: 'remind',
-            },
-        },
-    });
-
-    // Create new remind commands and schedule notification jobs
-    for (const reminder of reminders) {
-        // Only schedule if status is 'scheduled' and has future date
-        const shouldSchedule =
-            reminder.status === 'scheduled' &&
-            reminder.whenISO &&
-            new Date(reminder.whenISO).getTime() > Date.now();
-
-        const command = await prisma.documentCommand.create({
-            data: {
-                documentId,
-                userId,
-                body: reminder,
-            },
-        });
-
-        // Schedule BullMQ job for notification
-        if (shouldSchedule && reminder.whenISO) {
-            const delay = new Date(reminder.whenISO).getTime() - Date.now();
-            await reminderQueue.add(
-                JOBS.SEND_REMINDER,
-                {
-                    tenantId,
-                    documentCommandId: command.id,
-                },
-                {
-                    delay,
-                    jobId: `reminder-${command.id}`, // Unique job ID to prevent duplicates
-                }
-            );
-        }
-    }
 }

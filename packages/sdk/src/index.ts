@@ -475,6 +475,53 @@ export class SearchHubClient {
         await this.ensureOk(res, 'deleteTag');
     }
 
+    /** GET /v1/reminders/pending */
+    async getPendingReminders(): Promise<
+        paths['/v1/reminders/pending']['get']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/reminders/pending`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getPendingReminders');
+        return (await res.json()) as paths['/v1/reminders/pending']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/reminders/document/{documentId} */
+    async getDocumentReminders(
+        documentId: string
+    ): Promise<
+        paths['/v1/reminders/document/{documentId}']['get']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/reminders/document/${encodeURIComponent(
+            documentId
+        )}`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getDocumentReminders');
+        return (await res.json()) as paths['/v1/reminders/document/{documentId}']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** PATCH /v1/reminders/{id}/dismiss */
+    async dismissReminder(
+        id: string
+    ): Promise<
+        paths['/v1/reminders/{id}/dismiss']['patch']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/reminders/${encodeURIComponent(
+            id
+        )}/dismiss`;
+        const res = await this.fetcher(url, {
+            method: 'PATCH',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'dismissReminder');
+        return (await res.json()) as paths['/v1/reminders/{id}/dismiss']['patch']['responses']['200']['content']['application/json'];
+    }
+
     /** GET /v1/search */
     async search(
         params: paths['/v1/search']['get']['parameters']['query']

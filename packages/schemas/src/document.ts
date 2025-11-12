@@ -245,10 +245,11 @@ export type DocumentCommandType = z.infer<typeof documentCommandSchema>;
 export const remindCommandPayloadSchema = z
     .object({
         kind: z.literal('remind'),
+        id: z.string().optional(), // Stable reminder ID across syncs
         whenText: z.string().optional().default(''), // raw user text
         whenISO: z.string().nullable().optional(), // ISO string or null
         status: z
-            .enum(['scheduled', 'overdue', 'done'])
+            .enum(['scheduled', 'notified', 'overdue', 'done'])
             .optional()
             .default('scheduled'),
 
@@ -287,4 +288,88 @@ export const unfavoriteDocumentResponseSchema = z.object({
 
 export type UnfavoriteDocumentResponseType = z.infer<
     typeof unfavoriteDocumentResponseSchema
+>;
+
+// Reminder schemas
+export const reminderStatusSchema = z.enum([
+    'scheduled',
+    'notified',
+    'done',
+    'overdue',
+]);
+
+export type ReminderStatusType = z.infer<typeof reminderStatusSchema>;
+
+export const reminderItemSchema = z.object({
+    id: Id.meta({
+        description: 'Document command ID',
+        example: 'cmd_123',
+    }),
+    documentId: Id.meta({
+        description: 'Associated document ID',
+        example: 'doc_123',
+    }),
+    documentTitle: z.string().meta({
+        description: 'Title of the associated document',
+        example: 'Meeting Notes',
+    }),
+    body: z.any().meta({
+        description: 'Reminder command payload',
+    }),
+    createdAt: IsoDate.meta({
+        description: 'When the reminder was created',
+    }),
+});
+
+export type ReminderItemType = z.infer<typeof reminderItemSchema>;
+
+export const getPendingRemindersResponseSchema = z.object({
+    reminders: z.array(reminderItemSchema),
+});
+
+export type GetPendingRemindersResponseType = z.infer<
+    typeof getPendingRemindersResponseSchema
+>;
+
+export const documentReminderStatusSchema = z.object({
+    id: Id.meta({
+        description: 'Document command ID',
+        example: 'cmd_123',
+    }),
+    reminderId: z.string().optional().meta({
+        description: 'Stable reminder ID (from body.id)',
+        example: 'abc-123',
+    }),
+    status: reminderStatusSchema.meta({
+        description: 'Current reminder status',
+        example: 'scheduled',
+    }),
+    whenISO: z.string().optional().meta({
+        description: 'ISO timestamp when reminder should fire',
+        example: '2025-11-12T10:00:00.000Z',
+    }),
+    whenText: z.string().optional().meta({
+        description: 'Natural language reminder time',
+        example: 'tomorrow at 10am',
+    }),
+});
+
+export type DocumentReminderStatusType = z.infer<
+    typeof documentReminderStatusSchema
+>;
+
+export const getDocumentRemindersResponseSchema = z.object({
+    reminders: z.array(documentReminderStatusSchema),
+});
+
+export type GetDocumentRemindersResponseType = z.infer<
+    typeof getDocumentRemindersResponseSchema
+>;
+
+export const dismissReminderResponseSchema = z.object({
+    success: z.boolean(),
+});
+
+export type DismissReminderResponseType = z.infer<
+    typeof dismissReminderResponseSchema
 >;

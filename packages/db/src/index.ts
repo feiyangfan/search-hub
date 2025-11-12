@@ -5,6 +5,7 @@ import { documentRepository } from './repositories/document.repository.js';
 import { jobRepository } from './repositories/job.repository.js';
 import { tenantMembershipRepository } from './repositories/tenantMembership.repository.js';
 import { documentIndexStateRepository } from './repositories/documentIndexState.repository.js';
+import { documentCommandRepository } from './repositories/documentCommand.repository.js';
 
 // Re-exports
 export { prisma } from './client.js';
@@ -19,4 +20,5 @@ export const db = {
     job: jobRepository,
     tenantMembership: tenantMembershipRepository,
     documentIndexState: documentIndexStateRepository,
+    documentCommand: documentCommandRepository,
 };

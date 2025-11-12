@@ -316,13 +316,8 @@ const reminderProcessor = async (job: Job<SendReminderJob>) => {
             return { ok: true, reason: 'not-found' };
         }
 
-        const body = command.body as {
-            kind: string;
-            status?: string;
-            whenText?: string;
-            whenISO?: string;
-        };
-        const currentStatus = body?.status;
+        const body = command.body as Record<string, unknown>;
+        const currentStatus = body?.status as string | undefined;
 
         // Only notify if still scheduled (not already done/snoozed)
         if (currentStatus !== 'scheduled') {
@@ -334,14 +329,17 @@ const reminderProcessor = async (job: Job<SendReminderJob>) => {
         }
 
         // Update status to 'notified'
+        // For JSONB columns, we need to pass the complete updated object
+        const updatedBody = {
+            ...body,
+            status: 'notified',
+            notifiedAt: new Date().toISOString(),
+        };
+
         await prisma.documentCommand.update({
             where: { id: documentCommandId },
             data: {
-                body: {
-                    ...body,
-                    status: 'notified',
-                    notifiedAt: new Date().toISOString(),
-                },
+                body: updatedBody,
             },
         });
 
