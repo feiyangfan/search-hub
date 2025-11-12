@@ -442,7 +442,6 @@ export function AppHeader({
                                                 : ''
                                         }`}
                                     />
-                                    {isFavorited ? 'Favorited' : 'Favorite'}
                                 </Button>
                                 <Button
                                     variant="outline"
@@ -452,7 +451,6 @@ export function AppHeader({
                                     disabled={!documentHeaderData?.onEditTags}
                                 >
                                     <TagIcon className="h-4 w-4" />
-                                    Edit Tags
                                 </Button>
                                 <Button
                                     variant="ghost"
@@ -460,7 +458,6 @@ export function AppHeader({
                                     className="gap-1"
                                 >
                                     <Share2 className="h-4 w-4" />
-                                    Share
                                 </Button>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
