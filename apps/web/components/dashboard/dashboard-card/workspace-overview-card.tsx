@@ -6,12 +6,18 @@ export interface WorkspaceOverviewCardProps {
     tenantId: string | undefined;
 }
 
+const numberFormatter = new Intl.NumberFormat('en-US');
+const formatNumber = (value?: number | null) =>
+    numberFormatter.format(value ?? 0);
+
 function StatSkeleton() {
     return (
-        <div className="space-y-1.5 rounded-lg border border-dashed border-emerald-200/60 p-2 items-center">
-            <Skeleton className="h-2 w-4 rounded bg-emerald-100/50" />
-            <Skeleton className="h-2 w-4 rounded bg-emerald-200/60" />
-            <Skeleton className="h-2 w-4 rounded bg-emerald-100/50" />
+        <div className="rounded-2xl border border-dashed border-emerald-200/60 bg-emerald-50/40 p-3 shadow-sm">
+            <div className="space-y-2">
+                <Skeleton className="h-2 w-16 rounded bg-emerald-100/70" />
+                <Skeleton className="h-6 w-20 rounded bg-emerald-200/80" />
+                <Skeleton className="h-2 w-24 rounded bg-emerald-100/70" />
+            </div>
         </div>
     );
 }
@@ -23,7 +29,7 @@ export function WorkspaceOverviewCard({
 
     if (isLoading || !data) {
         return (
-            <div className="grid w-full grid-cols-1 gap-1 sm:grid-cols-3">
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
                 <StatSkeleton />
                 <StatSkeleton />
                 <StatSkeleton />
@@ -31,37 +37,50 @@ export function WorkspaceOverviewCard({
         );
     }
 
+    const stats = [
+        {
+            label: 'Docs',
+            value: formatNumber(data.documentCount),
+            helper:
+                (data.documentsCreatedThisWeek ?? 0) > 0
+                    ? `+${formatNumber(
+                          data.documentsCreatedThisWeek ?? 0
+                      )} this week`
+                    : 'No new files this week',
+        },
+        {
+            label: 'Members',
+            value: formatNumber(data.memberCount),
+            helper: 'users',
+        },
+        {
+            label: 'Tags',
+            value: formatNumber(data.tagCount),
+            helper:
+                (data.tagCount ?? 0) > 0
+                    ? 'Tags in use'
+                    : 'Start tagging content',
+        },
+    ];
+
     return (
-        <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="min-w-0 flex flex-col">
-                <p className="text-[0.6rem] font-semibold text-muted-foreground uppercase tracking-wide">
-                    Documents
-                </p>
-                <p className="flex text-xl font-bold">
-                    <span className="text-emerald-800">
-                        {data.documentCount}
-                    </span>
-                    <span className="ml-1 text-[0.6rem] font-medium leading-tight text-muted-foreground place-self-end">
-                        +{data.documentsCreatedThisWeek ?? 0} this week
-                    </span>
-                </p>
-            </div>
-            <div className="min-w-0">
-                <p className="text-[0.6rem] font-semibold text-muted-foreground uppercase tracking-wide">
-                    Members
-                </p>
-                <p className="text-xl font-bold">
-                    <span className="text-emerald-800">{data.memberCount}</span>
-                </p>
-            </div>
-            <div className="min-w-0">
-                <p className="text-[0.6rem] font-semibold text-muted-foreground uppercase tracking-wide">
-                    Tags
-                </p>
-                <p className="flex text-xl font-bold">
-                    <span className="text-emerald-800 ">{data.tagCount}</span>
-                </p>
-            </div>
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+            {stats.map((stat) => (
+                <div
+                    key={stat.label}
+                    className="rounded-2xl border border-dashed border-emerald-200/60 bg-emerald-50/50 p-4 text-left shadow-sm"
+                >
+                    <p className="text-[0.65rem] font-medium uppercase tracking-wide text-emerald-700">
+                        {stat.label}
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold text-emerald-900">
+                        {stat.value}
+                    </p>
+                    <p className="mt-1 text-[0.7rem] font-medium text-emerald-600">
+                        {stat.helper}
+                    </p>
+                </div>
+            ))}
         </div>
     );
 }
