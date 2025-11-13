@@ -15,6 +15,7 @@
         "prisma:generate": "prisma generate",
         "prisma:migratedev": "prisma migrate dev",
         "prisma:migratedevinit": "prisma migrate dev --name init",
+        "prisma:manual": "./scripts/apply-manual-migrations.sh",
         "prisma:reset": "prisma migrate reset",
         "dev": "tsup src/index.ts --format esm --dts --watch",
         "build": "tsup src/index.ts --format esm --dts --out-dir dist",

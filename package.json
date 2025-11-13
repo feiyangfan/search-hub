@@ -11,6 +11,7 @@
         "prisma:gen": "pnpm --filter @search-hub/db prisma:generate",
         "prisma:migratedev": "pnpm --filter @search-hub/db prisma:migratedev",
         "prisma:migrateinitdev": "pnpm --filter @search-hub/db prisma:migratedevinit",
+        "prisma:manual": "pnpm --filter @search-hub/db prisma:manual",
         "prisma:all": "pnpm --filter @search-hub/db prisma:generate && pnpm --filter @search-hub/db prisma:migratedev",
         "prisma:reset": "pnpm --filter @search-hub/db prisma:reset",
         "openapi:genapi": "pnpm --filter api openapi:generate",

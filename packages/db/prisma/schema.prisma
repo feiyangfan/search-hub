@@ -22,6 +22,7 @@ model Tenant {
   memberships  TenantMembership[]
   documents    Document[]
   jobs         IndexJob[]
+  tags         Tag[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
@@ -40,6 +41,8 @@ model User {
   updatedDocuments Document[]      @relation("DocumentUpdatedBy")
   favoriteDocuments DocumentFavorite[]
   documentCommands DocumentCommand[]
+  createdTags Tag[]
+  addedDocumentTags DocumentTag[]
 }
 
 model TenantMembership {
@@ -95,12 +98,53 @@ model Document {
   jobs       IndexJob[]
   chunks     DocumentChunk[]     
   indexState DocumentIndexState?
+  tags       DocumentTag[]
 
   @@unique([tenantId, id])
   @@index([tenantId])
   @@index([title])
   @@index([tenantId, createdAt]) // supports WHERE tenantId ORDER BY createdAt
   @@index([searchVector], type: Gin, map: "Document_searchVector_idx")
+}
+
+// Tags
+model Tag {
+  id  String @id @default(cuid())
+  tenantId String // workspace-scoped
+  name String // 'leetcode' / 'development'
+  color String? // hex color
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdById String
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  documentTags DocumentTag[]
+  @@unique([tenantId, name]) // Tag names must be unique per workspace
+  @@index([tenantId])
+  @@index([name])
+}
+
+// Many-to-many relationship between Document and Tag
+model DocumentTag {
+  id         String   @id @default(cuid())
+  documentId String
+  tagId      String
+  
+  addedById  String   // who added this tag
+  createdAt  DateTime @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  addedBy    User     @relation(fields: [addedById], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId]) // A document can't have the same tag twice
+  @@index([documentId])
+  @@index([tagId])
+  @@index([addedById])
 }
 
 // Favorites
@@ -147,6 +191,8 @@ model DocumentChunk {
   @@unique([documentId, idx])
   @@index([tenantId])
   @@index([documentId, idx])
+  // NOTE: pgvector index managed manually in prisma/manual-migrations/01_pgvector_indexes.sql
+  // Prisma doesn't support USING ivfflat syntax, so we maintain this externally
 }
 
 // idempotency checkpoint

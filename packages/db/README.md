@@ -56,7 +56,11 @@
 1. Edit `packages/db/prisma/schema.prisma`.
 2. **Generate**: `pnpm --filter @search-hub/db prisma generate`.
 3. **Migrate**: `pnpm --filter @search-hub/db prisma migrate dev --name <change>`.
-4. **Use** the client via `@search-hub/db` (don’t set `generator.output`).
+4. **Manual migrations** (pgvector indexes): Prisma doesn't support `USING ivfflat` syntax.
+   - After running migrations, apply: `psql $DATABASE_URL -f packages/db/prisma/manual-migrations/01_pgvector_indexes.sql`
+   - Or use: `./packages/db/scripts/apply-manual-migrations.sh`
+   - **Important**: If Prisma generates a migration that drops `DocumentChunk_embedding_cosine_idx`, manually remove the DROP statement from the migration file.
+5. **Use** the client via `@search-hub/db` (don't set `generator.output`).
 
 ---
 

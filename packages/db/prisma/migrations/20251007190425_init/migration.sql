@@ -162,7 +162,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IndexJob_active_unique"
   ON "public"."IndexJob"("tenantId","documentId")
   WHERE "status" IN ('queued','processing');
 
-CREATE INDEX IF NOT EXISTS "DocumentChunk_embedding_cosine_idx"
-  ON "DocumentChunk" USING ivfflat ("embedding" vector_cosine_ops) WITH (lists = 100);
-
 ANALYZE "DocumentChunk";
