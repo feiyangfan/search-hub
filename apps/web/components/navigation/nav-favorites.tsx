@@ -33,15 +33,22 @@ import { NavDocumentActions } from './nav-document-actions';
 import { useDocumentActions } from '@/hooks/use-document-actions';
 import { useDocumentsListQuery } from '@/hooks/use-documents';
 
-export function NavFavorites() {
+type NavFavoritesProps = {
+    activeTenantId?: string;
+};
+
+export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
     const pathname = usePathname();
     const { renameDocument, deleteDocument, toggleFavorite, editDocumentTags } =
         useDocumentActions();
     const { data: favoritesData, isLoading } = useDocumentsListQuery({
         favoritesOnly: true,
         limit: 20,
+        tenantId: activeTenantId,
+        enabled: Boolean(activeTenantId),
     });
     const favorites = favoritesData?.items ?? [];
+    const isFavoritesLoading = !activeTenantId || isLoading;
 
     const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
         null
@@ -111,7 +118,7 @@ export function NavFavorites() {
         [toggleFavorite]
     );
 
-    const isEmpty = !isLoading && favorites.length === 0;
+    const isEmpty = !isFavoritesLoading && favorites.length === 0;
 
     return (
         <>
@@ -126,7 +133,7 @@ export function NavFavorites() {
                     <CollapsibleContent asChild>
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {isLoading
+                                {isFavoritesLoading
                                     ? [1, 2].map((key) => (
                                           <SidebarMenuItem key={key}>
                                               <SidebarMenuButton>
@@ -136,7 +143,7 @@ export function NavFavorites() {
                                       ))
                                     : null}
 
-                                {!isLoading &&
+                                {!isFavoritesLoading &&
                                     favorites.map((document) => {
                                         const isActive =
                                             pathname ===

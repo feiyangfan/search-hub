@@ -90,6 +90,7 @@ type UseDocumentsListOptions = {
     limit?: number;
     offset?: number;
     enabled?: boolean;
+    tenantId?: string;
 };
 
 export function useDocumentsListQuery({
@@ -97,9 +98,17 @@ export function useDocumentsListQuery({
     limit = 10,
     offset = 0,
     enabled = true,
+    tenantId,
 }: UseDocumentsListOptions = {}) {
+    const tenantScopedKey = tenantId ?? 'global';
+    const shouldEnable =
+        enabled && (tenantId === undefined ? true : Boolean(tenantId));
+
     return useQuery({
-        queryKey: ['documents', { favoritesOnly, limit, offset }],
+        queryKey: [
+            'documents',
+            { tenantId: tenantScopedKey, favoritesOnly, limit, offset },
+        ],
         queryFn: () => {
             const params = new URLSearchParams();
             params.set('limit', String(limit));
@@ -113,7 +122,7 @@ export function useDocumentsListQuery({
             );
         },
         select: (data) => data.documents as DocumentsList,
-        enabled,
+        enabled: shouldEnable,
     });
 }
 

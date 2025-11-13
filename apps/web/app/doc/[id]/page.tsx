@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { Crepe } from '@milkdown/crepe';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/prose/state';
+import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import {
     AlertDialog,
@@ -50,6 +51,7 @@ import {
     type ApiTag,
 } from '@/hooks/use-documents';
 import { useDocumentActions } from '@/hooks/use-document-actions';
+import type { GetDocumentDetailsResponseType } from '@search-hub/schemas';
 
 type Document = {
     id: string;
@@ -88,6 +90,7 @@ export default function DocumentPage() {
     const documentId = params.id as string;
     const editorRootRef = useRef<HTMLDivElement>(null);
     const editorInstanceRef = useRef<Crepe | null>(null);
+    const queryClient = useQueryClient();
 
     const [document, setDocument] = useState<Document | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -187,6 +190,13 @@ export default function DocumentPage() {
             }
 
             const data = await response.json();
+            if (!data?.document) {
+                throw new Error('Invalid document payload');
+            }
+            const updatedDocument = {
+                ...data.document,
+                content: data.document.content ?? content,
+            };
             lastSavedContentRef.current = content;
             setHasUnsavedChanges(false);
             setSaveStatus('saved');
@@ -196,10 +206,25 @@ export default function DocumentPage() {
                 prev
                     ? {
                           ...prev,
-                          content,
-                          updatedAt: data.document.updatedAt,
+                          content: updatedDocument.content ?? content,
+                          updatedAt: updatedDocument.updatedAt,
                       }
                     : null
+            );
+            queryClient.setQueryData<GetDocumentDetailsResponseType>(
+                ['document', documentId],
+                (prevData) => {
+                    if (!prevData?.document) {
+                        return { document: updatedDocument };
+                    }
+                    return {
+                        ...prevData,
+                        document: {
+                            ...prevData.document,
+                            ...updatedDocument,
+                        },
+                    };
+                }
             );
 
             // Reset to idle after 2 seconds

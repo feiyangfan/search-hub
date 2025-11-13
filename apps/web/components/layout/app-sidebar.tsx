@@ -87,8 +87,8 @@ export function AppSidebar({
                 <NavMain items={data.navMain} />
             </SidebarHeader>
             <SidebarContent>
-                <NavFavorites />
-                <NavDocuments />
+                <NavFavorites activeTenantId={activeTenantId} />
+                <NavDocuments activeTenantId={activeTenantId} />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser user={navUser} />

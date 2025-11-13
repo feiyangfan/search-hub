@@ -32,13 +32,20 @@ import { NavDocumentActions } from './nav-document-actions';
 import { useDocumentActions } from '@/hooks/use-document-actions';
 import { useDocumentsListQuery } from '@/hooks/use-documents';
 
-export function NavDocuments() {
+type NavDocumentsProps = {
+    activeTenantId?: string;
+};
+
+export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
     const pathname = usePathname();
     const { data: documentsData, isLoading } = useDocumentsListQuery({
         limit: 20,
+        tenantId: activeTenantId,
+        enabled: Boolean(activeTenantId),
     });
 
     const documents = documentsData?.items ?? [];
+    const isListLoading = !activeTenantId || isLoading;
 
     const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
         null
@@ -125,7 +132,7 @@ export function NavDocuments() {
                     <CollapsibleContent asChild>
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {isLoading
+                                {isListLoading
                                     ? [1, 2, 3].map((key) => (
                                           <SidebarMenuItem key={key}>
                                               <SidebarMenuButton>

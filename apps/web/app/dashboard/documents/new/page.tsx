@@ -181,55 +181,6 @@ export default function NewDocumentLandingPage() {
                     </CardFooter>
                 </Card>
             </div>
-
-            <Separator className="mx-auto w-full max-w-5xl" />
-
-            <div className="mx-auto grid w-full max-w-5xl gap-6 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Need a different entry point?</CardTitle>
-                        <CardDescription>
-                            I&apos;ll add more inputs such as file uploads and
-                            templates.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm text-muted-foreground">
-                        <p>
-                            Select an option above or come back later as more
-                            import sources roll out.
-                        </p>
-                        <p>
-                            Have feedback? Drop ideas in the feedback command
-                            palette or ping me directly.
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Upcoming functionality</CardTitle>
-                        <CardDescription>
-                            Planned enhancements that will appear on this screen
-                            soon.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground">
-                        <ul className="space-y-2">
-                            <li>
-                                &bull; Upload files for ingestion (PDF, DOCX,
-                                text).
-                            </li>
-                            <li>
-                                &bull; Apply templates for recurring document
-                                types.
-                            </li>
-
-                            <li>
-                                &bull; Version history and scheduled publishing.
-                            </li>
-                        </ul>
-                    </CardContent>
-                </Card>
-            </div>
         </div>
     );
 }
