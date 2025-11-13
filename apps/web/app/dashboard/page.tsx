@@ -14,10 +14,7 @@ import {
     DashboardGridItem,
 } from '@/components/dashboard/dashboard-grid';
 import { TagNetworkGraph } from '@/components/dashboard/tag-network-graph';
-import {
-    type TagNetworkEdge,
-    type TagNetworkNode,
-} from '@/components/dashboard/tag-network-graph.client';
+import type { GraphDocumentInput } from '@/components/dashboard/tag-network-graph';
 import { IndexingPipelineStatus } from '@/components/dashboard/indexing-pipeline-status';
 import { SearchIntelligence } from '@/components/dashboard/search-intelligence';
 import { Tag as TagIcon, Star, Pencil } from 'lucide-react';
@@ -48,8 +45,7 @@ export default async function DashboardPage() {
         .apiSessionCookie;
 
     let tags: TagOption[] = [];
-    let graphNodes: TagNetworkNode[] = [];
-    let graphEdges: TagNetworkEdge[] = [];
+    let graphDocuments: GraphDocumentInput[] = [];
     let remindersCount: number | undefined = undefined;
 
     if (apiSessionCookie) {
@@ -103,92 +99,17 @@ export default async function DashboardPage() {
                 })
             );
 
-            const tagUsage = new Map<string, number>();
-            const docTagIndex = new Map<
-                string,
-                { id: string; name: string; color?: string | null }
-            >();
-            const edges: TagNetworkEdge[] = [];
-            const documentNodes: TagNetworkNode[] = [];
-
-            for (const { document, tags: documentTags } of documentsWithTags) {
-                if (!documentTags.length) {
-                    continue;
-                }
-
-                const primaryTagWithColor = documentTags.find(
-                    (tag) => tag.color
-                );
-                const fallbackColor = documentTags[0]?.color;
-                const nodeColor =
-                    primaryTagWithColor?.color ??
-                    fallbackColor ??
-                    DEFAULT_TAG_COLOR;
-
-                documentNodes.push({
-                    id: `doc-${document.id}`,
-                    label: document.title ?? 'Untitled document',
-                    type: 'document',
-                    color: nodeColor,
-                    size: Math.min(11, 6 + documentTags.length * 1.3),
-                });
-
-                for (const tag of documentTags) {
-                    tagUsage.set(tag.id, (tagUsage.get(tag.id) ?? 0) + 1);
-                    if (!docTagIndex.has(tag.id)) {
-                        docTagIndex.set(tag.id, {
-                            id: tag.id,
-                            name: tag.name,
-                            color: tag.color,
-                        });
-                    }
-                    edges.push({
-                        source: `tag-${tag.id}`,
-                        target: `doc-${document.id}`,
-                    });
-                }
-            }
-
-            const tagNodes: TagNetworkNode[] = [];
-            const seenTagIds = new Set<string>();
-
-            for (const tag of tags) {
-                const usageCount = tagUsage.get(tag.id) ?? 0;
-                tagNodes.push({
-                    id: `tag-${tag.id}`,
-                    label: tag.name,
-                    type: 'tag' as const,
-                    color: tag.color ?? DEFAULT_TAG_COLOR,
-                    size: Math.min(14, 8 + usageCount * 1.5),
-                });
-                seenTagIds.add(tag.id);
-            }
-
-            for (const tag of docTagIndex.values()) {
-                if (seenTagIds.has(tag.id)) {
-                    continue;
-                }
-                const usageCount = tagUsage.get(tag.id) ?? 0;
-                tagNodes.push({
-                    id: `tag-${tag.id}`,
-                    label: tag.name,
-                    type: 'tag',
-                    color: tag.color ?? DEFAULT_TAG_COLOR,
-                    size: Math.min(14, 8 + usageCount * 1.5),
-                });
-            }
-
-            const validNodeIds = new Set([
-                ...tagNodes.map((node) => node.id),
-                ...documentNodes.map((node) => node.id),
-            ]);
-
-            graphNodes = [...tagNodes, ...documentNodes];
-            graphEdges = edges.filter(
-                (edge) =>
-                    validNodeIds.has(edge.source) &&
-                    validNodeIds.has(edge.target)
-            );
+            graphDocuments = documentsWithTags
+                .filter(({ tags: docTags }) => docTags.length > 0)
+                .map(({ document, tags: docTags }) => ({
+                    id: document.id,
+                    title: document.title ?? 'Untitled document',
+                    tags: docTags.map((tag) => ({
+                        id: tag.id,
+                        name: tag.name,
+                        color: tag.color ?? undefined,
+                    })),
+                }));
         } catch (error) {
             console.error('Failed to build tag network graph:', error);
         }
@@ -202,291 +123,322 @@ export default async function DashboardPage() {
     }
 
     return (
-        <div className="h-[calc(100vh-3.5rem)] w-full overflow-y-auto lg:overflow-hidden px-6 py-6">
-            <DashboardGrid className="lg:h-full">
-                {/* Row 1: Quick Search (2 cols) + Search Intelligence (4 cols) */}
-                {/* Quick Search - 2 columns, 1 row (half height) */}
-                <DashboardGridItem colSpan={2} rowSpan={1}>
-                    <DashboardCard
-                        variant="medium"
-                        title="Quick Search"
-                        className="h-full"
-                    >
-                        <div className="flex gap-2 h-full">
-                            <Input
-                                placeholder="Search across documents..."
-                                className="flex-1"
-                            />
-                            <Button>Search</Button>
-                        </div>
-                    </DashboardCard>
-                </DashboardGridItem>
-
-                {/* Search Intelligence + Search Volume Chart - 4 columns, 3 rows */}
-                <DashboardGridItem colSpan={4} rowSpan={3}>
-                    <DashboardCard
-                        variant="large"
-                        title="Search Intelligence"
-                        action={
-                            <Button variant="ghost" size="sm">
-                                Analytics
-                            </Button>
-                        }
-                        className="h-full"
-                    >
-                        <SearchIntelligence
-                            metrics={[
-                                {
-                                    label: 'Total searches',
-                                    value: '1,248',
-                                    trend: '+12%',
-                                    trendUp: true,
-                                },
-                                {
-                                    label: 'P95 latency',
-                                    value: '680ms',
-                                    trend: '−6%',
-                                    trendUp: false,
-                                },
-                                {
-                                    label: 'Success rate',
-                                    value: '94.2%',
-                                    trend: '+2.1%',
-                                    trendUp: true,
-                                },
-                            ]}
-                            topQueries={[
-                                {
-                                    query: 'authentication flow',
-                                    count: 47,
-                                },
-                                {
-                                    query: 'api documentation',
-                                    count: 38,
-                                },
-                                {
-                                    query: 'deployment guide',
-                                    count: 29,
-                                },
-                                {
-                                    query: 'leetcode',
-                                    count: 29,
-                                },
-                                {
-                                    query: 'database',
-                                    count: 29,
-                                },
-                            ]}
-                        />
-                    </DashboardCard>
-                </DashboardGridItem>
-
-                {/* Workspace Overview - 2 columns, 1 row */}
-                <DashboardGridItem colSpan={2} rowSpan={1}>
-                    <DashboardCard
-                        variant="medium"
-                        title="Workspace Overview"
-                        className="h-full"
-                    >
-                        <WorkspaceOverviewCard
-                            tenantId={session.activeTenantId}
-                        />
-                    </DashboardCard>
-                </DashboardGridItem>
-
-                {/* Reminder - 2 columns, 2 row */}
-                <DashboardGridItem colSpan={2} rowSpan={2}>
-                    <RemindersCardProvider
-                        tenantId={session.activeTenantId}
-                        initialCount={remindersCount}
-                    >
+        <div className="w-full bg-muted/5 px-4 py-6 lg:px-10">
+            <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+                <DashboardGrid className="lg:auto-rows-min">
+                    {/* Row 1: Quick Search (2 cols) + Search Intelligence (4 cols) */}
+                    {/* Quick Search - 2 columns, 1 row (half height) */}
+                    <DashboardGridItem colSpan={2} rowSpan={1}>
                         <DashboardCard
                             variant="medium"
-                            title="Reminders"
-                            action={<RemindersCardAction />}
+                            title="Quick Search"
                             className="h-full"
                         >
-                            <RemindersCardContent />
+                            <div className="flex gap-2 h-full">
+                                <Input
+                                    placeholder="Search across documents..."
+                                    className="flex-1"
+                                />
+                                <Button>Search</Button>
+                            </div>
                         </DashboardCard>
-                    </RemindersCardProvider>
-                </DashboardGridItem>
+                    </DashboardGridItem>
 
-                {/* Knowledge network (2 cols)*/}
-                <DashboardGridItem colSpan={2} rowSpan={3}>
-                    <DashboardCard
-                        variant="medium"
-                        title="Knowledge Network"
-                        action={
-                            <Button variant="ghost" size="sm">
-                                Explore
-                            </Button>
-                        }
-                        className="h-full"
-                    >
-                        <TagNetworkGraph
-                            nodes={graphNodes}
-                            edges={graphEdges}
-                        />
-                    </DashboardCard>
-                </DashboardGridItem>
-
-                {/* Index Pipeline Status - 2 columns, 3 rows */}
-                <DashboardGridItem colSpan={2} rowSpan={3}>
-                    <DashboardCard
-                        variant="large"
-                        title="Indexing Pipeline Status"
-                        action={
-                            <Button variant="ghost" size="sm">
-                                View Queue
-                            </Button>
-                        }
-                        className="h-full"
-                    >
-                        <IndexingPipelineStatus
-                            stats={{
-                                failed: 3,
-                                processing: 2,
-                                queued: 12,
-                                indexed: 234,
-                                activeWorkers: { current: 2, max: 5 },
-                                queueWaitTime: '~3m',
-                                indexedToday: 18,
-                            }}
-                            recentJobs={[
-                                {
-                                    id: '1',
-                                    documentName: 'Team Handbook.md',
-                                    status: 'failed',
-                                    statusLabel: 'Failed',
-                                    icon: '⚠️',
-                                    details:
-                                        'Error: Voyage AI rate limit exceeded · Retry 3/3 · 5m ago',
-                                    hasAction: true,
-                                    actionLabel: 'Retry',
-                                },
-                                {
-                                    id: '2',
-                                    documentName: 'API Documentation v2.md',
-                                    status: 'processing',
-                                    statusLabel: 'Processing',
-                                    icon: '⚙️',
-                                    details: '45s · 127/189 chunks',
-                                    progress: {
-                                        current: 127,
-                                        total: 189,
-                                        percentage: 67,
+                    {/* Search Intelligence + Search Volume Chart - 4 columns, 2 rows */}
+                    <DashboardGridItem colSpan={4} rowSpan={2}>
+                        <DashboardCard
+                            variant="large"
+                            title="Search Intelligence"
+                            action={
+                                <Button variant="ghost" size="sm">
+                                    Analytics
+                                </Button>
+                            }
+                            className="h-full"
+                        >
+                            <SearchIntelligence
+                                metrics={[
+                                    {
+                                        label: 'Total searches',
+                                        value: '1,248',
+                                        trend: '+12%',
+                                        trendUp: true,
                                     },
-                                },
-                                {
-                                    id: '3',
-                                    documentName: 'Deployment Guide.md',
-                                    status: 'queued',
-                                    statusLabel: 'Queued',
-                                    icon: '⏳',
-                                    details: 'Estimated wait: ~4m · 8.2 KB',
-                                    queuePosition: 3,
-                                },
-                                {
-                                    id: '4',
-                                    documentName: 'Design System Guidelines.md',
-                                    status: 'indexed',
-                                    statusLabel: 'Indexed',
-                                    icon: '✓',
-                                    details:
-                                        'Completed in 2.3s · 156 chunks · 2m ago',
-                                },
-                            ]}
-                            showRetryAll={true}
-                        />
-                    </DashboardCard>
-                </DashboardGridItem>
+                                    {
+                                        label: 'P95 latency',
+                                        value: '680ms',
+                                        trend: '−6%',
+                                        trendUp: false,
+                                    },
+                                    {
+                                        label: 'Success rate',
+                                        value: '94.2%',
+                                        trend: '+2.1%',
+                                        trendUp: true,
+                                    },
+                                ]}
+                                topQueries={[
+                                    {
+                                        query: 'authentication flow',
+                                        count: 47,
+                                    },
+                                    {
+                                        query: 'api documentation',
+                                        count: 38,
+                                    },
+                                    {
+                                        query: 'deployment guide',
+                                        count: 29,
+                                    },
+                                    {
+                                        query: 'leetcode',
+                                        count: 29,
+                                    },
+                                    {
+                                        query: 'database',
+                                        count: 29,
+                                    },
+                                ]}
+                            />
+                        </DashboardCard>
+                    </DashboardGridItem>
 
-                {/* Recent Activity - 2 columns, 2 rows */}
-                <DashboardGridItem colSpan={2} rowSpan={2}>
-                    <DashboardCard
-                        variant="medium"
-                        title="Recent Activity"
-                        action={
-                            <Button variant="ghost" size="sm">
-                                View all
-                            </Button>
-                        }
-                        className="h-full"
-                    >
-                        <div className="space-y-1.5 h-full flex flex-col min-h-0">
-                            {[
-                                {
-                                    type: 'TAG_ADDED_TO_DOCUMENT',
-                                    user: 'Mike Johnson',
-                                    action: 'tagged',
-                                    target: 'API Documentation',
-                                    detail: 'with "engineering"',
-                                    time: '15m ago',
-                                    Icon: TagIcon,
-                                },
-                                {
-                                    type: 'DOCUMENT_FAVORITED',
-                                    user: 'Alex Rivera',
-                                    action: 'favorited',
-                                    target: 'Team Handbook',
-                                    time: '1h ago',
-                                    Icon: Star,
-                                },
-                                {
-                                    type: 'DOCUMENT_UPDATED',
-                                    user: 'Sarah Chen',
-                                    action: 'updated',
-                                    target: 'Design System Guidelines',
-                                    time: '2h ago',
-                                    Icon: Pencil,
-                                },
-                                {
-                                    type: 'DOCUMENT_UPDATED',
-                                    user: 'Sarah Chen',
-                                    action: 'updated',
-                                    target: 'Design System Guidelines',
-                                    time: '2h ago',
-                                    Icon: Pencil,
-                                },
-                            ].map((activity, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 p-1.5 transition-colors hover:bg-muted/50"
-                                >
-                                    <div className="mt-0.5">
-                                        <activity.Icon className="h-4 w-4 text-muted-foreground" />
+                    {/* Workspace Overview - 2 columns, 1 row */}
+                    <DashboardGridItem colSpan={2} rowSpan={1}>
+                        <DashboardCard
+                            variant="medium"
+                            title="Workspace Overview"
+                            className="h-full"
+                        >
+                            <WorkspaceOverviewCard
+                                tenantId={session.activeTenantId}
+                            />
+                        </DashboardCard>
+                    </DashboardGridItem>
+
+                    {/* Reminder - 2 columns, 2 row */}
+                    <DashboardGridItem colSpan={2} rowSpan={2}>
+                        <RemindersCardProvider
+                            tenantId={session.activeTenantId}
+                            initialCount={remindersCount}
+                        >
+                            <DashboardCard
+                                variant="medium"
+                                title="Reminders"
+                                action={<RemindersCardAction />}
+                                className="h-full"
+                            >
+                                <RemindersCardContent />
+                            </DashboardCard>
+                        </RemindersCardProvider>
+                    </DashboardGridItem>
+
+                    {/* Knowledge network (2 cols)*/}
+                    <DashboardGridItem colSpan={3} rowSpan={2}>
+                        <DashboardCard
+                            variant="medium"
+                            title="Knowledge Network"
+                            action={
+                                <Button variant="ghost" size="sm">
+                                    Explore
+                                </Button>
+                            }
+                            className="h-full"
+                        >
+                            <TagNetworkGraph
+                                documents={graphDocuments}
+                                tags={tags}
+                                fallback={
+                                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                                        Not enough document data yet.
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[0.8rem] leading-relaxed">
-                                            <span className="font-medium text-foreground">
-                                                {activity.user}
-                                            </span>{' '}
-                                            <span className="text-muted-foreground">
-                                                {activity.action}
-                                            </span>{' '}
-                                            <span className="font-medium text-foreground truncate">
-                                                {activity.target}
-                                            </span>
-                                            {activity.detail && (
-                                                <>
-                                                    {' '}
-                                                    <span className="text-muted-foreground">
-                                                        {activity.detail}
-                                                    </span>
-                                                </>
-                                            )}
-                                            {' · '}
-                                            <span className="text-muted-foreground">
-                                                {activity.time}
-                                            </span>
-                                        </p>
+                                }
+                            />
+                        </DashboardCard>
+                    </DashboardGridItem>
+
+                    <DashboardGridItem colSpan={1} rowSpan={2}>
+                        <DashboardCard
+                            variant="medium"
+                            title="Tags"
+                            className="h-full"
+                        >
+                            <div className="flex h-full flex-col gap-2 overflow-y-auto pr-1">
+                                {tags.map((tag) => (
+                                    <div
+                                        key={tag.id}
+                                        className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium"
+                                        style={{
+                                            backgroundColor: `${tag.color}20`,
+                                            color: tag.color,
+                                        }}
+                                    >
+                                        {tag.name}
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </DashboardCard>
-                </DashboardGridItem>
-            </DashboardGrid>
+                                ))}
+                            </div>
+                        </DashboardCard>
+                    </DashboardGridItem>
+
+                    {/* Index Pipeline Status - 2 columns, 3 rows */}
+                    <DashboardGridItem colSpan={2} rowSpan={3}>
+                        <DashboardCard
+                            variant="large"
+                            title="Indexing Pipeline Status"
+                            action={
+                                <Button variant="ghost" size="sm">
+                                    View Queue
+                                </Button>
+                            }
+                            className="h-full"
+                        >
+                            <IndexingPipelineStatus
+                                stats={{
+                                    failed: 3,
+                                    processing: 2,
+                                    queued: 12,
+                                    indexed: 234,
+                                    activeWorkers: { current: 2, max: 5 },
+                                    queueWaitTime: '~3m',
+                                    indexedToday: 18,
+                                }}
+                                recentJobs={[
+                                    {
+                                        id: '1',
+                                        documentName: 'Team Handbook.md',
+                                        status: 'failed',
+                                        statusLabel: 'Failed',
+                                        icon: '⚠️',
+                                        details:
+                                            'Error: Voyage AI rate limit exceeded · Retry 3/3 · 5m ago',
+                                        hasAction: true,
+                                        actionLabel: 'Retry',
+                                    },
+                                    {
+                                        id: '2',
+                                        documentName: 'API Documentation v2.md',
+                                        status: 'processing',
+                                        statusLabel: 'Processing',
+                                        icon: '⚙️',
+                                        details: '45s · 127/189 chunks',
+                                        progress: {
+                                            current: 127,
+                                            total: 189,
+                                            percentage: 67,
+                                        },
+                                    },
+                                    {
+                                        id: '3',
+                                        documentName: 'Deployment Guide.md',
+                                        status: 'queued',
+                                        statusLabel: 'Queued',
+                                        icon: '⏳',
+                                        details: 'Estimated wait: ~4m · 8.2 KB',
+                                        queuePosition: 3,
+                                    },
+                                    {
+                                        id: '4',
+                                        documentName:
+                                            'Design System Guidelines.md',
+                                        status: 'indexed',
+                                        statusLabel: 'Indexed',
+                                        icon: '✓',
+                                        details:
+                                            'Completed in 2.3s · 156 chunks · 2m ago',
+                                    },
+                                ]}
+                                showRetryAll={true}
+                            />
+                        </DashboardCard>
+                    </DashboardGridItem>
+
+                    {/* Recent Activity - 2 columns, 2 rows */}
+                    <DashboardGridItem colSpan={2} rowSpan={2}>
+                        <DashboardCard
+                            variant="medium"
+                            title="Recent Activity"
+                            action={
+                                <Button variant="ghost" size="sm">
+                                    View all
+                                </Button>
+                            }
+                            className="h-full"
+                        >
+                            <div className="space-y-1.5 h-full flex flex-col min-h-0">
+                                {[
+                                    {
+                                        type: 'TAG_ADDED_TO_DOCUMENT',
+                                        user: 'Mike Johnson',
+                                        action: 'tagged',
+                                        target: 'API Documentation',
+                                        detail: 'with "engineering"',
+                                        time: '15m ago',
+                                        Icon: TagIcon,
+                                    },
+                                    {
+                                        type: 'DOCUMENT_FAVORITED',
+                                        user: 'Alex Rivera',
+                                        action: 'favorited',
+                                        target: 'Team Handbook',
+                                        time: '1h ago',
+                                        Icon: Star,
+                                    },
+                                    {
+                                        type: 'DOCUMENT_UPDATED',
+                                        user: 'Sarah Chen',
+                                        action: 'updated',
+                                        target: 'Design System Guidelines',
+                                        time: '2h ago',
+                                        Icon: Pencil,
+                                    },
+                                    {
+                                        type: 'DOCUMENT_UPDATED',
+                                        user: 'Sarah Chen',
+                                        action: 'updated',
+                                        target: 'Design System Guidelines',
+                                        time: '2h ago',
+                                        Icon: Pencil,
+                                    },
+                                ].map((activity, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/30 p-1.5 transition-colors hover:bg-muted/50"
+                                    >
+                                        <div className="mt-0.5">
+                                            <activity.Icon className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[0.8rem] leading-relaxed">
+                                                <span className="font-medium text-foreground">
+                                                    {activity.user}
+                                                </span>{' '}
+                                                <span className="text-muted-foreground">
+                                                    {activity.action}
+                                                </span>{' '}
+                                                <span className="font-medium text-foreground truncate">
+                                                    {activity.target}
+                                                </span>
+                                                {activity.detail && (
+                                                    <>
+                                                        {' '}
+                                                        <span className="text-muted-foreground">
+                                                            {activity.detail}
+                                                        </span>
+                                                    </>
+                                                )}
+                                                {' · '}
+                                                <span className="text-muted-foreground">
+                                                    {activity.time}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </DashboardCard>
+                    </DashboardGridItem>
+                </DashboardGrid>
+            </div>
         </div>
     );
 }
