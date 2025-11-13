@@ -1,2 +1,2 @@
-export const pendingRemindersQueryKey = ['reminders', 'pending'] as const;
-
+export const pendingRemindersQueryKey = (tenantId?: string) =>
+    ['reminders', tenantId ?? 'unknown', 'pending'] as const;

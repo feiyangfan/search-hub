@@ -22,13 +22,13 @@ async function fetchPendingReminders() {
     return (await response.json()) as GetPendingRemindersResponseType;
 }
 
-export function usePendingRemindersQuery() {
+export function usePendingRemindersQuery(tenantId?: string) {
     return useQuery({
-        queryKey: pendingRemindersQueryKey,
+        queryKey: pendingRemindersQueryKey(tenantId),
         queryFn: fetchPendingReminders,
         select: (data) => data.reminders as ReminderItemType[],
         staleTime: 30_000,
         refetchInterval: 60_000,
+        enabled: Boolean(tenantId),
     });
 }
-

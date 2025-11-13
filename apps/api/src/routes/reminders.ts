@@ -16,7 +16,7 @@ router.get('/pending', async (req, res, next) => {
         const authReq = req as AuthenticatedRequest;
         const { userId } = authReq.session;
         const tenantId = authReq.session?.currentTenantId;
-
+        console.log(authReq.session);
         if (!tenantId) {
             throw AppError.validation(
                 'NO_ACTIVE_TENANT',
@@ -31,7 +31,7 @@ router.get('/pending', async (req, res, next) => {
             );
         }
 
-        const reminders = await documentService.listUserReminders({
+        const reminders = await documentService.listTenantReminders({
             userId,
             tenantId,
         });

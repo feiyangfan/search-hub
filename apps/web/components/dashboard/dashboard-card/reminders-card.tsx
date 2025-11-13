@@ -56,6 +56,7 @@ type RemindersCardContextValue = {
     dialogVisibleCount: number;
     loadMore: () => void;
     initialCount?: number;
+    tenantId?: string;
 };
 
 const RemindersCardContext = createContext<RemindersCardContextValue | null>(
@@ -90,8 +91,16 @@ const weekdayFormatter = new Intl.DateTimeFormat('en', {
     weekday: 'short',
 });
 
-export function RemindersCardProvider({ children }: { children: ReactNode }) {
-    const query = usePendingRemindersQuery();
+export function RemindersCardProvider({
+    children,
+    initialCount,
+    tenantId,
+}: {
+    children: ReactNode;
+    initialCount?: number;
+    tenantId?: string;
+}) {
+    const query = usePendingRemindersQuery(tenantId);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [dialogVisibleCount, setDialogVisibleCount] = useState(
         INITIAL_DIALOG_PAGE_SIZE
@@ -129,6 +138,8 @@ export function RemindersCardProvider({ children }: { children: ReactNode }) {
         closeDialog,
         dialogVisibleCount,
         loadMore,
+        initialCount,
+        tenantId,
     };
 
     return (
@@ -146,26 +157,6 @@ export function RemindersCardAction() {
             View all
         </Button>
     );
-}
-
-export function RemindersCardTitleBadge() {
-    const { prioritizedReminders, query, initialCount } =
-        useRemindersCardContext();
-    const resolved = resolveReminderCount({
-        query,
-        prioritizedReminders,
-        initialCount,
-    });
-
-    if (resolved !== null) {
-        return resolved;
-    }
-
-    if (query.isError) {
-        return '!';
-    }
-
-    return '…';
 }
 
 export function RemindersCardContent() {

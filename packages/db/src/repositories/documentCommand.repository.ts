@@ -172,7 +172,7 @@ export const documentCommandRepository = {
         }
     },
 
-    getDocumentReminders: async (userId: string) => {
+    getUserReminders: async (userId: string) => {
         try {
             return await prisma.documentCommand.findMany({
                 where: {
@@ -242,6 +242,87 @@ export const documentCommandRepository = {
                             domain: 'documentCommands',
                             resource: 'DocumentCommand',
                             operation: 'getDocumentReminders',
+                            metadata: { message: error.message },
+                        },
+                    }
+                );
+            }
+            throw error;
+        }
+    },
+    getTenantReminders: async (tenantId: string) => {
+        try {
+            return await prisma.documentCommand.findMany({
+                where: {
+                    body: {
+                        path: ['kind'],
+                        equals: 'remind',
+                    },
+                    document: {
+                        tenantId,
+                    },
+                },
+                include: {
+                    document: {
+                        select: {
+                            id: true,
+                            title: true,
+                            tenantId: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                switch (error.code) {
+                    case 'P1001':
+                    case 'P1002':
+                        throw AppError.transient(
+                            'DB_CONNECTION_FAILED',
+                            'Database connection failed',
+                            {
+                                retryAfterMs: 5000,
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documentCommands',
+                                    resource: 'DocumentCommand',
+                                    operation: 'getTenantReminders',
+                                    metadata: { prismaCode: error.code },
+                                },
+                            }
+                        );
+                    default:
+                        throw AppError.internal(
+                            'DB_OPERATION_FAILED',
+                            'Failed to fetch tenant reminders',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documentCommands',
+                                    resource: 'DocumentCommand',
+                                    operation: 'getTenantReminders',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        message: error.message,
+                                    },
+                                },
+                            }
+                        );
+                }
+            }
+            if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+                throw AppError.internal(
+                    'DB_UNKNOWN_ERROR',
+                    'Database query failed',
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'documentCommands',
+                            resource: 'DocumentCommand',
+                            operation: 'getTenantReminders',
                             metadata: { message: error.message },
                         },
                     }

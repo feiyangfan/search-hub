@@ -10,6 +10,7 @@ import { SearchHubClient } from '@search-hub/sdk';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { workspaceOverviewQueryKey } from '@/queries/workspace';
+import { pendingRemindersQueryKey } from '@/queries/reminders';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -46,6 +47,16 @@ export default async function DashboardLayout({
             );
         } catch (error) {
             console.error('Failed to preload workspace overview data', error);
+        }
+
+        try {
+            const pendingReminders = await client.getPendingReminders();
+            queryClient.setQueryData(
+                pendingRemindersQueryKey(activeTenantId),
+                pendingReminders
+            );
+        } catch (error) {
+            console.error('Failed to preload reminders data', error);
         }
     }
 

@@ -50,6 +50,7 @@ export default async function DashboardPage() {
     let tags: TagOption[] = [];
     let graphNodes: TagNetworkNode[] = [];
     let graphEdges: TagNetworkEdge[] = [];
+    let remindersCount: number | undefined = undefined;
 
     if (apiSessionCookie) {
         const client = new SearchHubClient({
@@ -191,6 +192,13 @@ export default async function DashboardPage() {
         } catch (error) {
             console.error('Failed to build tag network graph:', error);
         }
+
+        try {
+            const pendingReminders = await client.getPendingReminders();
+            remindersCount = pendingReminders.reminders?.length ?? 0;
+        } catch (error) {
+            console.error('Failed to fetch reminders count:', error);
+        }
     }
 
     return (
@@ -288,7 +296,10 @@ export default async function DashboardPage() {
 
                 {/* Reminder - 2 columns, 2 row */}
                 <DashboardGridItem colSpan={2} rowSpan={2}>
-                    <RemindersCardProvider>
+                    <RemindersCardProvider
+                        tenantId={session.activeTenantId}
+                        initialCount={remindersCount}
+                    >
                         <DashboardCard
                             variant="medium"
                             title="Reminders"

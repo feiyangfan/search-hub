@@ -122,6 +122,19 @@ export interface DocumentService {
             };
         }[]
     >;
+    listTenantReminders(context: { tenantId: string; userId: string }): Promise<
+        {
+            id: string;
+            documentId: string;
+            userId: string;
+            body: unknown;
+            createdAt: Date;
+            document: {
+                id: string;
+                title: string;
+            };
+        }[]
+    >;
 
     listDocumentReminders(
         documentId: string,
@@ -824,7 +837,46 @@ export function createDocumentService(
             );
         }
 
-        return db.documentCommand.getDocumentReminders(context.userId);
+        return db.documentCommand.getUserReminders(context.userId);
+    }
+    async function listTenantReminders(context: {
+        tenantId: string;
+        userId: string;
+    }): Promise<
+        {
+            id: string;
+            documentId: string;
+            userId: string;
+            body: unknown;
+            createdAt: Date;
+            document: {
+                id: string;
+                title: string;
+                tenantId?: string;
+            };
+        }[]
+    > {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            throw AppError.authorization(
+                'REMINDER_ACCESS_FORBIDDEN',
+                'You do not have permission to view tenant reminders.',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'reminders',
+                        operation: 'list_tenant_reminders',
+                    },
+                }
+            );
+        }
+
+        return db.documentCommand.getTenantReminders(context.tenantId);
     }
 
     async function listDocumentReminders(
@@ -965,7 +1017,7 @@ export function createDocumentService(
         });
 
         // Fetch the synced reminder commands to get their IDs
-        const commands = await db.documentCommand.getDocumentReminders(
+        const commands = await db.documentCommand.getUserReminders(
             context.userId
         );
 
@@ -1038,6 +1090,7 @@ export function createDocumentService(
         favoriteDocument,
         unfavoriteDocument,
         listUserReminders,
+        listTenantReminders,
         listDocumentReminders,
         deleteDocumentReminders,
         dismissReminder,
