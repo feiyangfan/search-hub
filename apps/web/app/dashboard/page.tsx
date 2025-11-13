@@ -6,7 +6,6 @@ import { EmptyStateCreateWorkspace } from '@/components/workspace/empty-state-cr
 import { DashboardCard } from '@/components/dashboard/dashboard-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 import { SearchHubClient } from '@search-hub/sdk';
 import { TagOption, DEFAULT_TAG_COLOR } from '@/components/ui/tag';
@@ -21,16 +20,14 @@ import {
 } from '@/components/dashboard/tag-network-graph.client';
 import { IndexingPipelineStatus } from '@/components/dashboard/indexing-pipeline-status';
 import { SearchIntelligence } from '@/components/dashboard/search-intelligence';
-import {
-    Bell,
-    Calendar,
-    FileText,
-    Tag as TagIcon,
-    Star,
-    Pencil,
-} from 'lucide-react';
+import { Tag as TagIcon, Star, Pencil } from 'lucide-react';
 import type { TagListItemType } from '@search-hub/schemas';
 import { WorkspaceOverviewCard } from '@/components/dashboard/dashboard-card/workspace-overview-card';
+import {
+    RemindersCardProvider,
+    RemindersCardContent,
+    RemindersCardAction,
+} from '@/components/dashboard/dashboard-card/reminders-card';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -291,81 +288,16 @@ export default async function DashboardPage() {
 
                 {/* Reminder - 2 columns, 2 row */}
                 <DashboardGridItem colSpan={2} rowSpan={2}>
-                    <DashboardCard
-                        variant="medium"
-                        title="Reminders"
-                        action={
-                            <Button variant="ghost" size="sm">
-                                View all
-                            </Button>
-                        }
-                        className="h-full"
-                    >
-                        <div className="space-y-2 h-full flex flex-col min-h-0">
-                            {[
-                                {
-                                    content: 'Review Q4 roadmap',
-                                    time: 'Today at 3:00 PM',
-                                    timeLeft: 'in 2h',
-                                    variant: 'urgent' as const,
-                                    Icon: Bell,
-                                },
-                                {
-                                    content: 'Team sync meeting prep',
-                                    time: 'Tomorrow at 10:00 AM',
-                                    timeLeft: 'in 18h',
-                                    variant: 'normal' as const,
-                                    Icon: Calendar,
-                                },
-                                {
-                                    content: 'Update API documentation',
-                                    time: 'Friday at 2:00 PM',
-                                    timeLeft: 'in 3d',
-                                    variant: 'normal' as const,
-                                    Icon: FileText,
-                                },
-                            ].map((reminder, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`flex items-start gap-2 rounded-lg border p-2 transition-all hover:shadow-sm ${
-                                        reminder.variant === 'urgent'
-                                            ? 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'
-                                            : 'border-border/50 bg-muted/20'
-                                    }`}
-                                >
-                                    <div className="mt-0.5">
-                                        <reminder.Icon className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium text-foreground mb-1">
-                                            {reminder.content}
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <Badge
-                                                variant={
-                                                    reminder.variant ===
-                                                    'urgent'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                                className={`text-[0.65rem] h-4 px-1.5 ${
-                                                    reminder.variant ===
-                                                    'urgent'
-                                                        ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                                                        : ''
-                                                }`}
-                                            >
-                                                {reminder.timeLeft}
-                                            </Badge>
-                                            <span className="text-[0.65rem] text-muted-foreground">
-                                                {reminder.time}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </DashboardCard>
+                    <RemindersCardProvider>
+                        <DashboardCard
+                            variant="medium"
+                            title="Reminders"
+                            action={<RemindersCardAction />}
+                            className="h-full"
+                        >
+                            <RemindersCardContent />
+                        </DashboardCard>
+                    </RemindersCardProvider>
                 </DashboardGridItem>
 
                 {/* Knowledge network (2 cols)*/}
