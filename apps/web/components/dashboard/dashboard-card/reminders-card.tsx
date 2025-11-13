@@ -6,15 +6,10 @@ import {
     useContext,
     useMemo,
     useState,
+    useEffect,
     type ReactNode,
 } from 'react';
-import {
-    AlertCircle,
-    ArrowUpRight,
-    BellRing,
-    CalendarClock,
-    Inbox,
-} from 'lucide-react';
+import { AlertCircle, ArrowUpRight, CalendarClock, Inbox } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -90,6 +85,116 @@ const timeFormatter = new Intl.DateTimeFormat('en', {
 const weekdayFormatter = new Intl.DateTimeFormat('en', {
     weekday: 'short',
 });
+
+type ReminderStatusPresentation = {
+    label: string;
+    badgeVariant: 'default' | 'secondary' | 'destructive' | 'outline';
+    badgeClassName?: string;
+    containerClassName: string;
+    iconClassName: string;
+};
+
+type ReminderVisualState =
+    | ReminderStatusType
+    | 'dueSoon'
+    | 'overdue'
+    | 'default';
+
+const reminderStatusThemes: Record<
+    ReminderVisualState,
+    ReminderStatusPresentation
+> = {
+    overdue: {
+        label: 'Notified',
+        badgeVariant: 'destructive',
+        badgeClassName:
+            'bg-rose-500 text-white hover:bg-rose-600 dark:bg-rose-400',
+        containerClassName:
+            'border-rose-200 bg-rose-50/80 dark:border-rose-500/30 dark:bg-rose-950/10',
+        iconClassName: 'text-rose-600',
+    },
+    dueSoon: {
+        label: 'Due soon',
+        badgeVariant: 'destructive',
+        badgeClassName: 'bg-amber-500 text-white hover:bg-amber-600',
+        containerClassName:
+            'border-amber-200 bg-amber-50/80 dark:border-amber-500/30 dark:bg-amber-950/10',
+        iconClassName: 'text-amber-600',
+    },
+    notified: {
+        label: 'Notified',
+        badgeVariant: 'destructive',
+        badgeClassName:
+            'bg-rose-500 text-white hover:bg-rose-600 dark:bg-rose-400',
+        containerClassName:
+            'border-rose-200 bg-rose-50/80 dark:border-rose-500/30 dark:bg-rose-950/10',
+        iconClassName: 'text-rose-600',
+    },
+    scheduled: {
+        label: 'Scheduled',
+        badgeVariant: 'secondary',
+        badgeClassName:
+            'bg-emerald-100 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-100',
+        containerClassName:
+            'border-emerald-200 bg-emerald-50/80 dark:border-emerald-500/30 dark:bg-emerald-900/10',
+        iconClassName: 'text-emerald-600',
+    },
+    done: {
+        label: 'Completed',
+        badgeVariant: 'outline',
+        badgeClassName: 'text-muted-foreground',
+        containerClassName:
+            'border-border/50 bg-muted/15 dark:border-border/30 dark:bg-muted/5',
+        iconClassName: 'text-muted-foreground',
+    },
+    default: {
+        label: 'Reminder',
+        badgeVariant: 'outline',
+        containerClassName:
+            'border-border/60 bg-muted/20 dark:border-border/40 dark:bg-muted/10',
+        iconClassName: 'text-muted-foreground',
+    },
+};
+
+function getReminderStatusPresentation(
+    status: ReminderVisualState
+): ReminderStatusPresentation {
+    return reminderStatusThemes[status] ?? reminderStatusThemes.default;
+}
+
+const ONE_DAY_MS = 86_400_000;
+
+function mapStatusToVisual(
+    status: ReminderStatusType | undefined
+): ReminderVisualState {
+    switch (status) {
+        case 'notified':
+            return 'overdue';
+        case 'scheduled':
+            return 'scheduled';
+        case 'done':
+            return 'done';
+        default:
+            return 'default';
+    }
+}
+
+function resolveReminderVisualState(
+    reminder: NormalizedReminder
+): ReminderVisualState {
+    const dueDate = reminder.dueDate;
+    if (dueDate) {
+        const diff = dueDate.getTime() - Date.now();
+        if (diff < 0) {
+            return 'overdue';
+        }
+        if (diff <= ONE_DAY_MS) {
+            return 'dueSoon';
+        }
+    }
+
+    return mapStatusToVisual(reminder.status);
+}
 
 export function RemindersCardProvider({
     children,
@@ -179,7 +284,7 @@ export function RemindersCardContent() {
             ) : reminders.length === 0 ? (
                 <EmptyRemindersState />
             ) : (
-                <div className="flex flex-1 flex-col space-y-2 overflow-y-auto pr-1">
+                <div className="flex flex-1 flex-col space-y-3 overflow-y-auto pr-1">
                     {reminders.map((reminder) => (
                         <ReminderRow key={reminder.id} reminder={reminder} />
                     ))}
@@ -307,75 +412,105 @@ function renderCountBadge(props: CountContext) {
 }
 
 function ReminderRow({ reminder }: { reminder: NormalizedReminder }) {
-    const isNotified = reminder.status === 'notified';
-    const Icon = isNotified ? BellRing : CalendarClock;
-    const relativeLabel = formatRelativeTime(reminder.dueDate);
-    const absoluteLabel = formatAbsoluteTime(
-        reminder.dueDate,
-        reminder.whenText
+    const [visualState, setVisualState] = useState<ReminderVisualState>(() =>
+        mapStatusToVisual(reminder.status)
     );
+    const statusPresentation = getReminderStatusPresentation(visualState);
+    const [timeLabels, setTimeLabels] = useState(() => ({
+        relative: reminder.dueDate
+            ? ''
+            : formatRelativeTime(reminder.dueDate ?? null),
+        absolute: reminder.dueDate
+            ? ''
+            : formatAbsoluteTime(reminder.dueDate ?? null, reminder.whenText),
+    }));
+    const relativeLabel = timeLabels.relative || 'Updating…';
+    const absoluteLabel = timeLabels.absolute || 'Updating…';
+
+    useEffect(() => {
+        setTimeLabels({
+            relative: formatRelativeTime(reminder.dueDate),
+            absolute: formatAbsoluteTime(reminder.dueDate, reminder.whenText),
+        });
+    }, [reminder.dueDate?.getTime(), reminder.whenText]);
+
+    useEffect(() => {
+        setVisualState(resolveReminderVisualState(reminder));
+    }, [reminder.dueDate?.getTime(), reminder.status]);
 
     return (
         <div
             className={cn(
-                'flex items-start gap-2 rounded-lg border p-2 transition-all hover:shadow-sm',
-                isNotified
-                    ? 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20'
-                    : 'border-emerald-500/50 bg-emerald-100/20 dark:bg-emerald-950/20'
+                'rounded-2xl border px-4 py-3 shadow-sm transition-all hover:shadow-md',
+                statusPresentation.containerClassName
             )}
         >
-            <div className="flex min-w-0 flex-1 items-start gap-2">
-                <div className="mt-0.5">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <p className="mb-1 truncate text-xs font-medium text-foreground">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight text-foreground line-clamp-1">
                         {reminder.documentTitle || 'Untitled document'}
                     </p>
-                    <div className="flex flex-wrap items-center gap-2 text-[0.65rem] text-muted-foreground">
-                        <Badge
-                            variant={isNotified ? 'default' : 'secondary'}
-                            className={cn(
-                                'h-4 px-1.5 text-[0.65rem]',
-                                isNotified &&
-                                    'bg-amber-500 text-white hover:bg-amber-600'
-                            )}
-                        >
-                            {relativeLabel}
-                        </Badge>
-                        <span className="truncate">{absoluteLabel}</span>
-                    </div>
+                    {reminder.whenText ? (
+                        <p className="text-xs text-foreground/80 line-clamp-1">
+                            &quot;{reminder.whenText}&quot;
+                        </p>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                        {absoluteLabel}
+                    </p>
                 </div>
-            </div>
-            <Button
-                asChild
-                size="icon-sm"
-                variant="ghost"
-                className="mt-0.5 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-            >
-                <Link
-                    href={`/doc/${reminder.documentId}`}
-                    aria-label={`Open ${reminder.documentTitle ?? 'document'}`}
+                <Badge
+                    variant={statusPresentation.badgeVariant}
+                    className={cn(
+                        'h-5 px-2 text-[0.65rem] font-medium',
+                        statusPresentation.badgeClassName
+                    )}
                 >
-                    <ArrowUpRight className="h-4 w-4" />
-                </Link>
-            </Button>
+                    {statusPresentation.label}
+                </Badge>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                    <CalendarClock
+                        className={cn(
+                            'h-3.5 w-3.5',
+                            statusPresentation.iconClassName
+                        )}
+                    />
+                    {relativeLabel}
+                </span>
+                <Button
+                    asChild
+                    size="icon-sm"
+                    variant="ghost"
+                    className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                    <Link
+                        href={`/doc/${reminder.documentId}`}
+                        aria-label={`Open ${
+                            reminder.documentTitle ?? 'document'
+                        }`}
+                    >
+                        <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                </Button>
+            </div>
         </div>
     );
 }
 
 function RemindersSkeleton() {
     return (
-        <div className="flex flex-1 flex-col space-y-2">
+        <div className="flex flex-1 flex-col space-y-3">
             {[0, 1, 2].map((idx) => (
                 <div
                     key={`reminder-skeleton-${idx}`}
-                    className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/20 p-2"
+                    className="rounded-2xl border border-border/40 bg-muted/20 p-4"
                 >
-                    <Skeleton className="h-5 w-5 rounded-full bg-emerald-200/60" />
-                    <div className="flex-1 space-y-2">
-                        <Skeleton className="h-3 w-3/4 rounded bg-emerald-200/60" />
-                        <Skeleton className="h-3 w-1/2 rounded bg-emerald-100/60" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-3 w-32 rounded bg-muted/50" />
+                        <Skeleton className="h-3 w-24 rounded bg-muted/40" />
+                        <Skeleton className="h-3 w-20 rounded bg-muted/30" />
                     </div>
                 </div>
             ))}
@@ -414,7 +549,7 @@ function EmptyRemindersState() {
             <Inbox className="h-4 w-4 text-muted-foreground" />
             <p>No reminders scheduled yet</p>
             <p className="text-[0.6rem]">
-                Add a %%remind%% block in any document to see it here.
+                Add a /remind block in any document to see it here.
             </p>
         </div>
     );
