@@ -1,6 +1,7 @@
 'use client';
 
-import { BadgeCheck, ChevronsUpDown, LogOut } from 'lucide-react';
+import { BadgeCheck, ChevronsUpDown, LogOut, Shield } from 'lucide-react';
+import Link from 'next/link';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -22,15 +23,20 @@ import { signOut } from 'next-auth/react';
 
 export function NavUser({
     user,
+    activeWorkspaceRole,
 }: {
     user: {
         name: string | null | undefined;
         email: string | null | undefined;
         image?: string | null | undefined;
     };
+    activeWorkspaceRole?: string | null;
 }) {
     const { isMobile } = useSidebar();
     const initials = getInitials(user.name ?? user.email ?? undefined);
+    const normalizedRole = activeWorkspaceRole?.toLowerCase();
+    const canManageWorkspace =
+        normalizedRole === 'owner' || normalizedRole === 'admin';
 
     return (
         <SidebarMenu>
@@ -99,6 +105,17 @@ export function NavUser({
                                 <BadgeCheck />
                                 Account
                             </DropdownMenuItem>
+                            {canManageWorkspace ? (
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href="/workspace-management"
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Shield />
+                                        Workspace management
+                                    </Link>
+                                </DropdownMenuItem>
+                            ) : null}
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => signOut()}>

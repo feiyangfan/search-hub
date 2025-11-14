@@ -6,12 +6,18 @@ import type {
     GetDocumentListResponseType,
     GetDocumentTagsResponseType,
 } from '@search-hub/schemas';
+import {
+    normalizeWorkspaceTagsParams,
+    workspaceTagsQueryKey,
+    type WorkspaceTagsQueryParams,
+} from '@/queries/tags';
 
 export type ApiTag = {
     id: string;
     name: string;
     color?: string | null;
     description?: string | null;
+    documentCount?: number | null;
 };
 
 type DocumentDetails = GetDocumentDetailsResponseType['document'];
@@ -73,12 +79,38 @@ export function useDocumentTagsQuery(documentId: string) {
 
 type WorkspaceTagsResponse = {
     tags: ApiTag[];
+    total?: number;
 };
 
-export function useWorkspaceTagsQuery(enabled = true) {
+type WorkspaceTagsQueryOptions = WorkspaceTagsQueryParams & {
+    enabled?: boolean;
+};
+
+export function useWorkspaceTagsQuery(
+    options: WorkspaceTagsQueryOptions = {}
+) {
+    const { enabled = true, ...params } = options;
+    const normalizedParams = normalizeWorkspaceTagsParams(params);
+    const searchParams = new URLSearchParams();
+
+    if (normalizedParams.includeCount) {
+        searchParams.set('includeCount', 'true');
+    }
+    if (normalizedParams.sortBy) {
+        searchParams.set('sortBy', normalizedParams.sortBy);
+    }
+    if (normalizedParams.order) {
+        searchParams.set('order', normalizedParams.order);
+    }
+
+    const queryString = searchParams.toString();
+
     return useQuery({
-        queryKey: ['workspace', 'tags'],
-        queryFn: () => fetchJson<WorkspaceTagsResponse>('/api/tags'),
+        queryKey: workspaceTagsQueryKey(normalizedParams),
+        queryFn: () =>
+            fetchJson<WorkspaceTagsResponse>(
+                `/api/tags${queryString ? `?${queryString}` : ''}`
+            ),
         select: (data) => data.tags,
         enabled,
         staleTime: 1000 * 60,

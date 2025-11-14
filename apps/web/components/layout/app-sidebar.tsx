@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Home, Search, Sparkles, FilePlus } from 'lucide-react';
+import { Home, Search, Sparkles, FilePlus, File } from 'lucide-react';
 
 import { NavFavorites } from '@/components/navigation/nav-favorites';
 import { NavMain } from '@/components/navigation/nav-main';
@@ -27,19 +27,19 @@ const data = {
             icon: Home,
         },
         {
-            title: 'New document',
-            url: '/dashboard/documents/new',
-            icon: FilePlus,
-        },
-        {
             title: 'Search',
             url: '#',
             icon: Search,
         },
         {
-            title: 'Ask AI',
-            url: '#',
-            icon: Sparkles,
+            title: 'New document',
+            url: '/dashboard/documents/new',
+            icon: FilePlus,
+        },
+        {
+            title: 'Document Explorer',
+            url: '/documents',
+            icon: File,
         },
     ],
 
@@ -76,6 +76,10 @@ export function AppSidebar({
         image: user?.image,
     };
     const workspaceItems = workspaces || [];
+    const activeWorkspace =
+        workspaceItems.find((workspace) => workspace.id === activeTenantId) ??
+        workspaceItems[0];
+    const activeWorkspaceRole = activeWorkspace?.role;
 
     return (
         <Sidebar collapsible="icon" className="border-r-0" {...props}>
@@ -91,7 +95,10 @@ export function AppSidebar({
                 <NavDocuments activeTenantId={activeTenantId} />
             </SidebarContent>
             <SidebarFooter>
-                <NavUser user={navUser} />
+                <NavUser
+                    user={navUser}
+                    activeWorkspaceRole={activeWorkspaceRole}
+                />
             </SidebarFooter>
             <SidebarRail />
         </Sidebar>
