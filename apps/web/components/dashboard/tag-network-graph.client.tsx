@@ -23,6 +23,8 @@ export interface TagNetworkEdge extends d3.SimulationLinkDatum<TagNetworkNode> {
 interface TagNetworkGraphClientProps {
     nodes: TagNetworkNode[];
     edges: TagNetworkEdge[];
+    activeTagId?: string | null;
+    onSelectTag?: (tagId: string | null) => void;
 }
 
 const SQUARE_SCALE = 1.8;
@@ -38,6 +40,8 @@ const VIEWPORT_PADDING = 32;
 export function TagNetworkGraphClient({
     nodes,
     edges,
+    activeTagId,
+    onSelectTag,
 }: TagNetworkGraphClientProps) {
     const [hoveredNode, setHoveredNode] = useState<string | null>(null);
     const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -50,6 +54,31 @@ export function TagNetworkGraphClient({
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (!activeTagId) {
+            setSelectedNode((current) =>
+                current && current.startsWith('tag-') ? null : current
+            );
+            setTooltipNode((current) =>
+                current && current.startsWith('tag-') ? null : current
+            );
+            return;
+        }
+        const nodeId = `tag-${activeTagId}`;
+        const nodeExists = nodes.some((node) => node.id === nodeId);
+        if (!nodeExists) {
+            setSelectedNode((current) =>
+                current && current.startsWith('tag-') ? null : current
+            );
+            setTooltipNode((current) =>
+                current && current.startsWith('tag-') ? null : current
+            );
+            return;
+        }
+        setSelectedNode(nodeId);
+        setTooltipNode(nodeId);
+    }, [activeTagId, nodes]);
 
     const width = 500;
     const height = 300;
@@ -224,6 +253,21 @@ export function TagNetworkGraphClient({
         if (event.target === event.currentTarget) {
             setSelectedNode(null);
             setTooltipNode(null);
+            onSelectTag?.(null);
+        }
+    };
+
+    const handleNodeSelect = (nodeId: string | null) => {
+        setSelectedNode(nodeId);
+        setTooltipNode(nodeId);
+        if (!nodeId) {
+            onSelectTag?.(null);
+            return;
+        }
+        if (nodeId.startsWith('tag-')) {
+            onSelectTag?.(nodeId.replace('tag-', ''));
+        } else {
+            onSelectTag?.(null);
         }
     };
 
@@ -300,16 +344,13 @@ export function TagNetworkGraphClient({
                                             : prev
                                     );
                                 }}
-                                onClick={() =>
-                                    setSelectedNode((current) => {
-                                        const next =
-                                            current === node.id
-                                                ? null
-                                                : node.id;
-                                        setTooltipNode(next ?? null);
-                                        return next;
-                                    })
-                                }
+                                onClick={() => {
+                                    const next =
+                                        selectedNode === node.id
+                                            ? null
+                                            : node.id;
+                                    handleNodeSelect(next);
+                                }}
                                 className="cursor-pointer"
                             >
                                 {/* Node glyph */}

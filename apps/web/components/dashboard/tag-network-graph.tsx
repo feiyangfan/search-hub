@@ -21,6 +21,8 @@ interface TagNetworkGraphProps {
     documents: GraphDocumentInput[];
     tags?: TagOption[];
     fallback?: ReactNode;
+    selectedTagId?: string | null;
+    onSelectTag?: (tagId: string | null) => void;
 }
 
 function buildGraphData(
@@ -125,6 +127,8 @@ export function TagNetworkGraph({
             No tag data available yet.
         </div>
     ),
+    selectedTagId,
+    onSelectTag,
 }: TagNetworkGraphProps) {
     const { nodes, edges } = buildGraphData(documents, tags);
 
@@ -140,7 +144,12 @@ export function TagNetworkGraph({
                 </div>
             }
         >
-            <TagNetworkGraphClient nodes={nodes} edges={edges} />
+            <TagNetworkGraphClient
+                nodes={nodes}
+                edges={edges}
+                activeTagId={selectedTagId}
+                onSelectTag={onSelectTag}
+            />
         </Suspense>
     );
 }
