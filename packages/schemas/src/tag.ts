@@ -34,6 +34,7 @@ export const tagListItemSchema = z.object({
         .string()
         .regex(/^#[0-9A-Fa-f]{6}$/)
         .nullable(),
+    description: z.string().max(200).nullable().optional(),
     documentCount: z.number().int().nonnegative().optional(),
 });
 

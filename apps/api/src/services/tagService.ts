@@ -42,12 +42,14 @@ function toTagListItem(tag: {
     id: string;
     name: string;
     color: string | null;
+    description?: string | null;
     _count?: { documentTags: number };
 }): TagListItemType {
     return {
         id: tag.id,
         name: tag.name,
         color: tag.color,
+        description: tag.description ?? null,
         documentCount: tag._count?.documentTags,
     };
 }
