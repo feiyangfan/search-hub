@@ -137,8 +137,9 @@ export default function WorkspaceManagementPage() {
         await createTag({
             name: trimmedName,
             color: createDraft.color,
-            description:
-                trimmedDescription.length > 0 ? trimmedDescription : null,
+            description: trimmedDescription.length > 0
+                ? trimmedDescription
+                : undefined,
         });
         setCreateDialogOpen(false);
         setCreateDraft({
