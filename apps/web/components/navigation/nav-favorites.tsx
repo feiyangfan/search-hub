@@ -121,182 +121,186 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
     const isEmpty = !isFavoritesLoading && favorites.length === 0;
 
     return (
-        <>
-            <Collapsible defaultOpen>
-                <SidebarGroup>
-                    <SidebarGroupLabel asChild className="pr-9">
-                        <CollapsibleTrigger className="group/collapsible flex w-full items-center justify-start gap-1 rounded-md px-2 py-1 text-left text-xs font-medium text-sidebar-foreground/80 outline-hidden ring-sidebar-ring transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:transition-[transform,opacity] [&>svg]:duration-200 data-[state=open]:[&>svg]:rotate-180">
-                            <span className="truncate">Favorites</span>
-                            <ChevronDown className="opacity-0 group-hover/collapsible:opacity-100 group-focus-visible/collapsible:opacity-100" />
-                        </CollapsibleTrigger>
-                    </SidebarGroupLabel>
-                    <CollapsibleContent asChild>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                {isFavoritesLoading
-                                    ? [1, 2].map((key) => (
-                                          <SidebarMenuItem key={key}>
-                                              <SidebarMenuButton>
-                                                  <Skeleton className="h-4 w-36" />
-                                              </SidebarMenuButton>
-                                          </SidebarMenuItem>
-                                      ))
-                                    : null}
+        favorites.length > 0 && (
+            <>
+                <Collapsible defaultOpen>
+                    <SidebarGroup>
+                        <SidebarGroupLabel asChild className="pr-9">
+                            <CollapsibleTrigger className="group/collapsible flex w-full items-center justify-start gap-1 rounded-md px-2 py-1 text-left text-xs font-medium text-sidebar-foreground/80 outline-hidden ring-sidebar-ring transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:transition-[transform,opacity] [&>svg]:duration-200 data-[state=open]:[&>svg]:rotate-180">
+                                <span className="truncate">Favorites</span>
+                                <ChevronDown className="opacity-0 group-hover/collapsible:opacity-100 group-focus-visible/collapsible:opacity-100" />
+                            </CollapsibleTrigger>
+                        </SidebarGroupLabel>
+                        <CollapsibleContent asChild>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    {isFavoritesLoading
+                                        ? [1, 2].map((key) => (
+                                              <SidebarMenuItem key={key}>
+                                                  <SidebarMenuButton>
+                                                      <Skeleton className="h-4 w-36" />
+                                                  </SidebarMenuButton>
+                                              </SidebarMenuItem>
+                                          ))
+                                        : null}
 
-                                {!isFavoritesLoading &&
-                                    favorites.map((document) => {
-                                        const isActive =
-                                            pathname ===
-                                                `/doc/${document.id}` ||
-                                            pathname?.startsWith(
-                                                `/doc/${document.id}/`
-                                            );
+                                    {!isFavoritesLoading &&
+                                        favorites.map((document) => {
+                                            const isActive =
+                                                pathname ===
+                                                    `/doc/${document.id}` ||
+                                                pathname?.startsWith(
+                                                    `/doc/${document.id}/`
+                                                );
 
-                                        return (
-                                            <SidebarMenuItem key={document.id}>
-                                                {editingDocumentId ===
-                                                document.id ? (
-                                                    <div className="flex items-center gap-2 px-2 py-1.5">
-                                                        <File className="inline-block h-4 w-4 shrink-0 text-muted-foreground" />
-                                                        <input
-                                                            ref={inputRef}
-                                                            type="text"
-                                                            defaultValue={
-                                                                document.title
-                                                            }
-                                                            className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm outline-none focus:border-gray-300"
-                                                            onKeyDown={(
-                                                                event
-                                                            ) => {
-                                                                if (
-                                                                    event.key ===
-                                                                    'Enter'
-                                                                ) {
+                                            return (
+                                                <SidebarMenuItem
+                                                    key={document.id}
+                                                >
+                                                    {editingDocumentId ===
+                                                    document.id ? (
+                                                        <div className="flex items-center gap-2 px-2 py-1.5">
+                                                            <File className="inline-block h-4 w-4 shrink-0 text-muted-foreground" />
+                                                            <input
+                                                                ref={inputRef}
+                                                                type="text"
+                                                                defaultValue={
+                                                                    document.title
+                                                                }
+                                                                className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm outline-none focus:border-gray-300"
+                                                                onKeyDown={(
+                                                                    event
+                                                                ) => {
+                                                                    if (
+                                                                        event.key ===
+                                                                        'Enter'
+                                                                    ) {
+                                                                        handleRenameSubmit(
+                                                                            document.id,
+                                                                            event
+                                                                                .currentTarget
+                                                                                .value
+                                                                        );
+                                                                    } else if (
+                                                                        event.key ===
+                                                                        'Escape'
+                                                                    ) {
+                                                                        handleRenameCancel();
+                                                                    }
+                                                                }}
+                                                                onBlur={(
+                                                                    event
+                                                                ) =>
                                                                     handleRenameSubmit(
                                                                         document.id,
                                                                         event
                                                                             .currentTarget
                                                                             .value
-                                                                    );
-                                                                } else if (
-                                                                    event.key ===
-                                                                    'Escape'
-                                                                ) {
-                                                                    handleRenameCancel();
+                                                                    )
                                                                 }
-                                                            }}
-                                                            onBlur={(event) =>
-                                                                handleRenameSubmit(
-                                                                    document.id,
-                                                                    event
-                                                                        .currentTarget
-                                                                        .value
-                                                                )
-                                                            }
-                                                        />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <SidebarMenuButton
-                                                            asChild
-                                                            isActive={isActive}
-                                                            className="group/menu-item"
-                                                        >
-                                                            <Link
-                                                                href={`/doc/${document.id}`}
-                                                                className="flex items-center gap-2 px-2 py-1.5"
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <SidebarMenuButton
+                                                                asChild
+                                                                isActive={
+                                                                    isActive
+                                                                }
+                                                                className="group/menu-item"
                                                             >
-                                                                <Star className="h-4 w-4 shrink-0 fill-current text-green-600" />
-                                                                <span className="truncate">
-                                                                    {document.title ||
-                                                                        'Untitled document'}
-                                                                </span>
-                                                            </Link>
-                                                        </SidebarMenuButton>
-                                                        <NavDocumentActions
-                                                            documentId={
-                                                                document.id
-                                                            }
-                                                            onRename={() =>
-                                                                handleRename(
-                                                                    document.id,
-                                                                    document.title ||
-                                                                        'Untitled document'
-                                                                )
-                                                            }
-                                                            onDelete={() =>
-                                                                handleDelete(
-                                                                    document.id,
-                                                                    document.title ||
-                                                                        'Untitled document'
-                                                                )
-                                                            }
-                                                            onToggleFavorite={() =>
-                                                                handleFavoriteToggle(
-                                                                    document.id,
-                                                                    false
-                                                                )
-                                                            }
-                                                            onEditTags={() =>
-                                                                editDocumentTags(
+                                                                <Link
+                                                                    href={`/doc/${document.id}`}
+                                                                    className="flex items-center gap-2 px-2 py-1.5"
+                                                                >
+                                                                    <Star className="h-4 w-4 shrink-0 fill-current text-green-600" />
+                                                                    <span className="truncate">
+                                                                        {document.title ||
+                                                                            'Untitled document'}
+                                                                    </span>
+                                                                </Link>
+                                                            </SidebarMenuButton>
+                                                            <NavDocumentActions
+                                                                documentId={
                                                                     document.id
-                                                                )
-                                                            }
-                                                            isFavorite
-                                                            favoriteToggleDisabled={
-                                                                favoriteActionId ===
-                                                                document.id
-                                                            }
-                                                            isActive={isActive}
-                                                        />
-                                                    </>
-                                                )}
-                                            </SidebarMenuItem>
-                                        );
-                                    })}
+                                                                }
+                                                                onRename={() =>
+                                                                    handleRename(
+                                                                        document.id,
+                                                                        document.title ||
+                                                                            'Untitled document'
+                                                                    )
+                                                                }
+                                                                onDelete={() =>
+                                                                    handleDelete(
+                                                                        document.id,
+                                                                        document.title ||
+                                                                            'Untitled document'
+                                                                    )
+                                                                }
+                                                                onToggleFavorite={() =>
+                                                                    handleFavoriteToggle(
+                                                                        document.id,
+                                                                        false
+                                                                    )
+                                                                }
+                                                                onEditTags={() =>
+                                                                    editDocumentTags(
+                                                                        document.id
+                                                                    )
+                                                                }
+                                                                isFavorite
+                                                                favoriteToggleDisabled={
+                                                                    favoriteActionId ===
+                                                                    document.id
+                                                                }
+                                                                isActive={
+                                                                    isActive
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
+                                                </SidebarMenuItem>
+                                            );
+                                        })}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </CollapsibleContent>
+                    </SidebarGroup>
+                </Collapsible>
 
-                                {isEmpty ? (
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton className="text-xs text-muted-foreground">
-                                            <StarOff className="mr-2 h-4 w-4 text-muted-foreground/60" />
-                                            <span>No favorites yet</span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ) : null}
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </CollapsibleContent>
-                </SidebarGroup>
-            </Collapsible>
-
-            <AlertDialog
-                open={!!deletingDocument}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setDeletingDocument(null);
-                    }
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete document?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently
-                            delete &quot;{deletingDocument?.title}&quot; and all
-                            of its content.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDeleteConfirm}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </>
+                <AlertDialog
+                    open={!!deletingDocument}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDeletingDocument(null);
+                        }
+                    }}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Delete document?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will
+                                permanently delete &quot;
+                                {deletingDocument?.title}&quot; and all of its
+                                content.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteConfirm}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Delete
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </>
+        )
     );
 }
