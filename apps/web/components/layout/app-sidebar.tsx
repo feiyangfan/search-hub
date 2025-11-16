@@ -19,7 +19,6 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 
 import type { Session } from 'next-auth';
 
-// This is sample data.
 const data = {
     navMain: [
         {
