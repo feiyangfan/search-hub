@@ -124,22 +124,11 @@ export function TagCreateDialog({
                                         </span>
                                     </button>
                                 </PopoverTrigger>
-                                <PopoverContent
-                                    className="w-auto p-3"
-                                    onPointerDownOutside={(event) =>
-                                        event.preventDefault()
-                                    }
-                                    onInteractOutside={(event) =>
-                                        event.preventDefault()
-                                    }
-                                >
+                                <PopoverContent className="w-auto p-3">
                                     <SketchPicker
                                         color={color}
                                         onChange={(result: ColorResult) =>
                                             onColorChange(result.hex)
-                                        }
-                                        onChangeComplete={() =>
-                                            setColorPickerOpen(false)
                                         }
                                         disableAlpha
                                     />
