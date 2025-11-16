@@ -6,7 +6,15 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction } from '@/components/ui/sidebar';
-import { MoreHorizontal, Star, StarOff } from 'lucide-react';
+import {
+    MoreHorizontal,
+    Star,
+    StarOff,
+    PencilLine,
+    TagIcon,
+    Trash,
+    Palette,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function NavDocumentActions({
@@ -18,6 +26,7 @@ export function NavDocumentActions({
     isFavorite,
     favoriteToggleDisabled = false,
     onEditTags,
+    onChangeIcon,
 }: {
     documentId: string;
     onRename?: () => void;
@@ -27,6 +36,7 @@ export function NavDocumentActions({
     isFavorite?: boolean;
     favoriteToggleDisabled?: boolean;
     onEditTags?: () => void;
+    onChangeIcon?: (event: Event) => void;
 }) {
     return (
         <DropdownMenu>
@@ -53,7 +63,20 @@ export function NavDocumentActions({
                 side="right"
                 align="start"
             >
-                <DropdownMenuItem onSelect={onRename}>Rename</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onRename}>
+                    <PencilLine className="h-4 w-4" />
+                    Rename
+                </DropdownMenuItem>
+                {onChangeIcon ? (
+                    <DropdownMenuItem
+                        onSelect={(event) => {
+                            onChangeIcon(event);
+                        }}
+                    >
+                        <Palette className="h-4 w-4" />
+                        Change icon
+                    </DropdownMenuItem>
+                ) : null}
                 {onToggleFavorite ? (
                     <DropdownMenuItem
                         disabled={favoriteToggleDisabled}
@@ -64,11 +87,13 @@ export function NavDocumentActions({
                         }}
                     >
                         {isFavorite ? (
-                            <StarOff className="mr-2 h-4 w-4" />
+                            <StarOff className="h-4 w-4" />
                         ) : (
-                            <Star className="mr-2 h-4 w-4" />
+                            <Star className="h-4 w-4" />
                         )}
-                        {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                        {isFavorite
+                            ? 'Remove from favorites'
+                            : 'Add to favorites'}
                     </DropdownMenuItem>
                 ) : null}
                 {onEditTags ? (
@@ -78,6 +103,7 @@ export function NavDocumentActions({
                             onEditTags();
                         }}
                     >
+                        <TagIcon className="h-4 w-4" />
                         Edit tags
                     </DropdownMenuItem>
                 ) : null}
@@ -86,6 +112,7 @@ export function NavDocumentActions({
                     onSelect={onDelete}
                     className="text-destructive focus:text-destructive"
                 >
+                    <Trash className="h-4 w-4" />
                     Delete
                 </DropdownMenuItem>
             </DropdownMenuContent>

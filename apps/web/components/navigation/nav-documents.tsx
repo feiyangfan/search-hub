@@ -1,5 +1,6 @@
-import { ChevronDown, Plus, File } from 'lucide-react';
+import { ChevronDown, Plus, File, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -28,6 +29,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { NavDocumentActions } from './nav-document-actions';
 import { useDocumentActions } from '@/hooks/use-document-actions';
 import { useDocumentsListQuery } from '@/hooks/use-documents';
@@ -35,6 +37,35 @@ import { useDocumentsListQuery } from '@/hooks/use-documents';
 type NavDocumentsProps = {
     activeTenantId?: string;
 };
+
+const PICKER_WIDTH = 320;
+const PICKER_HEIGHT = 420;
+const PICKER_MARGIN = 16;
+
+type EmojiPickerState = {
+    documentId: string;
+    documentTitle: string;
+    position: { top: number; left: number };
+};
+
+function calculatePickerPosition(rect?: DOMRect | null) {
+    if (typeof window === 'undefined') {
+        return { top: PICKER_MARGIN, left: PICKER_MARGIN };
+    }
+
+    let top = rect
+        ? rect.bottom + 8
+        : window.innerHeight / 2 - PICKER_HEIGHT / 2;
+    let left = rect ? rect.left : window.innerWidth / 2 - PICKER_WIDTH / 2;
+
+    const maxTop = window.innerHeight - PICKER_HEIGHT - PICKER_MARGIN;
+    const maxLeft = window.innerWidth - PICKER_WIDTH - PICKER_MARGIN;
+
+    top = Math.max(PICKER_MARGIN, Math.min(top, maxTop));
+    left = Math.max(PICKER_MARGIN, Math.min(left, maxLeft));
+
+    return { top, left };
+}
 
 export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
     const pathname = usePathname();
@@ -59,6 +90,11 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
     const [favoriteActionId, setFavoriteActionId] = useState<string | null>(
         null
     );
+    const [emojiPickerState, setEmojiPickerState] =
+        useState<EmojiPickerState | null>(null);
+    const [documentEmojis, setDocumentEmojis] = useState<
+        Record<string, string>
+    >({});
     const { renameDocument, deleteDocument, toggleFavorite, editDocumentTags } =
         useDocumentActions();
 
@@ -110,6 +146,51 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
         });
     };
 
+    useEffect(() => {
+        if (!emojiPickerState) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setEmojiPickerState(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [emojiPickerState]);
+
+    const openEmojiPicker = (
+        documentId: string,
+        title: string,
+        event?: Event
+    ) => {
+        const anchor = (event?.currentTarget as HTMLElement | null) ?? null;
+        const rect = anchor?.getBoundingClientRect() ?? null;
+        const position = calculatePickerPosition(rect);
+        setEmojiPickerState({
+            documentId,
+            documentTitle: title,
+            position,
+        });
+    };
+
+    const handleEmojiSelect = (emojiData: EmojiClickData) => {
+        if (!emojiPickerState) return;
+        setDocumentEmojis((prev) => ({
+            ...prev,
+            [emojiPickerState.documentId]: emojiData.emoji,
+        }));
+        setEmojiPickerState(null);
+    };
+
+    const handleEmojiReset = () => {
+        if (!emojiPickerState) return;
+        setDocumentEmojis((prev) => {
+            const next = { ...prev };
+            delete next[emojiPickerState.documentId];
+            return next;
+        });
+        setEmojiPickerState(null);
+    };
+
     return (
         <>
             <Collapsible defaultOpen>
@@ -147,6 +228,11 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                               pathname?.startsWith(
                                                   `/doc/${document.id}/`
                                               );
+                                          const documentTitle =
+                                              document.title ||
+                                              'Untitled document';
+                                          const documentEmoji =
+                                              documentEmojis[document.id];
 
                                           return (
                                               <SidebarMenuItem
@@ -155,7 +241,15 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                                   {editingDocumentId ===
                                                   document.id ? (
                                                       <div className="flex items-center gap-2 px-2 py-1.5">
-                                                          <File className="inline-block h-4 w-4 shrink-0" />
+                                                          {documentEmoji ? (
+                                                              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-base">
+                                                                  {
+                                                                      documentEmoji
+                                                                  }
+                                                              </span>
+                                                          ) : (
+                                                              <File className="inline-block h-4 w-4 shrink-0" />
+                                                          )}
                                                           <input
                                                               ref={inputRef}
                                                               type="text"
@@ -203,12 +297,26 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                                           >
                                                               <Link
                                                                   href={`/doc/${document.id}`}
-                                                                  className="flex items-center gap-2"
+                                                                  className="flex items-center gap-1"
                                                               >
-                                                                  <File className="inline-block h-4 w-4 shrink-0" />
+                                                                  <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+                                                                      {documentEmoji ? (
+                                                                          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base">
+                                                                              {
+                                                                                  documentEmoji
+                                                                              }
+                                                                          </span>
+                                                                      ) : (
+                                                                          <File
+                                                                              size="icon"
+                                                                              className="inline-block h-4 w-4"
+                                                                          />
+                                                                      )}
+                                                                  </div>
+
                                                                   <span>
                                                                       {
-                                                                          document.title
+                                                                          documentTitle
                                                                       }
                                                                   </span>
                                                               </Link>
@@ -220,15 +328,13 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                                               onRename={() =>
                                                                   handleRename(
                                                                       document.id,
-                                                                      document.title ||
-                                                                          'Untitled document'
+                                                                      documentTitle
                                                                   )
                                                               }
                                                               onDelete={() =>
                                                                   handleDelete(
                                                                       document.id,
-                                                                      document.title ||
-                                                                          'Untitled document'
+                                                                      documentTitle
                                                                   )
                                                               }
                                                               onToggleFavorite={() =>
@@ -249,6 +355,15 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                                                       document.id
                                                                   )
                                                               }
+                                                              onChangeIcon={(
+                                                                  event
+                                                              ) =>
+                                                                  openEmojiPicker(
+                                                                      document.id,
+                                                                      documentTitle,
+                                                                      event
+                                                                  )
+                                                              }
                                                               isActive={
                                                                   isActive
                                                               }
@@ -263,6 +378,42 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                     </CollapsibleContent>
                 </SidebarGroup>
             </Collapsible>
+
+            {emojiPickerState ? (
+                <div
+                    className="fixed inset-0 z-50"
+                    onClick={() => setEmojiPickerState(null)}
+                >
+                    <div
+                        className="absolute z-50 rounded-2xl border bg-popover shadow-2xl"
+                        style={{
+                            top: emojiPickerState.position.top,
+                            left: emojiPickerState.position.left,
+                            width: PICKER_WIDTH,
+                        }}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <EmojiPicker
+                            onEmojiClick={handleEmojiSelect}
+                            lazyLoadEmojis
+                            skinTonesDisabled
+                            width={PICKER_WIDTH}
+                            height={PICKER_HEIGHT - 80}
+                            previewConfig={{ showPreview: false }}
+                        />
+                        <div className="flex items-center justify-between border-t px-4 py-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={handleEmojiReset}
+                            >
+                                <File className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <AlertDialog
                 open={!!deletingDocument}
