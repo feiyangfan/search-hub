@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Palette, Loader2 } from 'lucide-react';
 import { SketchPicker, type ColorResult } from 'react-color';
 
@@ -34,6 +34,18 @@ export type TagCreateDialogProps = {
     isDisabled?: boolean;
 };
 
+function isHexColorLight(hex: string) {
+    const sanitized = hex.replace('#', '');
+    if (sanitized.length !== 6) {
+        return false;
+    }
+    const r = parseInt(sanitized.slice(0, 2), 16);
+    const g = parseInt(sanitized.slice(2, 4), 16);
+    const b = parseInt(sanitized.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.82;
+}
+
 export function TagCreateDialog({
     open,
     onOpenChange,
@@ -56,6 +68,16 @@ export function TagCreateDialog({
             setColorPickerOpen(false);
         }
     }, [open]);
+
+    const colorPreviewStyle = useMemo(() => {
+        const isLight = isHexColorLight(color);
+        return {
+            backgroundColor: color,
+            boxShadow: isLight
+                ? 'inset 0 0 0 1px rgba(15, 23, 42, 0.38)'
+                : 'inset 0 0 0 1px rgba(255, 255, 255, 0.35)',
+        };
+    }, [color]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,8 +138,8 @@ export function TagCreateDialog({
                                     >
                                         <span
                                             aria-hidden="true"
-                                            className="h-6 w-6 rounded-full border shadow-inner"
-                                            style={{ backgroundColor: color }}
+                                            className="h-6 w-6 rounded-full border"
+                                            style={colorPreviewStyle}
                                         />
                                         <span className="font-mono uppercase text-foreground">
                                             {color}
