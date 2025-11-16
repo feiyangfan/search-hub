@@ -435,7 +435,7 @@ export function AppHeader({
                                         />
                                     </Button>
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
                                         className="gap-1"
                                         onClick={documentHeaderData?.onEditTags}
