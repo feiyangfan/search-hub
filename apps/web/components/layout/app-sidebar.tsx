@@ -15,6 +15,7 @@ import {
     SidebarRail,
 } from '@/components/ui/sidebar';
 import { NavUser } from '../navigation/nav-user';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 import type { Session } from 'next-auth';
 
@@ -84,10 +85,15 @@ export function AppSidebar({
     return (
         <Sidebar collapsible="icon" className="border-r-0" {...props}>
             <SidebarHeader>
-                <WorkspaceSwitcher
-                    workspaces={workspaceItems}
-                    activeTenantId={activeTenantId}
-                />
+                <div className="flex items-center justify-between">
+                    <WorkspaceSwitcher
+                        workspaces={workspaceItems}
+                        activeTenantId={activeTenantId}
+                    />
+
+                    <SidebarTrigger size="icon" className="shrink-0" />
+                </div>
+
                 <NavMain items={data.navMain} />
             </SidebarHeader>
             <SidebarContent>

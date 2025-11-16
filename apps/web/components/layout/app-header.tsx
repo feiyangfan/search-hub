@@ -39,7 +39,7 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Tag as TagBadge } from '@/components/ui/tag';
 import { useDocumentHeader } from '@/components/document/document-header-context';
 import { Skeleton } from '../ui/skeleton';
@@ -56,6 +56,8 @@ export function AppHeader({
     showSidebarTrigger = true,
 }: AppHeaderProps) {
     const user = session?.user;
+    const { state: sidebarState } = useSidebar();
+    const isSidebarCollapsed = sidebarState === 'collapsed';
     const pathname = usePathname();
     const isDocumentRoute = pathname?.startsWith('/doc/');
     const segments =
@@ -85,34 +87,35 @@ export function AppHeader({
         const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
         if (Math.abs(diffSeconds) < 60) {
-            return `Last edited ${rtf.format(-diffSeconds, 'second')}`;
+            return `Edited ${rtf.format(-diffSeconds, 'second')}`;
         }
         const diffMinutes = Math.round(diffSeconds / 60);
         if (Math.abs(diffMinutes) < 60) {
-            return `Last edited ${rtf.format(-diffMinutes, 'minute')}`;
+            return `Edited ${rtf.format(-diffMinutes, 'minute')}`;
         }
         const diffHours = Math.round(diffMinutes / 60);
         if (Math.abs(diffHours) < 24) {
-            return `Last edited ${rtf.format(-diffHours, 'hour')}`;
+            return `Edited ${rtf.format(-diffHours, 'hour')}`;
         }
         const diffDays = Math.round(diffHours / 24);
         if (Math.abs(diffDays) < 7) {
-            return `Last edited ${rtf.format(-diffDays, 'day')}`;
+            return `Edited ${rtf.format(-diffDays, 'day')}`;
         }
         const diffWeeks = Math.round(diffDays / 7);
         if (Math.abs(diffWeeks) < 5) {
-            return `Last edited ${rtf.format(-diffWeeks, 'week')}`;
+            return `Edited ${rtf.format(-diffWeeks, 'week')}`;
         }
         const diffMonths = Math.round(diffDays / 30);
         if (Math.abs(diffMonths) < 12) {
-            return `Last edited ${rtf.format(-diffMonths, 'month')}`;
+            return `Edited ${rtf.format(-diffMonths, 'month')}`;
         }
         const diffYears = Math.round(diffDays / 365);
-        return `Last edited ${rtf.format(-diffYears, 'year')}`;
+        return `Edited ${rtf.format(-diffYears, 'year')}`;
     }, [documentHeaderData?.updatedAt]);
+
     const statusLabel =
-        documentHeaderData?.statusLabel ??
         lastEditedLabel ??
+        documentHeaderData?.statusLabel ??
         'Tracking changes...';
 
     const formatSegmentLabel = (segment: string) => {
@@ -135,23 +138,16 @@ export function AppHeader({
     };
 
     const breadcrumbs: BreadcrumbEntry[] = (() => {
-        const baseCrumb: BreadcrumbEntry = {
-            label: 'Search Hub',
-            href: user ? '/dashboard' : '/',
-            accent: true,
-        };
-
         if (!segments.length) {
-            return [baseCrumb];
+            return [];
         }
 
         if (segments[0] === 'dashboard') {
             if (segments.length === 1) {
-                return [baseCrumb, { label: 'Dashboard Overview' }];
+                return [{ label: 'Dashboard Overview' }];
             }
 
-            const crumbs = [
-                baseCrumb,
+            const crumbs: BreadcrumbEntry[] = [
                 {
                     label: 'Dashboard',
                     href: segments.length > 1 ? '/dashboard' : undefined,
@@ -172,8 +168,7 @@ export function AppHeader({
         }
 
         if (segments[0] === 'doc') {
-            const crumbs = [
-                baseCrumb,
+            const crumbs: BreadcrumbEntry[] = [
                 { label: 'Documents', href: '/dashboard/documents' },
             ];
             const docId = segments[1];
@@ -198,7 +193,7 @@ export function AppHeader({
             return crumbs;
         }
 
-        const crumbs = [baseCrumb];
+        const crumbs: BreadcrumbEntry[] = [];
         let accumulated = '';
         segments.forEach((segment, index) => {
             accumulated += `/${segment}`;
@@ -302,10 +297,10 @@ export function AppHeader({
 
     return (
         <header className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-            <div className="mx-auto flex flex-col px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-1">
+            <div className="mx-auto flex flex-col pl-4 pr-4">
+                <div className="flex flex-wrap items-center justify-between gap-1 h-9">
                     <div className="flex flex-wrap items-center gap-2">
-                        {user && showSidebarTrigger ? (
+                        {user && showSidebarTrigger && isSidebarCollapsed ? (
                             <SidebarTrigger className="-ml-2" />
                         ) : null}
                         <Breadcrumb>
@@ -372,7 +367,7 @@ export function AppHeader({
                                                                     disabled={
                                                                         renamePending
                                                                     }
-                                                                    className="h-7 w-[220px] border-border bg-background/80 px-2 text-xs font-medium text-foreground"
+                                                                    className="h-7  border-border bg-background/80 px-2 text-xs font-medium text-foreground"
                                                                 />
                                                             ) : (
                                                                 <button
@@ -408,18 +403,6 @@ export function AppHeader({
                                 })}
                             </BreadcrumbList>
                         </Breadcrumb>
-                        {isDocumentRoute ? (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {isLoadingDoc ? (
-                                    <Skeleton className="h-4 w-32 rounded-full bg-emerald-200/60" />
-                                ) : (
-                                    <>
-                                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                                        {statusLabel}
-                                    </>
-                                )}
-                            </div>
-                        ) : null}
                     </div>
                     {isDocumentRoute ? (
                         isLoadingDoc ? (
@@ -430,51 +413,59 @@ export function AppHeader({
                             </div>
                         ) : (
                             <div className="flex items-center gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="gap-1"
-                                >
-                                    <Star
-                                        className={`h-4 w-4 ${
-                                            isFavorited
-                                                ? 'fill-current text-green-600'
-                                                : ''
-                                        }`}
-                                    />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1"
-                                    onClick={documentHeaderData?.onEditTags}
-                                    disabled={!documentHeaderData?.onEditTags}
-                                >
-                                    <TagIcon className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="gap-1"
-                                >
-                                    <Share2 className="h-4 w-4" />
-                                </Button>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                            <span className="sr-only">
-                                                More actions
-                                            </span>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent
-                                        align="end"
-                                        className="w-48"
+                                <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
+                                    {isLoadingDoc ? (
+                                        <Skeleton className="h-4 w-32 rounded-full bg-emerald-200/60" />
+                                    ) : (
+                                        <>{statusLabel}</>
+                                    )}
+                                </div>
+                                <div className="hidden items-center gap-2 md:flex">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gap-1"
                                     >
-                                        {canDeleteDocument ? (
-                                            <>
-                                                <DropdownMenuSeparator />
+                                        <Star
+                                            className={`h-4 w-4 ${
+                                                isFavorited
+                                                    ? 'fill-current text-green-600'
+                                                    : ''
+                                            }`}
+                                        />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-1"
+                                        onClick={documentHeaderData?.onEditTags}
+                                        disabled={
+                                            !documentHeaderData?.onEditTags
+                                        }
+                                    >
+                                        <TagIcon className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gap-1"
+                                    >
+                                        <Share2 className="h-4 w-4" />
+                                    </Button>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                                <span className="sr-only">
+                                                    More actions
+                                                </span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align="end"
+                                            className="w-48"
+                                        >
+                                            {canDeleteDocument ? (
                                                 <DropdownMenuItem
                                                     className="text-destructive focus:text-destructive"
                                                     disabled={
@@ -488,16 +479,84 @@ export function AppHeader({
                                                     <Trash2 className="mr-2 h-4 w-4" />
                                                     Delete Document
                                                 </DropdownMenuItem>
-                                            </>
-                                        ) : null}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                            ) : null}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                                <div className="md:hidden">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                                <span className="sr-only">
+                                                    Document actions
+                                                </span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align="end"
+                                            className="w-48"
+                                        >
+                                            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                                                    {statusLabel}
+                                                </div>
+                                            </div>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem>
+                                                <Star
+                                                    className={`mr-2 h-4 w-4 ${
+                                                        isFavorited
+                                                            ? 'fill-current text-green-600'
+                                                            : ''
+                                                    }`}
+                                                />
+                                                Favorite
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                disabled={
+                                                    !documentHeaderData?.onEditTags
+                                                }
+                                                onSelect={(event) => {
+                                                    event.preventDefault();
+                                                    documentHeaderData?.onEditTags?.();
+                                                }}
+                                            >
+                                                <TagIcon className="mr-2 h-4 w-4" />
+                                                Edit tags
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem>
+                                                <Share2 className="mr-2 h-4 w-4" />
+                                                Share
+                                            </DropdownMenuItem>
+                                            {canDeleteDocument ? (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="text-destructive focus:text-destructive"
+                                                        disabled={
+                                                            !documentHeaderData?.onDeleteDocument
+                                                        }
+                                                        onSelect={(event) => {
+                                                            event.preventDefault();
+                                                            documentHeaderData?.onDeleteDocument?.();
+                                                        }}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete document
+                                                    </DropdownMenuItem>
+                                                </>
+                                            ) : null}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </div>
                         )
                     ) : null}
                 </div>
                 {isDocumentRoute ? (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 pb-2">
                         {isLoadingDoc ? (
                             <>
                                 <Skeleton className="h-4 w-28 rounded-full bg-emerald-200/60" />
