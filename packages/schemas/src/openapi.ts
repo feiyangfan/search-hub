@@ -14,6 +14,8 @@ import {
     updateDocumentTitleResponseSchema,
     updateDocumentContentPayloadSchema,
     updateDocumentContentResponseSchema,
+    updateDocumentIconPayloadSchema,
+    updateDocumentIconResponseSchema,
     reindexDocumentResponseSchema,
     getPendingRemindersResponseSchema,
     getDocumentRemindersResponseSchema,
@@ -601,6 +603,59 @@ export function buildOpenApi(
                             content: {
                                 'application/json': {
                                     schema: updateDocumentContentResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/icon': {
+                patch: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: updateDocumentIconPayloadSchema,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'Document icon updated',
+                            content: {
+                                'application/json': {
+                                    schema: updateDocumentIconResponseSchema,
                                 },
                             },
                         },

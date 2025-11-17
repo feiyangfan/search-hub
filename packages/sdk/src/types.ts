@@ -1762,6 +1762,148 @@ export interface paths {
         };
         trace?: never;
     };
+    "/v1/documents/{id}/icon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description Emoji used to visually represent a document */
+                        iconEmoji?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description Document icon updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            document: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                id: string;
+                                /** @description Emoji used to visually represent a document */
+                                iconEmoji: string | null;
+                            };
+                        };
+                    };
+                };
+                /** @description Bad Request - Validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden - Access denied */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Not Found - Document does not exist */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/v1/documents/{id}/reindex": {
         parameters: {
             query?: never;
@@ -1903,6 +2045,7 @@ export interface paths {
                                 id: string;
                                 name: string;
                                 color: string | null;
+                                description?: string | null;
                                 documentCount?: number;
                             }[];
                         };
@@ -2031,6 +2174,7 @@ export interface paths {
                                 id: string;
                                 name: string;
                                 color: string | null;
+                                description?: string | null;
                                 documentCount?: number;
                             }[];
                             alreadyExists?: string[] | null;
@@ -2298,6 +2442,7 @@ export interface paths {
                                 id: string;
                                 name: string;
                                 color: string | null;
+                                description?: string | null;
                                 documentCount?: number;
                             }[];
                             total: number;

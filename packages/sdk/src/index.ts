@@ -22,6 +22,29 @@ export class SearchHubClient {
         this.defaultHeaders = { ...(options.headers ?? {}) };
     }
 
+    /** PATCH /v1/documents/{id}/icon */
+    async updateDocumentIcon(
+        id: string,
+        body: paths['/v1/documents/{id}/icon']['patch']['requestBody']['content']['application/json']
+    ): Promise<
+        paths['/v1/documents/{id}/icon']['patch']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/icon`;
+        const res = await this.fetcher(url, {
+            method: 'PATCH',
+            headers: {
+                'content-type': 'application/json',
+                ...this.defaultHeaders,
+            },
+            body: JSON.stringify(body),
+        });
+
+        await this.ensureOk(res, 'updateDocumentIcon');
+        return (await res.json()) as paths['/v1/documents/{id}/icon']['patch']['responses']['200']['content']['application/json'];
+    }
+
     /** Small helper to throw readable errors on non-2xx */
     private async ensureOk(res: Response, operation: string) {
         if (res.ok) {
