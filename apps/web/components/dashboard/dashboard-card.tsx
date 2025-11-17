@@ -48,14 +48,12 @@ export function DashboardCard({
     title,
     description,
     action,
-    footer,
     children,
     variant = 'medium',
     accent = 'default',
     className,
     ...props
 }: DashboardCardProps) {
-    const gridClass = variantGridClasses[variant] ?? variantGridClasses.medium;
     const surfaceClass = accentClasses[accent] ?? accentClasses.default;
 
     return (
