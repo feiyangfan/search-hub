@@ -459,6 +459,55 @@ export const documentRepository = {
             data: { content },
         });
     },
+    updateIconEmoji: async (
+        documentId: string,
+        iconEmoji?: string | null
+    ) => {
+        const current = await prisma.document.findUnique({
+            where: { id: documentId },
+            select: { metadata: true },
+        });
+
+        if (!current) {
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'database',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update_icon',
+                    },
+                }
+            );
+        }
+
+        const metadataObject: Record<string, unknown> =
+            current.metadata && typeof current.metadata === 'object'
+                ? Array.isArray(current.metadata)
+                    ? {}
+                    : { ...current.metadata }
+                : {};
+
+        if (iconEmoji && iconEmoji.length > 0) {
+            metadataObject.iconEmoji = iconEmoji;
+        } else {
+            delete metadataObject.iconEmoji;
+        }
+
+        return prisma.document.update({
+            where: { id: documentId },
+            data: {
+                metadata: metadataObject as Prisma.JsonObject,
+            },
+            select: {
+                id: true,
+                metadata: true,
+            },
+        });
+    },
     replaceChunksWithEmbeddings: async ({
         tenantId,
         documentId,

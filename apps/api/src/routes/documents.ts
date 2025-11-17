@@ -12,6 +12,8 @@ import {
     RemoveTagFromDocumentResponseType,
     FavoriteDocumentResponseType,
     UnfavoriteDocumentResponseType,
+    updateDocumentIconPayloadSchema,
+    type UpdateDocumentIconPayloadType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import {
@@ -335,6 +337,58 @@ export function documentRoutes(
             next(error);
         }
     });
+
+    router.patch(
+        '/:id/icon',
+        validateParams(getDocumentDetailsParamsSchema),
+        validateBody(updateDocumentIconPayloadSchema),
+        async (req, res, next) => {
+            try {
+                const authReq = req as AuthenticatedRequest;
+                const { userId } = authReq.session;
+                const activeTenantId = authReq.session?.currentTenantId;
+
+                if (!activeTenantId) {
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'document',
+                                operation: 'updateIcon',
+                            },
+                        }
+                    );
+                }
+
+                const requestWithParams =
+                    req as RequestWithValidatedParams<GetDocumentDetailsParamsType>;
+                const { id: documentIdFromParams } =
+                    requestWithParams.validated.params;
+
+                const requestWithBody =
+                    req as RequestWithValidatedBody<UpdateDocumentIconPayloadType>;
+
+                const { iconEmoji } = requestWithBody.validated.body;
+
+                const document = await service.updateDocumentIcon(
+                    documentIdFromParams,
+                    {
+                        userId,
+                        tenantId: activeTenantId,
+                    },
+                    {
+                        iconEmoji: iconEmoji ?? null,
+                    }
+                );
+
+                res.status(200).json({ document });
+            } catch (error) {
+                next(error);
+            }
+        }
+    );
 
     router.post('/:id/reindex', async (req, res, next) => {
         try {

@@ -10,6 +10,7 @@ import {
     type DocumentListResultType,
     type TagListItemType,
     type RemindCommandPayloadType,
+    type UpdateDocumentIconPayloadType,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 import {
@@ -72,6 +73,12 @@ export interface DocumentService {
         context: { tenantId: string; userId: string },
         payload: { content: string }
     ): Promise<{ id: string; updatedAt: string }>;
+
+    updateDocumentIcon(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: UpdateDocumentIconPayloadType
+    ): Promise<{ id: string; iconEmoji: string | null }>;
 
     queueDocumentReindexing(
         documentId: string,
@@ -549,6 +556,98 @@ export function createDocumentService(
         return {
             id: updatedDocument.id,
             updatedAt: updatedDocument.updatedAt.toISOString(),
+        };
+    }
+
+    async function updateDocumentIcon(
+        documentId: string,
+        context: { tenantId: string; userId: string },
+        payload: UpdateDocumentIconPayloadType
+    ): Promise<{ id: string; iconEmoji: string | null }> {
+        const membership =
+            await db.tenantMembership.findMembershipByUserIdAndTenantId({
+                userId: context.userId,
+                tenantId: context.tenantId,
+            });
+
+        if (!membership) {
+            logger.warn(
+                {
+                    documentId,
+                    userId: context.userId,
+                    tenantId: context.tenantId,
+                },
+                'document.update_icon.forbidden'
+            );
+            throw AppError.authorization(
+                'DOCUMENT_UPDATE_FORBIDDEN',
+                'You do not have permission to update this document',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                    },
+                }
+            );
+        }
+
+        const document = await db.document.findUnique(documentId);
+
+        if (!document || document.tenantId !== context.tenantId) {
+            throw AppError.notFound(
+                'DOCUMENT_NOT_FOUND',
+                'Document not found',
+                {
+                    context: {
+                        origin: 'app',
+                        domain: 'documents',
+                        resource: 'Document',
+                        resourceId: documentId,
+                        operation: 'update',
+                    },
+                }
+            );
+        }
+
+        const normalizedEmoji =
+            payload.iconEmoji && payload.iconEmoji.length > 0
+                ? payload.iconEmoji
+                : null;
+
+        const updated = await db.document.updateIconEmoji(
+            documentId,
+            normalizedEmoji
+        );
+
+        const metadata =
+            updated.metadata &&
+            typeof updated.metadata === 'object' &&
+            !Array.isArray(updated.metadata)
+                ? (updated.metadata as Record<string, unknown>)
+                : {};
+
+        const storedEmoji =
+            typeof metadata.iconEmoji === 'string' &&
+            metadata.iconEmoji.length > 0
+                ? metadata.iconEmoji
+                : null;
+
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+                iconEmoji: storedEmoji,
+            },
+            'document.update_icon.succeeded'
+        );
+
+        return {
+            id: updated.id,
+            iconEmoji: storedEmoji,
         };
     }
 
@@ -1083,6 +1182,7 @@ export function createDocumentService(
         deleteDocument,
         updateDocumentTitle,
         updateDocumentContent,
+        updateDocumentIcon,
         queueDocumentReindexing,
         addTagsToDocument,
         removeTagFromDocument,

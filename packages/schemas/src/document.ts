@@ -16,6 +16,15 @@ export const documentMetadataSchema = z
 export type DocumentMetadataType = z.infer<typeof documentMetadataSchema>;
 
 // Base Document schema - represents a complete database record
+export const documentIconEmojiSchema = z
+    .string()
+    .trim()
+    .min(1, 'Emoji cannot be empty')
+    .max(16, 'Emoji must be 16 characters or fewer')
+    .describe('Emoji used to visually represent a document');
+
+export type DocumentIconEmojiType = z.infer<typeof documentIconEmojiSchema>;
+
 export const documentSchema = z.object({
     id: Id.meta({
         description: 'Document identifier assigned by the server',
@@ -212,6 +221,25 @@ export const updateDocumentContentResponseSchema = z.object({
 
 export type UpdateDocumentContentResponseType = z.infer<
     typeof updateDocumentContentResponseSchema
+>;
+
+export const updateDocumentIconPayloadSchema = z.object({
+    iconEmoji: documentIconEmojiSchema.nullable().optional(),
+});
+
+export type UpdateDocumentIconPayloadType = z.infer<
+    typeof updateDocumentIconPayloadSchema
+>;
+
+export const updateDocumentIconResponseSchema = z.object({
+    document: z.object({
+        id: Id,
+        iconEmoji: documentIconEmojiSchema.nullable(),
+    }),
+});
+
+export type UpdateDocumentIconResponseType = z.infer<
+    typeof updateDocumentIconResponseSchema
 >;
 
 // Reindex document endpoint
