@@ -144,6 +144,7 @@ export const documentListItemSchema = z.object({
     id: Id,
     title: documentSchema.shape.title,
     updatedAt: documentSchema.shape.updatedAt,
+    metadata: documentMetadataSchema.nullable().optional(),
     isFavorite: z.boolean().meta({
         description:
             'Indicator whether the document is marked as favorite by the user',

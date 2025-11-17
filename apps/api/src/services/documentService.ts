@@ -31,6 +31,15 @@ const DEFAULT_QUEUE_OPTIONS = {
     removeOnFail: false, // keep failed jobs for debugging
 };
 
+function normalizeMetadata(
+    value: unknown
+): Record<string, unknown> | null {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+    }
+    return null;
+}
+
 export interface DocumentServiceDependencies {
     db?: typeof defaultDb;
     indexQueue?: typeof defaultIndexQueue;
@@ -300,8 +309,11 @@ export function createDocumentService(
         });
         return {
             items: items.map((item) => ({
-                ...item,
+                id: item.id,
+                title: item.title,
                 updatedAt: item.updatedAt.toISOString(),
+                metadata: normalizeMetadata(item.metadata),
+                isFavorite: item.isFavorite,
             })),
             total,
         };

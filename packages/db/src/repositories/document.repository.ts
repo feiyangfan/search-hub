@@ -287,6 +287,7 @@ export const documentRepository = {
                         id: true,
                         title: true,
                         updatedAt: true,
+                        metadata: true,
                         favorites: {
                             where: { userId },
                             select: { id: true },
@@ -301,6 +302,7 @@ export const documentRepository = {
                     id: item.id,
                     title: item.title,
                     updatedAt: item.updatedAt,
+                    metadata: item.metadata,
                     isFavorite: item.favorites.length > 0,
                 })),
                 total,

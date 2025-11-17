@@ -9,10 +9,7 @@ import {
 } from '@/components/dashboard/dashboard-grid';
 import { SearchIntelligence } from '@/components/dashboard/search-intelligence';
 import { TagNetworkGraph } from '@/components/dashboard/tag-network-graph';
-import {
-    type TagNetworkEdge,
-    type TagNetworkNode,
-} from '@/components/dashboard/tag-network-graph.client';
+import type { GraphDocumentInput } from '@/components/dashboard/tag-network-graph';
 import { IndexingPipelineStatus } from '@/components/dashboard/indexing-pipeline-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,65 +84,39 @@ const previewIndexingJobs = [
     },
 ];
 
-const previewTagNodes: TagNetworkNode[] = [
-    {
-        id: 'tag-product',
-        label: 'Product',
-        type: 'tag',
-        color: '#2563eb',
-        size: 12,
-    },
-    {
-        id: 'tag-api',
-        label: 'API',
-        type: 'tag',
-        color: '#14b8a6',
-        size: 11,
-    },
-    {
-        id: 'tag-security',
-        label: 'Security',
-        type: 'tag',
-        color: '#f97316',
-        size: 10,
-    },
-    {
-        id: 'tag-onboarding',
-        label: 'Onboarding',
-        type: 'tag',
-        color: '#a855f7',
-        size: 9,
-    },
-    {
-        id: 'doc-handbook',
-        label: 'Team Handbook',
-        type: 'document',
-        color: '#1d4ed8',
-        size: 8,
-    },
-    {
-        id: 'doc-auth',
-        label: 'Auth Rollout Plan',
-        type: 'document',
-        color: '#0d9488',
-        size: 9,
-    },
-    {
-        id: 'doc-changelog',
-        label: 'Changelog',
-        type: 'document',
-        color: '#8b5cf6',
-        size: 7,
-    },
+const previewGraphTags = [
+    { id: 'product', name: 'Product', color: '#2563eb' },
+    { id: 'api', name: 'API', color: '#14b8a6' },
+    { id: 'security', name: 'Security', color: '#f97316' },
+    { id: 'onboarding', name: 'Onboarding', color: '#a855f7' },
 ];
 
-const previewTagEdges: TagNetworkEdge[] = [
-    { source: 'tag-product', target: 'doc-handbook' },
-    { source: 'tag-api', target: 'doc-auth' },
-    { source: 'tag-security', target: 'doc-auth' },
-    { source: 'tag-onboarding', target: 'doc-handbook' },
-    { source: 'tag-product', target: 'doc-changelog' },
-    { source: 'tag-api', target: 'doc-changelog' },
+const previewTagMap = Object.fromEntries(
+    previewGraphTags.map((tag) => [tag.id, tag])
+);
+
+const pickPreviewTags = (...ids: string[]) =>
+    ids
+        .map((id) => previewTagMap[id])
+        .filter((tag): tag is (typeof previewGraphTags)[number] => Boolean(tag))
+        .map((tag) => ({ ...tag }));
+
+const previewGraphDocuments: GraphDocumentInput[] = [
+    {
+        id: 'handbook',
+        title: 'Team Handbook',
+        tags: pickPreviewTags('product', 'onboarding'),
+    },
+    {
+        id: 'auth-plan',
+        title: 'Auth Rollout Plan',
+        tags: pickPreviewTags('api', 'security'),
+    },
+    {
+        id: 'changelog',
+        title: 'Changelog',
+        tags: pickPreviewTags('product', 'api'),
+    },
 ];
 
 type PreviewReminder = {
@@ -389,8 +360,8 @@ function DashboardPreview() {
                     className="h-full"
                 >
                     <TagNetworkGraph
-                        nodes={previewTagNodes}
-                        edges={previewTagEdges}
+                        documents={previewGraphDocuments}
+                        tags={previewGraphTags}
                         fallback={
                             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                                 Graph preview unavailable

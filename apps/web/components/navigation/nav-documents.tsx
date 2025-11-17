@@ -1,5 +1,6 @@
-import { ChevronDown, Plus, File, X } from 'lucide-react';
+import { ChevronDown, Plus, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -41,12 +42,23 @@ type NavDocumentsProps = {
 const PICKER_WIDTH = 320;
 const PICKER_HEIGHT = 420;
 const PICKER_MARGIN = 16;
+const DEFAULT_DOCUMENT_EMOJI = '📄';
 
 type EmojiPickerState = {
     documentId: string;
     documentTitle: string;
     position: { top: number; left: number };
 };
+
+function extractIconEmoji(metadata: unknown): string | null {
+    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+        const iconEmoji = (metadata as Record<string, unknown>).iconEmoji;
+        if (typeof iconEmoji === 'string' && iconEmoji.length > 0) {
+            return iconEmoji;
+        }
+    }
+    return null;
+}
 
 function calculatePickerPosition(rect?: DOMRect | null) {
     if (typeof window === 'undefined') {
@@ -69,6 +81,7 @@ function calculatePickerPosition(rect?: DOMRect | null) {
 
 export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
     const pathname = usePathname();
+    const queryClient = useQueryClient();
     const { data: documentsData, isLoading } = useDocumentsListQuery({
         limit: 20,
         tenantId: activeTenantId,
@@ -104,6 +117,47 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
             inputRef.current.select();
         }
     }, [editingDocumentId]);
+
+    useEffect(() => {
+        if (!documents.length) {
+            setDocumentEmojis((prev) => {
+                if (Object.keys(prev).length === 0) {
+                    return prev;
+                }
+                return {};
+            });
+            return;
+        }
+
+        setDocumentEmojis((prev) => {
+            let changed = false;
+            const next = { ...prev };
+            const seenIds = new Set<string>();
+
+            documents.forEach((doc) => {
+                seenIds.add(doc.id);
+                const serverEmoji = extractIconEmoji(doc.metadata);
+                if (serverEmoji) {
+                    if (next[doc.id] !== serverEmoji) {
+                        next[doc.id] = serverEmoji;
+                        changed = true;
+                    }
+                } else if (next[doc.id]) {
+                    delete next[doc.id];
+                    changed = true;
+                }
+            });
+
+            Object.keys(next).forEach((docId) => {
+                if (!seenIds.has(docId)) {
+                    delete next[docId];
+                    changed = true;
+                }
+            });
+
+            return changed ? next : prev;
+        });
+    }, [documents]);
 
     const handleRename = (documentId: string, currentTitle: string) => {
         setEditingDocumentId(documentId);
@@ -146,6 +200,65 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
         });
     };
 
+    const updateDocumentIcon = async (
+        documentId: string,
+        nextEmoji: string | null
+    ) => {
+        const previousEmoji = documentEmojis[documentId] ?? null;
+
+        setDocumentEmojis((prev) => {
+            const next = { ...prev };
+            if (nextEmoji && nextEmoji.length > 0) {
+                next[documentId] = nextEmoji;
+            } else {
+                delete next[documentId];
+            }
+            return next;
+        });
+
+        try {
+            const response = await fetch(`/api/documents/${documentId}/icon`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ iconEmoji: nextEmoji }),
+            });
+
+            if (!response.ok) {
+                throw new Error(await response.text());
+            }
+
+            const data = (await response.json()) as {
+                document?: { iconEmoji?: string | null };
+            };
+            const savedEmoji = data.document?.iconEmoji ?? null;
+
+            setDocumentEmojis((prev) => {
+                const next = { ...prev };
+                if (savedEmoji) {
+                    next[documentId] = savedEmoji;
+                } else {
+                    delete next[documentId];
+                }
+                return next;
+            });
+
+            void queryClient.invalidateQueries({ queryKey: ['documents'] });
+        } catch (error) {
+            console.error('Failed to update document icon', error);
+            setDocumentEmojis((prev) => {
+                const next = { ...prev };
+                if (previousEmoji) {
+                    next[documentId] = previousEmoji;
+                } else {
+                    delete next[documentId];
+                }
+                return next;
+            });
+        }
+    };
+
     useEffect(() => {
         if (!emojiPickerState) return;
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -174,21 +287,16 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
 
     const handleEmojiSelect = (emojiData: EmojiClickData) => {
         if (!emojiPickerState) return;
-        setDocumentEmojis((prev) => ({
-            ...prev,
-            [emojiPickerState.documentId]: emojiData.emoji,
-        }));
+        const targetId = emojiPickerState.documentId;
         setEmojiPickerState(null);
+        void updateDocumentIcon(targetId, emojiData.emoji);
     };
 
     const handleEmojiReset = () => {
         if (!emojiPickerState) return;
-        setDocumentEmojis((prev) => {
-            const next = { ...prev };
-            delete next[emojiPickerState.documentId];
-            return next;
-        });
+        const targetId = emojiPickerState.documentId;
         setEmojiPickerState(null);
+        void updateDocumentIcon(targetId, null);
     };
 
     return (
@@ -231,8 +339,16 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                           const documentTitle =
                                               document.title ||
                                               'Untitled document';
+                                          const serverEmoji = extractIconEmoji(
+                                              document.metadata
+                                          );
                                           const documentEmoji =
-                                              documentEmojis[document.id];
+                                              documentEmojis[document.id] ??
+                                              serverEmoji ??
+                                              null;
+                                          const displayEmoji =
+                                              documentEmoji ??
+                                              DEFAULT_DOCUMENT_EMOJI;
 
                                           return (
                                               <SidebarMenuItem
@@ -241,15 +357,9 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                                   {editingDocumentId ===
                                                   document.id ? (
                                                       <div className="flex items-center gap-2 px-2 py-1.5">
-                                                          {documentEmoji ? (
-                                                              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-base">
-                                                                  {
-                                                                      documentEmoji
-                                                                  }
-                                                              </span>
-                                                          ) : (
-                                                              <File className="inline-block h-4 w-4 shrink-0" />
-                                                          )}
+                                                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-base">
+                                                              {displayEmoji}
+                                                          </span>
                                                           <input
                                                               ref={inputRef}
                                                               type="text"
@@ -300,18 +410,11 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                                                   className="flex items-center gap-1"
                                                               >
                                                                   <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-                                                                      {documentEmoji ? (
-                                                                          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base">
-                                                                              {
-                                                                                  documentEmoji
-                                                                              }
-                                                                          </span>
-                                                                      ) : (
-                                                                          <File
-                                                                              size="icon"
-                                                                              className="inline-block h-4 w-4"
-                                                                          />
-                                                                      )}
+                                                                      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base">
+                                                                          {
+                                                                              displayEmoji
+                                                                          }
+                                                                      </span>
                                                                   </div>
 
                                                                   <span>
@@ -395,20 +498,22 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                     >
                         <EmojiPicker
                             onEmojiClick={handleEmojiSelect}
+                            autoFocusSearch={false}
                             lazyLoadEmojis
+                            searchDisabled
                             skinTonesDisabled
                             width={PICKER_WIDTH}
                             height={PICKER_HEIGHT - 80}
                             previewConfig={{ showPreview: false }}
                         />
-                        <div className="flex items-center justify-between border-t px-4 py-2">
+                        <div className="flex items-center justify-end border-t px-4 py-2">
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="ghost"
                                 onClick={handleEmojiReset}
                             >
-                                <File className="h-4 w-4" />
+                                Use default
                             </Button>
                         </div>
                     </div>
