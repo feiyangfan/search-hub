@@ -1,5 +1,5 @@
-import { ChevronDown, Plus, X } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { usePathname } from 'next/navigation';
@@ -108,8 +108,14 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
     const [documentEmojis, setDocumentEmojis] = useState<
         Record<string, string>
     >({});
-    const { renameDocument, deleteDocument, toggleFavorite, editDocumentTags } =
-        useDocumentActions();
+    const {
+        renameDocument,
+        deleteDocument,
+        toggleFavorite,
+        editDocumentTags,
+        createDocument,
+        createDocumentPending,
+    } = useDocumentActions();
 
     useEffect(() => {
         if (editingDocumentId && inputRef.current) {
@@ -299,6 +305,14 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
         void updateDocumentIcon(targetId, null);
     };
 
+    const handleNewDocument = useCallback(async () => {
+        try {
+            await createDocument();
+        } catch {
+            // Error feedback handled by useDocumentActions
+        }
+    }, [createDocument]);
+
     return (
         <>
             <Collapsible defaultOpen>
@@ -310,13 +324,19 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                         </CollapsibleTrigger>
                     </SidebarGroupLabel>
                     <SidebarGroupAction asChild>
-                        <Link
-                            href="/dashboard/documents/new"
-                            className="h-4 w-4 opacity-0 transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 peer-hover:opacity-100 peer-focus-visible:opacity-100 flex items-center justify-center rounded-md"
+                        <button
+                            type="button"
+                            onClick={handleNewDocument}
+                            className="flex h-4 w-4 items-center justify-center rounded-md opacity-0 transition-opacity duration-200 hover:opacity-100 focus-visible:opacity-100 peer-hover:opacity-100 peer-focus-visible:opacity-100 disabled:cursor-not-allowed disabled:opacity-60"
                             aria-label="Create document"
+                            disabled={createDocumentPending}
                         >
-                            <Plus className="h-3 w-3" />
-                        </Link>
+                            {createDocumentPending ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Plus className="h-3 w-3" />
+                            )}
+                        </button>
                     </SidebarGroupAction>
                     <CollapsibleContent asChild>
                         <SidebarGroupContent>

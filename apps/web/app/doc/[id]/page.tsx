@@ -118,6 +118,7 @@ export default function DocumentPage() {
         addTagPending,
         removeTagPending,
         createTagPending,
+        createDocument,
     } = useDocumentActions();
     const isTagMutationPending = addTagPending || removeTagPending;
 
@@ -385,12 +386,20 @@ export default function DocumentPage() {
                     // Redirect to the most recent document
                     router.push(`/doc/${documents[0].id}`);
                 } else {
-                    // No documents, redirect to new document page
-                    router.push('/dashboard/new');
+                    // No documents left, create a fresh one
+                    try {
+                        await createDocument();
+                    } catch {
+                        router.push('/dashboard');
+                    }
                 }
             } else {
-                // Fallback to new document page if fetch fails
-                router.push('/dashboard/new');
+                // Fallback: try creating a fresh document
+                try {
+                    await createDocument();
+                } catch {
+                    router.push('/dashboard');
+                }
             }
         } catch (error) {
             console.error('Failed to delete document:', error);

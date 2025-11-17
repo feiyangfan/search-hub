@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { CalendarClock, Pencil, Star, Tag as TagIcon } from 'lucide-react';
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
 
 import { DashboardCard } from '@/components/dashboard/dashboard-card';
 import {
@@ -14,6 +16,7 @@ import { IndexingPipelineStatus } from '@/components/dashboard/indexing-pipeline
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -211,7 +214,11 @@ const previewActivity: ActivityItem[] = [
     },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+    const session = await getServerSession(authOptions);
+    if (session) {
+        redirect('/dashboard');
+    }
     return (
         <div className="flex min-h-screen flex-col bg-background">
             <section className="relative flex min-h-[35vh] items-center justify-center overflow-hidden border-b bg-gradient-to-br from-primary/10 via-background to-background">

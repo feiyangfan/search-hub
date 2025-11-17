@@ -8,6 +8,8 @@ import {
     type QueryKey,
 } from '@tanstack/react-query';
 import type {
+    CreateDocumentRequestType,
+    CreateDocumentResponseType,
     CreateTagResponseType,
     GetDocumentListResponseType,
     GetDocumentTagsResponseType,
@@ -20,6 +22,7 @@ type DeletePayload = { documentId: string; title?: string };
 type FavoritePayload = { documentId: string; makeFavorite: boolean };
 type AddTagPayload = { documentId: string; tag: TagOption };
 type RemoveTagPayload = { documentId: string; tagId: string };
+type CreateDocumentPayload = CreateDocumentRequestType;
 type CreateTagPayload = {
     name: string;
     color?: string;
@@ -62,6 +65,46 @@ export function useDocumentActions() {
             queryClient.invalidateQueries({ queryKey: key })
         );
     };
+
+    const DEFAULT_DOCUMENT_METADATA: CreateDocumentRequestType['metadata'] = {
+        iconEmoji: '📄',
+    };
+
+    const createDocumentMutation = useMutation<
+        CreateDocumentResponseType,
+        Error,
+        CreateDocumentPayload | undefined
+    >({
+        mutationFn: (payload) => {
+            const body: CreateDocumentRequestType = {
+                title: payload?.title ?? 'Untitled page',
+                content: payload?.content ?? '',
+                source: payload?.source ?? 'editor',
+                metadata: payload?.metadata ?? DEFAULT_DOCUMENT_METADATA,
+            };
+
+            if (payload?.sourceUrl !== undefined) {
+                body.sourceUrl = payload.sourceUrl;
+            }
+
+            return jsonFetch('/api/documents', {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+        },
+        onSuccess: (document) => {
+            queryClient.invalidateQueries({ queryKey: ['documents'] });
+            router.push(`/doc/${document.id}`);
+        },
+        onError: (error) => {
+            toast.error('Unable to create document', {
+                description: error.message,
+            });
+        },
+    });
+
+    const triggerDocumentCreate = (payload?: CreateDocumentPayload) =>
+        createDocumentMutation.mutateAsync(payload);
 
     const renameMutation = useMutation<
         unknown,
@@ -140,7 +183,7 @@ export function useDocumentActions() {
             jsonFetch(`/api/documents/${documentId}`, {
                 method: 'DELETE',
             }),
-        onSuccess: (_data, { documentId, title }) => {
+        onSuccess: async (_data, { documentId, title }) => {
             invalidateDocument(documentId, [['documents'], ['favorites']]);
             toast.success('Document deleted', {
                 description: title
@@ -152,26 +195,41 @@ export function useDocumentActions() {
                 typeof window !== 'undefined' &&
                 pathname?.includes(documentId)
             ) {
-                queryClient
-                    .fetchQuery<GetDocumentListResponseType>({
-                        queryKey: [
-                            'documents',
-                            { favoritesOnly: false, limit: 1, offset: 0 },
-                        ],
-                        queryFn: () =>
-                            jsonFetch('/api/documents?limit=1&offset=0', {
-                                method: 'GET',
-                            }),
-                    })
-                    .then((data) => {
-                        const nextDoc = data?.documents?.items?.[0];
-                        if (nextDoc) {
-                            router.push(`/doc/${nextDoc.id}`);
-                        } else {
-                            router.push('/dashboard/new');
+                try {
+                    const data =
+                        await queryClient.fetchQuery<GetDocumentListResponseType>(
+                            {
+                                queryKey: [
+                                    'documents',
+                                    {
+                                        favoritesOnly: false,
+                                        limit: 1,
+                                        offset: 0,
+                                    },
+                                ],
+                                queryFn: () =>
+                                    jsonFetch('/api/documents?limit=1&offset=0', {
+                                        method: 'GET',
+                                    }),
+                            }
+                        );
+                    const nextDoc = data?.documents?.items?.[0];
+                    if (nextDoc) {
+                        router.push(`/doc/${nextDoc.id}`);
+                    } else {
+                        try {
+                            await triggerDocumentCreate();
+                        } catch {
+                            // Errors handled inside triggerDocumentCreate
                         }
-                    })
-                    .catch(() => router.push('/dashboard/new'));
+                    }
+                } catch {
+                    try {
+                        await triggerDocumentCreate();
+                    } catch {
+                        // Errors handled inside triggerDocumentCreate
+                    }
+                }
             }
         },
         onError: (error) => {
@@ -336,6 +394,9 @@ export function useDocumentActions() {
         renamePending: renameMutation.isPending,
         deleteDocument: (documentId: string, title?: string) =>
             deleteMutation.mutateAsync({ documentId, title }),
+        createDocument: (payload?: CreateDocumentPayload) =>
+            triggerDocumentCreate(payload),
+        createDocumentPending: createDocumentMutation.isPending,
         toggleFavorite: (documentId: string, makeFavorite: boolean) =>
             favoriteMutation.mutateAsync({ documentId, makeFavorite }),
         addTagToDocument: (documentId: string, tag: TagOption) =>

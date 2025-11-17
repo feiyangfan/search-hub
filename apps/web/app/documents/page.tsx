@@ -1,11 +1,14 @@
 'use client';
 
+import { useCallback } from 'react';
+import { Loader2 } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { useDocumentActions } from '@/hooks/use-document-actions';
 
 const placeholderDocuments = [
     {
@@ -45,6 +48,15 @@ const quickFilters = [
 const tagFilters = ['Backend', 'Design', 'Launch', 'Incident'];
 
 export default function DocumentsPage() {
+    const { createDocument, createDocumentPending } = useDocumentActions();
+    const handleNewDocument = useCallback(async () => {
+        try {
+            await createDocument();
+        } catch {
+            // Toast handled inside useDocumentActions
+        }
+    }, [createDocument]);
+
     return (
         <div className="flex flex-1 flex-col gap-6 bg-muted/5 px-4 py-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -60,7 +72,19 @@ export default function DocumentsPage() {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline">Invite collaborator</Button>
-                    <Button>New document</Button>
+                    <Button
+                        onClick={handleNewDocument}
+                        disabled={createDocumentPending}
+                    >
+                        {createDocumentPending ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Creating...
+                            </>
+                        ) : (
+                            'New document'
+                        )}
+                    </Button>
                 </div>
             </div>
 

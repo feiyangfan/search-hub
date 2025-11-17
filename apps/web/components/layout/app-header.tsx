@@ -38,7 +38,6 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Tag as TagBadge } from '@/components/ui/tag';
 import { useDocumentHeader } from '@/components/document/document-header-context';
@@ -296,7 +295,7 @@ export function AppHeader({
     );
 
     return (
-        <header className="sticky top-0 z-10 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+        <header className="sticky top-0 z-10 bg-card">
             <div className="mx-auto flex flex-col pl-4 pr-4">
                 <div className="flex flex-wrap items-center justify-between gap-1 h-9">
                     <div className="flex flex-wrap items-center gap-2">
@@ -556,7 +555,7 @@ export function AppHeader({
                     ) : null}
                 </div>
                 {isDocumentRoute ? (
-                    <div className="flex flex-wrap items-center gap-2 pb-1">
+                    <div className="flex flex-wrap items-center gap-2">
                         {isLoadingDoc ? (
                             <>
                                 <Skeleton className="h-4 w-28 rounded-full bg-emerald-200/60" />
@@ -578,7 +577,6 @@ export function AppHeader({
                     </div>
                 ) : null}
             </div>
-            <Separator />
         </header>
     );
 }
