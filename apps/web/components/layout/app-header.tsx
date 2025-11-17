@@ -556,7 +556,7 @@ export function AppHeader({
                     ) : null}
                 </div>
                 {isDocumentRoute ? (
-                    <div className="flex flex-wrap items-center gap-2 pb-2">
+                    <div className="flex flex-wrap items-center gap-2 pb-1">
                         {isLoadingDoc ? (
                             <>
                                 <Skeleton className="h-4 w-28 rounded-full bg-emerald-200/60" />

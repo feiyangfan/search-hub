@@ -96,7 +96,7 @@ export function Tag({
     return (
         <Badge
             variant="secondary"
-            className={`w-fit font-medium ${className ?? ''}`}
+            className={`w-fit ${className ?? ''}`}
             style={getTagBadgeStyle(tag.color)}
             title={tag.description}
         >
