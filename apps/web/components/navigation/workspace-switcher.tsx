@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ChevronsUpDown, Plus, Briefcase, Loader2, Pencil } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
     DropdownMenu,
@@ -56,6 +57,7 @@ export function WorkspaceSwitcher({
     const { isMobile } = useSidebar();
     const router = useRouter();
     const { update: updateSession } = useSession();
+    const queryClient = useQueryClient();
     const [, startTransition] = React.useTransition();
     const [isSwitching, setIsSwitching] = React.useState(false);
     const [showRenameDialog, setShowRenameDialog] = React.useState(false);
@@ -245,12 +247,7 @@ export function WorkspaceSwitcher({
                                                 );
                                             }
 
-                                            // Dispatch event to refresh document list
-                                            window.dispatchEvent(
-                                                new CustomEvent(
-                                                    'workspaceSwitched'
-                                                )
-                                            );
+                                            queryClient.clear();
 
                                             // Redirect to dashboard
                                             router.push('/dashboard');
