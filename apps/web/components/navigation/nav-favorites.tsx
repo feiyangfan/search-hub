@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, File, Star, StarOff } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 import {
     Collapsible,
@@ -36,6 +36,18 @@ import { useDocumentsListQuery } from '@/hooks/use-documents';
 type NavFavoritesProps = {
     activeTenantId?: string;
 };
+
+const DEFAULT_DOCUMENT_EMOJI = '📄';
+
+function extractIconEmoji(metadata: unknown): string | null {
+    if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+        const iconEmoji = (metadata as Record<string, unknown>).iconEmoji;
+        if (typeof iconEmoji === 'string' && iconEmoji.length > 0) {
+            return iconEmoji;
+        }
+    }
+    return null;
+}
 
 export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
     const pathname = usePathname();
@@ -118,8 +130,6 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
         [toggleFavorite]
     );
 
-    const isEmpty = !isFavoritesLoading && favorites.length === 0;
-
     return (
         favorites.length > 0 && (
             <>
@@ -146,26 +156,35 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
 
                                     {!isFavoritesLoading &&
                                         favorites.map((document) => {
-                                            const isActive =
-                                                pathname ===
-                                                    `/doc/${document.id}` ||
-                                                pathname?.startsWith(
-                                                    `/doc/${document.id}/`
-                                                );
+                                                const isActive =
+                                                    pathname ===
+                                                        `/doc/${document.id}` ||
+                                                    pathname?.startsWith(
+                                                        `/doc/${document.id}/`
+                                                    );
+                                                const documentTitle =
+                                                    document.title ||
+                                                    'Untitled document';
+                                                const documentEmoji =
+                                                    extractIconEmoji(
+                                                        document.metadata
+                                                    ) ?? DEFAULT_DOCUMENT_EMOJI;
 
-                                            return (
-                                                <SidebarMenuItem
-                                                    key={document.id}
-                                                >
+                                                return (
+                                                    <SidebarMenuItem
+                                                        key={document.id}
+                                                    >
                                                     {editingDocumentId ===
                                                     document.id ? (
-                                                        <div className="flex items-center gap-2 px-2 py-1.5">
-                                                            <File className="inline-block h-4 w-4 shrink-0 text-muted-foreground" />
+                                                                <div className="flex items-center gap-2 px-2 py-1.5">
+                                                            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-base">
+                                                                {documentEmoji}
+                                                            </span>
                                                             <input
                                                                 ref={inputRef}
                                                                 type="text"
                                                                 defaultValue={
-                                                                    document.title
+                                                                    documentTitle
                                                                 }
                                                                 className="flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm outline-none focus:border-gray-300"
                                                                 onKeyDown={(
@@ -211,12 +230,17 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
                                                             >
                                                                 <Link
                                                                     href={`/doc/${document.id}`}
-                                                                    className="flex items-center gap-2 px-2 py-1.5"
+                                                                    className="flex items-center gap-1"
                                                                 >
-                                                                    <Star className="h-4 w-4 shrink-0 fill-current text-green-600" />
+                                                                    <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+                                                                        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-base">
+                                                                            {
+                                                                                documentEmoji
+                                                                            }
+                                                                        </span>
+                                                                    </div>
                                                                     <span className="truncate">
-                                                                        {document.title ||
-                                                                            'Untitled document'}
+                                                                        {documentTitle}
                                                                     </span>
                                                                 </Link>
                                                             </SidebarMenuButton>
@@ -227,15 +251,13 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
                                                                 onRename={() =>
                                                                     handleRename(
                                                                         document.id,
-                                                                        document.title ||
-                                                                            'Untitled document'
+                                                                        documentTitle
                                                                     )
                                                                 }
                                                                 onDelete={() =>
                                                                     handleDelete(
                                                                         document.id,
-                                                                        document.title ||
-                                                                            'Untitled document'
+                                                                        documentTitle
                                                                     )
                                                                 }
                                                                 onToggleFavorite={() =>

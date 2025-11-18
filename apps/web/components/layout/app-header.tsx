@@ -63,7 +63,8 @@ export function AppHeader({
         pathname?.split('/').filter((segment) => segment.length > 0) ?? [];
     const { data: documentHeaderData, setData: setDocumentHeaderData } =
         useDocumentHeader();
-    const { renameDocument, renamePending } = useDocumentActions();
+    const { renameDocument, renamePending, toggleFavorite } =
+        useDocumentActions();
 
     const isDocumentContext = Boolean(documentHeaderData?.documentId);
     const isLoadingDoc = isDocumentRoute && !documentHeaderData;
@@ -216,6 +217,7 @@ export function AppHeader({
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [titleDraft, setTitleDraft] = useState(documentName ?? '');
     const titleInputRef = useRef<HTMLInputElement | null>(null);
+    const [favoritePending, setFavoritePending] = useState(false);
 
     useEffect(() => {
         if (!isEditingTitle) {
@@ -293,6 +295,37 @@ export function AppHeader({
         },
         [cancelEditingTitle, handleRenameSubmit]
     );
+
+    const handleFavoriteToggle = useCallback(async () => {
+        if (!documentHeaderData?.documentId || favoritePending) {
+            return;
+        }
+        const documentId = documentHeaderData.documentId;
+        const nextState = !isFavorited;
+        setFavoritePending(true);
+        setDocumentHeaderData((prev) =>
+            prev && prev.documentId === documentId
+                ? { ...prev, isFavorited: nextState }
+                : prev
+        );
+        try {
+            await toggleFavorite(documentId, nextState);
+        } catch {
+            setDocumentHeaderData((prev) =>
+                prev && prev.documentId === documentId
+                    ? { ...prev, isFavorited }
+                    : prev
+            );
+        } finally {
+            setFavoritePending(false);
+        }
+    }, [
+        documentHeaderData?.documentId,
+        isFavorited,
+        favoritePending,
+        setDocumentHeaderData,
+        toggleFavorite,
+    ]);
 
     return (
         <header className="sticky top-0 z-10 bg-card">
@@ -424,6 +457,12 @@ export function AppHeader({
                                         variant="ghost"
                                         size="sm"
                                         className="gap-1"
+                                        onClick={handleFavoriteToggle}
+                                        aria-pressed={isFavorited}
+                                        aria-disabled={
+                                            favoritePending ||
+                                            !documentHeaderData?.documentId
+                                        }
                                     >
                                         <Star
                                             className={`h-4 w-4 ${
@@ -503,7 +542,16 @@ export function AppHeader({
                                                 </div>
                                             </div>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                disabled={
+                                                    favoritePending ||
+                                                    !documentHeaderData?.documentId
+                                                }
+                                                onSelect={(event) => {
+                                                    event.preventDefault();
+                                                    void handleFavoriteToggle();
+                                                }}
+                                            >
                                                 <Star
                                                     className={`mr-2 h-4 w-4 ${
                                                         isFavorited
@@ -511,7 +559,9 @@ export function AppHeader({
                                                             : ''
                                                     }`}
                                                 />
-                                                Favorite
+                                                {isFavorited
+                                                    ? 'Remove favorite'
+                                                    : 'Favorite'}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 disabled={

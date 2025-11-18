@@ -239,7 +239,17 @@ export function useDocumentActions() {
         },
     });
 
-    const favoriteMutation = useMutation<unknown, Error, FavoritePayload>({
+    const favoriteMutation = useMutation<
+        unknown,
+        Error,
+        FavoritePayload,
+        {
+            previousDetail?: GetDocumentDetailsResponseType;
+            previousLists: Array<
+                [QueryKey, GetDocumentListResponseType | undefined]
+            >;
+        }
+    >({
         mutationFn: ({ documentId, makeFavorite }) =>
             jsonFetch(
                 `/api/documents/${documentId}/${
@@ -249,6 +259,47 @@ export function useDocumentActions() {
                     method: 'POST',
                 }
             ),
+        onMutate: async ({ documentId, makeFavorite }) => {
+            await queryClient.cancelQueries({
+                queryKey: ['document', documentId],
+            });
+
+            const previousDetail =
+                queryClient.getQueryData<GetDocumentDetailsResponseType>([
+                    'document',
+                    documentId,
+                ]);
+
+            if (previousDetail?.document) {
+                queryClient.setQueryData(['document', documentId], {
+                    ...previousDetail,
+                    document: {
+                        ...previousDetail.document,
+                        isFavorite: makeFavorite,
+                    },
+                });
+            }
+
+            const listQueries =
+                queryClient.getQueriesData<GetDocumentListResponseType>({
+                    queryKey: ['documents'],
+                }) ?? [];
+
+            listQueries.forEach(([key, data]) => {
+                if (!data?.documents?.items) return;
+                const nextItems = data.documents.items.map((doc) =>
+                    doc.id === documentId
+                        ? { ...doc, isFavorite: makeFavorite }
+                        : doc
+                );
+                queryClient.setQueryData(key, {
+                    ...data,
+                    documents: { ...data.documents, items: nextItems },
+                });
+            });
+
+            return { previousDetail, previousLists: listQueries };
+        },
         onSuccess: (_data, { documentId, makeFavorite }) => {
             invalidateDocument(documentId, [['documents'], ['favorites']]);
             toast.success(
@@ -257,7 +308,18 @@ export function useDocumentActions() {
                     : 'Removed from favorites'
             );
         },
-        onError: (error) => {
+        onError: (error, { documentId }, context) => {
+            if (context?.previousDetail) {
+                queryClient.setQueryData(
+                    ['document', documentId],
+                    context.previousDetail
+                );
+            }
+            context?.previousLists.forEach(([key, data]) => {
+                if (data) {
+                    queryClient.setQueryData(key, data);
+                }
+            });
             toast.error('Unable to update favorite', {
                 description: error.message,
             });

@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { NavDocumentActions } from './nav-document-actions';
 import { useDocumentActions } from '@/hooks/use-document-actions';
 import { useDocumentsListQuery } from '@/hooks/use-documents';
+import type { GetDocumentListResponseType } from '@search-hub/schemas';
 
 type NavDocumentsProps = {
     activeTenantId?: string;
@@ -206,6 +207,51 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
         });
     };
 
+    const applyIconToCachedLists = (
+        documentId: string,
+        iconEmoji: string | null
+    ) => {
+        const listQueries =
+            queryClient.getQueriesData<GetDocumentListResponseType>({
+                queryKey: ['documents'],
+            }) ?? [];
+
+        listQueries.forEach(([key, data]) => {
+            if (!data?.documents?.items) return;
+            const nextItems = data.documents.items.map((doc) => {
+                if (doc.id !== documentId) return doc;
+                const nextMetadata =
+                    iconEmoji !== null
+                        ? {
+                              ...(doc.metadata && typeof doc.metadata === 'object'
+                                  ? doc.metadata
+                                  : {}),
+                              iconEmoji,
+                          }
+                        : (() => {
+                              if (
+                                  doc.metadata &&
+                                  typeof doc.metadata === 'object'
+                              ) {
+                                  const { iconEmoji: _ignore, ...rest } =
+                                      doc.metadata as Record<string, unknown>;
+                                  const cleaned = { ...rest };
+                                  if (Object.keys(cleaned).length === 0) {
+                                      return undefined;
+                                  }
+                                  return cleaned;
+                              }
+                              return undefined;
+                          })();
+                return { ...doc, metadata: nextMetadata };
+            });
+            queryClient.setQueryData<GetDocumentListResponseType>(key, {
+                ...data,
+                documents: { ...data.documents, items: nextItems },
+            });
+        });
+    };
+
     const updateDocumentIcon = async (
         documentId: string,
         nextEmoji: string | null
@@ -221,6 +267,7 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
             }
             return next;
         });
+        applyIconToCachedLists(documentId, nextEmoji);
 
         try {
             const response = await fetch(`/api/documents/${documentId}/icon`, {
@@ -249,8 +296,15 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                 }
                 return next;
             });
+            applyIconToCachedLists(documentId, savedEmoji);
 
             void queryClient.invalidateQueries({ queryKey: ['documents'] });
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'documents',
+                    { favoritesOnly: true, limit: 20, offset: 0 },
+                ],
+            });
         } catch (error) {
             console.error('Failed to update document icon', error);
             setDocumentEmojis((prev) => {
@@ -262,6 +316,7 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                 }
                 return next;
             });
+            applyIconToCachedLists(documentId, previousEmoji);
         }
     };
 
