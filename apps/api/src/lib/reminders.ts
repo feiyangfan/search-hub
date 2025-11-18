@@ -45,17 +45,12 @@ export function extractRemindCommands(
     // Match %%remind: ...%% format (no escaping issues with %%)
     const regex = /%%\s*remind\s*:\s*([^|%]+?)(?:\|([^%]+))?\s*%%/gi;
     let match: RegExpExecArray | null;
-    console.log('[extractRemindCommands] Content:', content);
-    console.log('[extractRemindCommands] Testing regex match');
 
     while ((match = regex.exec(content)) !== null) {
-        console.log('[extractRemindCommands] Match found:', match[0]);
         const whenText = (match[1] || '').trim();
         const attrString = (match[2] || '').trim();
         // No need to unescape with %% format
         const attrs = parseRemindAttributes(attrString);
-        console.log('[extractRemindCommands] whenText:', whenText);
-        console.log('[extractRemindCommands] attrString:', attrString);
 
         // Parse natural language date using chrono-node
         let whenISO: string | null = null;
