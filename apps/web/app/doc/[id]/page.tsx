@@ -118,7 +118,7 @@ export default function DocumentPage() {
         addTagPending,
         removeTagPending,
         createTagPending,
-        createDocument,
+        deleteDocument,
     } = useDocumentActions();
     const isTagMutationPending = addTagPending || removeTagPending;
 
@@ -350,62 +350,7 @@ export default function DocumentPage() {
 
     const handleDeleteConfirm = async () => {
         try {
-            const response = await fetch(`/api/documents/${documentId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete document');
-            }
-
-            // Trigger event to refresh the sidebar
-            window.dispatchEvent(
-                new CustomEvent('documentDeleted', {
-                    detail: { documentId },
-                })
-            );
-
-            toast.success('Document deleted', {
-                description: 'The document has been permanently deleted.',
-            });
-
-            // Fetch the most recent document
-            const docsResponse = await fetch(
-                '/api/documents?limit=1&offset=0',
-                {
-                    credentials: 'include',
-                }
-            );
-
-            if (docsResponse.ok) {
-                const data = await docsResponse.json();
-                const documents = data.documents?.items || [];
-
-                if (documents.length > 0) {
-                    // Redirect to the most recent document
-                    router.push(`/doc/${documents[0].id}`);
-                } else {
-                    // No documents left, create a fresh one
-                    try {
-                        await createDocument();
-                    } catch {
-                        router.push('/dashboard');
-                    }
-                }
-            } else {
-                // Fallback: try creating a fresh document
-                try {
-                    await createDocument();
-                } catch {
-                    router.push('/dashboard');
-                }
-            }
-        } catch (error) {
-            console.error('Failed to delete document:', error);
-            toast.error('Failed to delete document', {
-                description: 'An error occurred while deleting the document.',
-            });
+            await deleteDocument(documentId, document?.title);
         } finally {
             setShowDeleteDialog(false);
         }
