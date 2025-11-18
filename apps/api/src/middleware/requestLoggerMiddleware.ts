@@ -1,4 +1,4 @@
-import { logger, getRequestContext } from '@search-hub/logger';
+import { getRequestContext } from '@search-hub/logger';
 import { metrics } from '@search-hub/observability';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -39,20 +39,6 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
     const startTime = Date.now();
 
-    // Log request start
-    logger.info(
-        {
-            traceId,
-            method: req.method,
-            path: req.path,
-            url: req.url, // Include query params
-            userId: req.session?.userId,
-            tenantId: req.session?.currentTenantId,
-            userAgent: req.headers['user-agent'],
-        },
-        'request.start'
-    );
-
     // Flag to ensure we only log once (finish OR close, whichever comes first)
     let isLogged = false;
 
@@ -62,12 +48,6 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
         try {
             const duration = (Date.now() - startTime) / 1000; // Convert to seconds
-            const logLevel =
-                res.statusCode >= 500
-                    ? 'error'
-                    : res.statusCode >= 400
-                      ? 'warn'
-                      : 'info';
 
             // Track API request metrics
             const tenantId = req.session?.currentTenantId || 'unknown';
@@ -92,20 +72,6 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
                     status_code: statusCode,
                 },
                 duration
-            );
-
-            logger[logLevel](
-                {
-                    traceId,
-                    method: req.method,
-                    path: req.path,
-                    url: req.url,
-                    statusCode: res.statusCode,
-                    duration: duration * 1000, // Log in milliseconds for readability
-                    userId: req.session?.userId,
-                    tenantId: req.session?.currentTenantId,
-                },
-                'request.complete'
             );
         } catch (err) {
             // Fallback - don't let logging errors crash the response
