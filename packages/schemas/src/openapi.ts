@@ -20,6 +20,8 @@ import {
     getPendingRemindersResponseSchema,
     getDocumentRemindersResponseSchema,
     dismissReminderResponseSchema,
+    favoriteDocumentResponseSchema,
+    unfavoriteDocumentResponseSchema,
 } from './document.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import {
@@ -862,6 +864,96 @@ export function buildOpenApi(
                         404: {
                             description:
                                 'Not Found - Document or tag not found',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/favorite': {
+                post: {
+                    responses: {
+                        200: {
+                            description: 'Document favorited',
+                            content: {
+                                'application/json': {
+                                    schema: favoriteDocumentResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/documents/{id}/unfavorite': {
+                post: {
+                    responses: {
+                        200: {
+                            description: 'Document unfavorited',
+                            content: {
+                                'application/json': {
+                                    schema: unfavoriteDocumentResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description: 'Forbidden - Access denied',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        404: {
+                            description: 'Not Found - Document does not exist',
                             content: {
                                 'application/json': { schema: ApiError },
                             },

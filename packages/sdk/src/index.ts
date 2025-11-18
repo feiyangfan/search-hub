@@ -372,6 +372,42 @@ export class SearchHubClient {
         await this.ensureOk(res, 'reindexDocument');
     }
 
+    /** POST /v1/documents/{id}/favorite */
+    async favoriteDocument(
+        id: string
+    ): Promise<
+        paths['/v1/documents/{id}/favorite']['post']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/favorite`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'favoriteDocument');
+        return (await res.json()) as paths['/v1/documents/{id}/favorite']['post']['responses']['200']['content']['application/json'];
+    }
+
+    /** POST /v1/documents/{id}/unfavorite */
+    async unfavoriteDocument(
+        id: string
+    ): Promise<
+        paths['/v1/documents/{id}/unfavorite']['post']['responses']['200']['content']['application/json']
+    > {
+        const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
+            id
+        )}/unfavorite`;
+        const res = await this.fetcher(url, {
+            method: 'POST',
+            headers: this.defaultHeaders,
+        });
+
+        await this.ensureOk(res, 'unfavoriteDocument');
+        return (await res.json()) as paths['/v1/documents/{id}/unfavorite']['post']['responses']['200']['content']['application/json'];
+    }
+
     /** GET /v1/documents/{id}/tags */
     async getDocumentTags(
         id: string
