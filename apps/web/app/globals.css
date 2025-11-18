@@ -177,7 +177,15 @@
   }
 
   .crepe.theme-frame .milkdown .ProseMirror {
-    @apply font-sans text-base;
+    @apply font-sans text-sm pb-24;
+  }
+  .crepe.theme-frame .milkdown .ProseMirror::after {
+    content: '';
+    display: block;
+    height: 6rem;
+  }
+  .crepe.theme-frame .milkdown .ProseMirror > * {
+    scroll-margin-bottom: 6rem;
   }
         .crepe.theme-frame .milkdown .ProseMirror h1,
         .crepe.theme-frame .milkdown .ProseMirror h2,
@@ -229,6 +237,13 @@
 
     .crepe.theme-frame .milkdown .ProseMirror {
       padding: 0.5rem !important;
+      padding-bottom: 3rem !important;
+    }
+    .crepe.theme-frame .milkdown .ProseMirror::after {
+      height: 4rem;
+    }
+    .crepe.theme-frame .milkdown .ProseMirror > * {
+      scroll-margin-bottom: 4rem;
     }
   }
 }

@@ -687,9 +687,39 @@ export default function DocumentPage() {
             hydrateSavedReminds();
             let previousContent = editor.getMarkdown();
 
+            const scrollParent = container.closest(
+                '.overflow-y-auto'
+            ) as HTMLElement | null;
+
             const originalDispatch = view.dispatch.bind(view);
             view.dispatch = (tr) => {
                 originalDispatch(tr);
+
+                // Auto-scroll to keep cursor visible with padding when typing
+                if (tr.docChanged || tr.selectionSet) {
+                    // Use requestAnimationFrame to ensure DOM and layout are updated
+                    requestAnimationFrame(() => {
+                        const { from } = view.state.selection;
+                        const coords = view.coordsAtPos(from);
+
+                        if (scrollParent && coords) {
+                            const cursorBottom = coords.bottom;
+                            const viewportBottom =
+                                scrollParent.getBoundingClientRect().bottom;
+                            const offset = 200; // Keep 200px space below cursor
+
+                            // If cursor is too close to bottom, scroll down smoothly
+                            if (cursorBottom > viewportBottom - offset) {
+                                const scrollAmount =
+                                    cursorBottom - (viewportBottom - offset);
+                                scrollParent.scrollBy({
+                                    top: scrollAmount,
+                                    behavior: 'smooth',
+                                });
+                            }
+                        }
+                    });
+                }
 
                 // Check if document actually changed
                 if (tr.docChanged) {
@@ -796,10 +826,10 @@ export default function DocumentPage() {
 
     return (
         <>
-            <div className="flex flex-1 flex-col bg-card">
+            <div className="flex flex-1 flex-col overflow-y-auto bg-card">
                 <div
                     ref={editorRootRef}
-                    className="crepe theme-frame h-full min-h-[560px] w-full bg-card"
+                    className="crepe theme-frame min-h-[calc(100vh-8rem)] w-full bg-card pb-[10vh]"
                 />
             </div>
 
