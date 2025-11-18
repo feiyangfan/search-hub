@@ -169,7 +169,7 @@ export function AppHeader({
 
         if (segments[0] === 'doc') {
             const crumbs: BreadcrumbEntry[] = [
-                { label: 'Documents', href: '/dashboard/documents' },
+                { label: 'Docs', href: '/dashboard/documents' },
             ];
             const docId = segments[1];
             if (docId) {
@@ -189,6 +189,30 @@ export function AppHeader({
                         href: isLast ? undefined : accumulated,
                     });
                 }
+            }
+            return crumbs;
+        }
+        if (segments[0] === 'documents') {
+            if (segments.length === 1) {
+                return [{ label: 'Document Explorer' }];
+            }
+
+            const crumbs: BreadcrumbEntry[] = [
+                {
+                    label: 'Document Explorer',
+                    href: '/documents',
+                },
+            ];
+
+            let accumulated = '/documents';
+            for (let i = 1; i < segments.length; i += 1) {
+                const segment = segments[i];
+                accumulated += `/${segment}`;
+                const isLast = i === segments.length - 1;
+                crumbs.push({
+                    label: formatSegmentLabel(segment),
+                    href: isLast ? undefined : accumulated,
+                });
             }
             return crumbs;
         }
@@ -328,7 +352,7 @@ export function AppHeader({
     ]);
 
     return (
-        <header className="sticky top-0 z-10 bg-card">
+        <header className="sticky top-0 z-10 bg-card pt-1">
             <div className="mx-auto flex flex-col pl-4 pr-4">
                 <div className="flex flex-wrap items-center justify-between gap-1 h-9">
                     <div className="flex flex-wrap items-center gap-2">
@@ -348,6 +372,8 @@ export function AppHeader({
                                         !shouldShowSkeleton;
                                     const labelClass = crumb.accent
                                         ? 'text-base font-semibold tracking-tight text-foreground'
+                                        : index === 0
+                                        ? 'text-base font-bold text-foreground'
                                         : isLast
                                         ? 'text-xs font-medium text-foreground'
                                         : 'text-xs font-medium text-muted-foreground';
