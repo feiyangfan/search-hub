@@ -6,6 +6,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { DocumentHeaderProvider } from '@/components/document/document-header-context';
+import { TabTitleUpdater } from '@/components/layout/tab-title';
 
 export default async function ChromeLayout({
     children,
@@ -37,6 +38,7 @@ export default async function ChromeLayout({
                     ) : null}
                     <SidebarInset>
                         <DocumentHeaderProvider>
+                            <TabTitleUpdater />
                             <AppHeader
                                 session={session}
                                 showSidebarTrigger={hasWorkspaces}
