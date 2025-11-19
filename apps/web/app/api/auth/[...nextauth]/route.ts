@@ -97,6 +97,53 @@ export const authOptions: NextAuthOptions = {
         signOut: '/auth/sign-out',
     },
     callbacks: {
+        async signIn({ account, profile, user }) {
+            if (account?.provider !== 'google') return true;
+            if (!profile?.email) {
+                return false;
+            }
+
+            let apiSessionCookie: string | undefined;
+            const client = new SearchHubClient({
+                baseUrl: apiBase,
+                fetcher: async (input, init) => {
+                    const response = await fetch(input, {
+                        ...init,
+                        credentials: 'include',
+                    });
+                    const headerWithGet = response.headers as unknown as {
+                        getSetCookie?: () => string[];
+                    };
+                    const setCookies = headerWithGet.getSetCookie?.() ?? [];
+                    const rawCookie =
+                        setCookies.find((cookie) =>
+                            cookie.startsWith('connect.sid=')
+                        ) ??
+                        response.headers.get('set-cookie') ??
+                        undefined;
+                    if (rawCookie) {
+                        apiSessionCookie = rawCookie.split(';')[0];
+                    }
+                    return response;
+                },
+            });
+
+            const result = await client.oauthSignIn({
+                provider: 'google',
+                providerAccountId: account.providerAccountId ?? '',
+                email: profile.email,
+                name: profile.name ?? profile.email,
+            });
+
+            // Attach custom data so jwt/session callbacks can reuse it.
+            user.id = result.user.id;
+            user.memberships = result.user.memberships ?? [];
+            user.apiSessionCookie = apiSessionCookie;
+            user.currentTenantId =
+                result.session?.currentTenantId ??
+                result.user.memberships?.[0]?.tenantId;
+            return true;
+        },
         async session({ session, token }) {
             const apiSessionCookie = token.apiSessionCookie;
 

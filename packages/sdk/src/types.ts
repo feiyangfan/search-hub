@@ -265,6 +265,147 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/oauth/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        provider: "google";
+                        providerAccountId: string;
+                        /** Format: email */
+                        email: string;
+                        name: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OAuth sign-in succeeded */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            user: {
+                                /**
+                                 * @description User Id
+                                 * @example user123
+                                 */
+                                id: string;
+                                /**
+                                 * Format: email
+                                 * @description User email
+                                 * @example user@email.com
+                                 */
+                                email: string;
+                                /**
+                                 * @description User full name
+                                 * @example John Smith
+                                 */
+                                name: string;
+                                /** @default [] */
+                                memberships: {
+                                    /**
+                                     * @description A unique identifier string
+                                     * @example abc123
+                                     */
+                                    tenantId: string;
+                                    tenantName: string;
+                                    /** @enum {string} */
+                                    role: "owner" | "admin" | "member";
+                                }[];
+                                /** Format: date-time */
+                                createdAt?: string;
+                                /** Format: date-time */
+                                updatedAt?: string;
+                            };
+                            session?: {
+                                /**
+                                 * @description A unique identifier string
+                                 * @example abc123
+                                 */
+                                currentTenantId?: string | null;
+                            };
+                        };
+                    };
+                };
+                /** @description Bad Request - Validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Invalid credentials */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/sign-out": {
         parameters: {
             query?: never;

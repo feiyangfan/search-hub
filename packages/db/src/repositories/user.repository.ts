@@ -368,6 +368,48 @@ export const userRepository = {
         }
     },
 
+    findByProviderAccount: async (
+        provider: string,
+        providerAccountId: string
+    ) =>
+        prisma.user.findFirst({
+            where: {
+                oauthProvider: provider,
+                oauthAccountId: providerAccountId,
+            },
+        }),
+
+    upsertOAuthUser: async ({
+        email,
+        name,
+        provider,
+        providerAccountId,
+    }: {
+        email: string;
+        name?: string;
+        provider: string;
+        providerAccountId: string;
+    }) => {
+        return prisma.user.upsert({
+            where: {
+                oauthProvider_oauthAccountId: {
+                    oauthProvider: provider,
+                    oauthAccountId: providerAccountId,
+                },
+            },
+            update: {
+                email,
+                name,
+            },
+            create: {
+                email,
+                name,
+                oauthProvider: provider,
+                oauthAccountId: providerAccountId,
+            },
+        });
+    },
+
     findById: async ({ id }: { id: string }) => {
         try {
             return await prisma.user.findUnique({ where: { id } });

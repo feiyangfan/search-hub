@@ -17,6 +17,26 @@ export const AuthPayload = z.object({
 
 export type AuthPayload = z.infer<typeof AuthPayload>;
 
+export const OAuthSignInPayload = z.object({
+    provider: z.literal('google'), // enum for future providers
+    providerAccountId: z.string(),
+    email: z.email(),
+    name: z.string().min(1).max(80),
+});
+
+export type OAuthSignInPayload = z.infer<typeof OAuthSignInPayload>;
+
+export const OAuthSignInResponse = z.object({
+    user: UserProfileWithSummary,
+    session: z
+        .object({
+            currentTenantId: Id.nullable().optional(),
+        })
+        .optional(),
+});
+
+export type OAuthSignInResponse = z.infer<typeof OAuthSignInResponse>;
+
 export const AuthResponse = z.object({
     user: UserProfileWithSummary,
     message: z.string(),

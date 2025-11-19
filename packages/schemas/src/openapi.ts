@@ -33,7 +33,13 @@ import {
     GetTenantWithStatsResponseSchema,
 } from './tenant.js';
 import { Id } from './common.js';
-import { AuthPayload, AuthResponse, registrationPayload } from './auth.js';
+import {
+    AuthPayload,
+    AuthResponse,
+    registrationPayload,
+    OAuthSignInPayload,
+    OAuthSignInResponse,
+} from './auth.js';
 import {
     addTagsToDocumentRequestSchema,
     addTagsToDocumentResponseSchema,
@@ -120,6 +126,52 @@ export function buildOpenApi(
                             content: {
                                 'application/json': {
                                     schema: AuthResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description: 'Bad Request - Validation error',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                        401: {
+                            description: 'Unauthorized - Invalid credentials',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': {
+                                    schema: ApiError,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/auth/oauth/sign-in': {
+                post: {
+                    requestBody: {
+                        required: true,
+                        content: {
+                            'application/json': {
+                                schema: OAuthSignInPayload,
+                            },
+                        },
+                    },
+                    responses: {
+                        200: {
+                            description: 'OAuth sign-in succeeded',
+                            content: {
+                                'application/json': {
+                                    schema: OAuthSignInResponse,
                                 },
                             },
                         },
