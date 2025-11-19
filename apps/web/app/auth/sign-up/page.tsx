@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 
 type FieldErrors = {
     root?: string;
+    name?: string;
     email?: string;
     password?: string;
     confirmPassword?: string;
@@ -33,6 +34,7 @@ function SignUpContent() {
         }
     }, [status, router]);
 
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -56,7 +58,7 @@ function SignUpContent() {
             const res = await fetch('/api/auth/sign-up', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ name, email, password }),
             });
 
             const data = await res.json().catch(() => ({}));
@@ -114,6 +116,29 @@ function SignUpContent() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-6">
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="name">Name</Label>
+                            <Input
+                                id="name"
+                                type="text"
+                                autoComplete="name"
+                                placeholder="Jane Doe"
+                                required
+                                value={name}
+                                onChange={(event) => {
+                                    setFieldErrors({});
+                                    setName(event.target.value);
+                                }}
+                                aria-invalid={
+                                    fieldErrors.name ? 'true' : 'false'
+                                }
+                            />
+                            {fieldErrors.name ? (
+                                <p className="text-sm text-red-500 m-t=1">
+                                    {fieldErrors.name}
+                                </p>
+                            ) : null}
+                        </div>
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
                             <Input

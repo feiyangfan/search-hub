@@ -1,23 +1,24 @@
 import NextAuth from 'next-auth';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
+import GoogleProvider from 'next-auth/providers/google';
 import { SearchHubClient } from '@search-hub/sdk';
 
 // will use zod to validate in the future
-// const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
+const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
 
-// if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-//     throw new Error('Missing Google OAuth environment variables');
-// }
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    throw new Error('Missing Google OAuth environment variables');
+}
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
 export const authOptions: NextAuthOptions = {
     providers: [
-        // GoogleProvider({
-        //     clientId: GOOGLE_CLIENT_ID,
-        //     clientSecret: GOOGLE_CLIENT_SECRET,
-        // }),
+        GoogleProvider({
+            clientId: GOOGLE_CLIENT_ID,
+            clientSecret: GOOGLE_CLIENT_SECRET,
+        }),
         CredentialsProvider({
             name: 'Credentials',
             credentials: {
@@ -72,7 +73,7 @@ export const authOptions: NextAuthOptions = {
                     return {
                         id: user.id,
                         email: user.email,
-                        name: user.email,
+                        name: user.name ?? user.email,
                         memberships: user.memberships ?? [],
                         apiSessionCookie,
                         // Prefer the API-selected tenant; fall back to the first membership when none selected.

@@ -11,6 +11,10 @@ export const User = z.object({
         description: 'User email',
         example: 'user@email.com',
     }),
+    name: z.string().min(1).max(80).meta({
+        description: 'User full name',
+        example: 'John Smith',
+    }),
 
     passwordHash: z.string(),
 

@@ -81,6 +81,9 @@ export function signInRoutes() {
                 }
                 req.session.userId = userRecord.id;
                 req.session.email = userRecord.email;
+                req.session.name = userRecord.name
+                    ? userRecord.name
+                    : undefined;
                 req.session.memberships = memberships;
                 req.session.currentTenantId = primaryTenantId ?? undefined;
 
@@ -105,6 +108,7 @@ export function signInRoutes() {
                             id: userRecord.id,
                             email: userRecord.email,
                             memberships: memberships,
+                            name: userRecord.name,
                         }),
                         message: 'User signed in',
                         session: {

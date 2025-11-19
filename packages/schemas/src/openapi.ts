@@ -33,7 +33,7 @@ import {
     GetTenantWithStatsResponseSchema,
 } from './tenant.js';
 import { Id } from './common.js';
-import { AuthPayload, AuthResponse } from './auth.js';
+import { AuthPayload, AuthResponse, registrationPayload } from './auth.js';
 import {
     addTagsToDocumentRequestSchema,
     addTagsToDocumentResponseSchema,
@@ -70,7 +70,7 @@ export function buildOpenApi(
                         required: true,
                         content: {
                             'application/json': {
-                                schema: AuthPayload,
+                                schema: registrationPayload,
                             },
                         },
                     },

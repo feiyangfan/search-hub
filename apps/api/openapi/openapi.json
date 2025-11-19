@@ -27,11 +27,17 @@
                   "password": {
                     "type": "string",
                     "minLength": 8
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
                   }
                 },
                 "required": [
                   "email",
-                  "password"
+                  "password",
+                  "name"
                 ]
               }
             }
@@ -60,6 +66,13 @@
                           "type": "string",
                           "format": "email",
                           "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        },
+                        "name": {
+                          "description": "User full name",
+                          "example": "John Smith",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
                         },
                         "memberships": {
                           "default": [],
@@ -107,6 +120,7 @@
                       "required": [
                         "id",
                         "email",
+                        "name",
                         "memberships"
                       ],
                       "additionalProperties": false
@@ -271,6 +285,13 @@
                           "format": "email",
                           "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                         },
+                        "name": {
+                          "description": "User full name",
+                          "example": "John Smith",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
                         "memberships": {
                           "default": [],
                           "type": "array",
@@ -317,6 +338,7 @@
                       "required": [
                         "id",
                         "email",
+                        "name",
                         "memberships"
                       ],
                       "additionalProperties": false
@@ -1658,6 +1680,70 @@
                                 "format": "date-time",
                                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z||([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
                               },
+                              "tags": {
+                                "description": "List of tags associated with the document",
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "description": "A unique identifier string",
+                                      "example": "abc123",
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 50
+                                    },
+                                    "color": {
+                                      "nullable": true,
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    },
+                                    "description": {
+                                      "nullable": true,
+                                      "type": "string",
+                                      "maxLength": 200
+                                    },
+                                    "documentCount": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "color"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "ownedByMe": {
+                                "description": "Indicator whether the document is owned by the current user",
+                                "type": "boolean"
+                              },
+                              "hasReminders": {
+                                "description": "Indicator whether the document has any active reminders",
+                                "type": "boolean"
+                              },
+                              "createdById": {
+                                "description": "User who created the document",
+                                "example": "abc123",
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "createdByName": {
+                                "description": "Name of the user who created the document",
+                                "type": "string"
+                              },
+                              "summary": {
+                                "description": "Optional brief summary or excerpt of the document",
+                                "nullable": true,
+                                "type": "string"
+                              },
                               "metadata": {
                                 "nullable": true,
                                 "description": "Arbitrary document metadata such as tags or ingestion details.",
@@ -1673,6 +1759,12 @@
                               "id",
                               "title",
                               "updatedAt",
+                              "tags",
+                              "ownedByMe",
+                              "hasReminders",
+                              "createdById",
+                              "createdByName",
+                              "summary",
                               "isFavorite"
                             ],
                             "additionalProperties": false

@@ -6,9 +6,11 @@ export const userRepository = {
     create: async ({
         email,
         passwordHash,
+        name,
     }: {
         email: string;
         passwordHash: string;
+        name?: string;
     }) => {
         try {
             // Optimistic check for better UX (faster response)
@@ -33,7 +35,7 @@ export const userRepository = {
             }
 
             return await prisma.user.create({
-                data: { email, passwordHash },
+                data: { email, passwordHash, name },
             });
         } catch (error) {
             // Re-throw AppError as-is (already properly structured)

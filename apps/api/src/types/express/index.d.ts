@@ -7,6 +7,7 @@ declare module 'express-session' {
     interface SessionData {
         userId?: string;
         email?: string;
+        name?: string;
         currentTenantId?: string;
         memberships?: {
             tenantId: string;

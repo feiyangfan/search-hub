@@ -26,6 +26,7 @@ export interface paths {
                         /** Format: email */
                         email: string;
                         password: string;
+                        name: string;
                     };
                 };
             };
@@ -49,6 +50,11 @@ export interface paths {
                                  * @example user@email.com
                                  */
                                 email: string;
+                                /**
+                                 * @description User full name
+                                 * @example John Smith
+                                 */
+                                name: string;
                                 /** @default [] */
                                 memberships: {
                                     /**
@@ -165,6 +171,11 @@ export interface paths {
                                  * @example user@email.com
                                  */
                                 email: string;
+                                /**
+                                 * @description User full name
+                                 * @example John Smith
+                                 */
+                                name: string;
                                 /** @default [] */
                                 memberships: {
                                     /**
@@ -940,6 +951,31 @@ export interface paths {
                                      * @description Document last update timestamp
                                      */
                                     updatedAt: string;
+                                    /** @description List of tags associated with the document */
+                                    tags: {
+                                        /**
+                                         * @description A unique identifier string
+                                         * @example abc123
+                                         */
+                                        id: string;
+                                        name: string;
+                                        color: string | null;
+                                        description?: string | null;
+                                        documentCount?: number;
+                                    }[];
+                                    /** @description Indicator whether the document is owned by the current user */
+                                    ownedByMe: boolean;
+                                    /** @description Indicator whether the document has any active reminders */
+                                    hasReminders: boolean;
+                                    /**
+                                     * @description User who created the document
+                                     * @example abc123
+                                     */
+                                    createdById: string;
+                                    /** @description Name of the user who created the document */
+                                    createdByName: string;
+                                    /** @description Optional brief summary or excerpt of the document */
+                                    summary: string | null;
                                     /** @description Arbitrary document metadata such as tags or ingestion details. */
                                     metadata?: {
                                         [key: string]: unknown;

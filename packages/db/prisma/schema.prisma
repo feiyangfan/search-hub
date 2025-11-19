@@ -32,6 +32,7 @@ model Tenant {
 model User {
   id           String             @id @default(cuid())
   email        String             @unique
+  name         String?
   passwordHash String
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
@@ -80,6 +81,7 @@ model Document {
   sourceUrl    String?
   
   content      String?
+  summary      String?
   metadata     Json?          @default("{}")
   searchVector Unsupported("tsvector") @default(dbgenerated("''::tsvector"))
 

@@ -1,6 +1,10 @@
 import { Router } from 'express';
-import { AuthPayload, UserProfile, AppError } from '@search-hub/schemas';
-import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
+import {
+    UserProfile,
+    AppError,
+    registrationPayload,
+} from '@search-hub/schemas';
+import { type RegistrationPayload } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -14,67 +18,24 @@ const SALT_ROUNDS = 10;
 export function signUpRoutes() {
     const router = Router();
 
-    router.post('/', validateBody(AuthPayload), async (req, res, next) => {
-        try {
-            const typedReq = req as RequestWithValidatedBody<AuthPayloadType>;
-            const { email, password } = typedReq.validated.body;
-
-            console.log('Sign-up attempt for email:', email);
-
-            // Optimistic check - catches most duplicate attempts early
-            const existingUser = await db.user.findByEmail({ email });
-            if (existingUser) {
-                // Track failed sign-up (duplicate email)
-                metrics.authAttempts.inc({
-                    method: 'sign-up',
-                    status: 'failure',
-                });
-                throw AppError.conflict(
-                    'USER_ALREADY_EXISTS',
-                    'User with this email already exists',
-                    {
-                        context: {
-                            origin: 'server',
-                            domain: 'auth',
-                            operation: 'sign-up',
-                            metadata: { field: 'email' },
-                        },
-                    }
-                );
-            }
-
-            const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
+    router.post(
+        '/',
+        validateBody(registrationPayload),
+        async (req, res, next) => {
             try {
-                const user = await db.user.create({ email, passwordHash });
-
-                // Track successful sign-up
-                metrics.authAttempts.inc({
-                    method: 'sign-up',
-                    status: 'success',
-                });
-                metrics.userSignUps.inc({ source: 'web' });
-
-                res.status(201).json({
-                    user: UserProfile.parse(user),
-                    message: 'User created',
-                });
-            } catch (dbError: unknown) {
-                // Handle race condition - database constraint violation
-                if (
-                    dbError &&
-                    typeof dbError === 'object' &&
-                    'code' in dbError &&
-                    dbError.code === 'P2002' &&
-                    'meta' in dbError &&
-                    dbError.meta &&
-                    typeof dbError.meta === 'object' &&
-                    'target' in dbError.meta &&
-                    Array.isArray(dbError.meta.target) &&
-                    dbError.meta.target.includes('email')
-                ) {
-                    // Prisma unique constraint error for email field
-                    // Track failed sign-up (race condition duplicate)
+                const typedReq =
+                    req as RequestWithValidatedBody<RegistrationPayload>;
+                const { email, name, password } = typedReq.validated.body;
+                console.log(
+                    'Received sign-up request for email:',
+                    email,
+                    'name:',
+                    name
+                );
+                // Optimistic check - catches most duplicate attempts early
+                const existingUser = await db.user.findByEmail({ email });
+                if (existingUser) {
+                    // Track failed sign-up (duplicate email)
                     metrics.authAttempts.inc({
                         method: 'sign-up',
                         status: 'failure',
@@ -84,45 +45,102 @@ export function signUpRoutes() {
                         'User with this email already exists',
                         {
                             context: {
-                                origin: 'database',
+                                origin: 'server',
                                 domain: 'auth',
                                 operation: 'sign-up',
-                                metadata: {
-                                    field: 'email',
-                                    reason: 'race_condition',
-                                },
+                                metadata: { field: 'email' },
                             },
                         }
                     );
                 }
 
-                // Re-throw other database errors as internal error
-                const errorMessage =
-                    dbError instanceof Error
-                        ? dbError.message
-                        : 'Unknown database error';
-                const errorCode =
-                    dbError && typeof dbError === 'object' && 'code' in dbError
-                        ? String(dbError.code)
-                        : 'UNKNOWN';
+                const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-                throw AppError.internal(
-                    'USER_CREATION_FAILED',
-                    `Failed to create user: ${errorMessage}`,
-                    {
-                        context: {
-                            origin: 'database',
-                            domain: 'auth',
-                            operation: 'sign-up',
-                            metadata: { originalError: errorCode },
-                        },
+                try {
+                    const user = await db.user.create({
+                        email,
+                        name,
+                        passwordHash,
+                    });
+
+                    // Track successful sign-up
+                    metrics.authAttempts.inc({
+                        method: 'sign-up',
+                        status: 'success',
+                    });
+                    metrics.userSignUps.inc({ source: 'web' });
+
+                    res.status(201).json({
+                        user: UserProfile.parse(user),
+                        message: 'User created',
+                    });
+                } catch (dbError: unknown) {
+                    // Handle race condition - database constraint violation
+                    if (
+                        dbError &&
+                        typeof dbError === 'object' &&
+                        'code' in dbError &&
+                        dbError.code === 'P2002' &&
+                        'meta' in dbError &&
+                        dbError.meta &&
+                        typeof dbError.meta === 'object' &&
+                        'target' in dbError.meta &&
+                        Array.isArray(dbError.meta.target) &&
+                        dbError.meta.target.includes('email')
+                    ) {
+                        // Prisma unique constraint error for email field
+                        // Track failed sign-up (race condition duplicate)
+                        metrics.authAttempts.inc({
+                            method: 'sign-up',
+                            status: 'failure',
+                        });
+                        throw AppError.conflict(
+                            'USER_ALREADY_EXISTS',
+                            'User with this email already exists',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'auth',
+                                    operation: 'sign-up',
+                                    metadata: {
+                                        field: 'email',
+                                        reason: 'race_condition',
+                                    },
+                                },
+                            }
+                        );
                     }
-                );
+
+                    // Re-throw other database errors as internal error
+                    const errorMessage =
+                        dbError instanceof Error
+                            ? dbError.message
+                            : 'Unknown database error';
+                    const errorCode =
+                        dbError &&
+                        typeof dbError === 'object' &&
+                        'code' in dbError
+                            ? String(dbError.code)
+                            : 'UNKNOWN';
+
+                    throw AppError.internal(
+                        'USER_CREATION_FAILED',
+                        `Failed to create user: ${errorMessage}`,
+                        {
+                            context: {
+                                origin: 'database',
+                                domain: 'auth',
+                                operation: 'sign-up',
+                                metadata: { originalError: errorCode },
+                            },
+                        }
+                    );
+                }
+            } catch (error) {
+                next(error);
             }
-        } catch (error) {
-            next(error);
         }
-    });
+    );
 
     return router;
 }
