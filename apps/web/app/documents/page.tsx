@@ -23,48 +23,6 @@ type NormalizedMetadata = {
     ownedByMe: boolean;
 };
 
-const defaultMetadata: NormalizedMetadata = {
-    summary: '',
-    tags: [],
-    owner: 'Workspace',
-    hasReminder: false,
-    ownedByMe: false,
-};
-
-const normalizeDocumentMetadata = (metadata: unknown): NormalizedMetadata => {
-    if (
-        metadata &&
-        typeof metadata === 'object' &&
-        !Array.isArray(metadata)
-    ) {
-        const record = metadata as Record<string, unknown>;
-        return {
-            summary:
-                typeof record.summary === 'string'
-                    ? record.summary
-                    : defaultMetadata.summary,
-            tags: Array.isArray(record.tags)
-                ? (record.tags.filter(
-                      (tag): tag is string => typeof tag === 'string'
-                  ) as string[])
-                : defaultMetadata.tags,
-            owner:
-                typeof record.owner === 'string'
-                    ? record.owner
-                    : defaultMetadata.owner,
-            hasReminder:
-                typeof record.hasReminder === 'boolean'
-                    ? record.hasReminder
-                    : defaultMetadata.hasReminder,
-            ownedByMe:
-                typeof record.ownedByMe === 'boolean'
-                    ? record.ownedByMe
-                    : defaultMetadata.ownedByMe,
-        };
-    }
-    return defaultMetadata;
-};
-
 export default function DocumentsPage() {
     const { data: workspaceTags = [], isLoading: tagsLoading } =
         useWorkspaceTagsQuery(DOCUMENTS_PAGE_TAGS_PARAMS);
@@ -124,22 +82,23 @@ export default function DocumentsPage() {
 
     const filteredDocuments = useMemo(() => {
         const results = documents.filter((doc) => {
-            const metadata = normalizeDocumentMetadata(doc.metadata);
-            const tags = metadata.tags.map((tag) => tag.toLowerCase());
+            const tagNames = (doc.tags ?? []).map((tag) =>
+                tag.name.toLowerCase()
+            );
             const matchesTag =
                 activeTagNames.length === 0 ||
-                tags.some((tag) => activeTagNames.includes(tag));
+                tagNames.some((tag) => activeTagNames.includes(tag));
             const matchesSearch =
                 searchQuery.trim().length === 0 ||
                 (doc.title ?? 'Untitled document')
                     .toLowerCase()
                     .includes(searchQuery.toLowerCase()) ||
-                metadata.summary
+                (doc.summary ?? '')
                     .toLowerCase()
                     .includes(searchQuery.toLowerCase());
             const matchesReminder =
-                !hasReminderOnly || metadata.hasReminder;
-            const matchesOwnership = !myDocsOnly || metadata.ownedByMe;
+                !hasReminderOnly || doc.hasReminders;
+            const matchesOwnership = !myDocsOnly || doc.ownedByMe;
             return (
                 matchesTag &&
                 matchesSearch &&

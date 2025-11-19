@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id, IsoDate } from './common.js';
+import { tagListItemSchema } from './tag.js';
 
 // Document source enum
 export const documentSourceSchema = z
@@ -144,6 +145,23 @@ export const documentListItemSchema = z.object({
     id: Id,
     title: documentSchema.shape.title,
     updatedAt: documentSchema.shape.updatedAt,
+    tags: tagListItemSchema.array().meta({
+        description: 'List of tags associated with the document',
+    }),
+    ownedByMe: z.boolean().meta({
+        description:
+            'Indicator whether the document is owned by the current user',
+    }),
+    hasReminders: z.boolean().meta({
+        description: 'Indicator whether the document has any active reminders',
+    }),
+    createdById: documentSchema.shape.createdById,
+    createdByName: z.string().meta({
+        description: 'Name of the user who created the document',
+    }),
+    summary: z.string().nullable().meta({
+        description: 'Optional brief summary or excerpt of the document',
+    }),
     metadata: documentMetadataSchema.nullable().optional(),
     isFavorite: z.boolean().meta({
         description:

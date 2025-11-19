@@ -301,18 +301,43 @@ export const documentRepository = {
 
             const rawItems = await prisma.document.findMany({
                 where,
-                orderBy: [
-                    { updatedAt: 'desc' },
-                    { id: 'desc' },
-                ],
+                orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
                 take: limit + 1,
                 select: {
                     id: true,
                     title: true,
                     updatedAt: true,
                     metadata: true,
+                    createdById: true,
+                    createdBy: {
+                        select: {
+                            email: true,
+                        },
+                    },
+
                     favorites: {
                         where: { userId },
+                        select: { id: true },
+                    },
+                    tags: {
+                        include: {
+                            tag: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    color: true,
+                                    description: true,
+                                },
+                            },
+                        },
+                    },
+                    commands: {
+                        where: {
+                            body: {
+                                path: ['kind'],
+                                equals: 'remind',
+                            },
+                        },
                         select: { id: true },
                     },
                 },
@@ -323,14 +348,38 @@ export const documentRepository = {
 
             const lastItem = hasMore ? sliced[sliced.length - 1] : undefined;
 
-            return {
-                items: sliced.map((item) => ({
+            const items = sliced.map((item) => {
+                const meta =
+                    item.metadata && typeof item.metadata === 'object'
+                        ? (item.metadata as Record<string, unknown>)
+                        : undefined;
+                const summary =
+                    meta && typeof meta.summary === 'string'
+                        ? meta.summary
+                        : null;
+
+                return {
                     id: item.id,
                     title: item.title,
                     updatedAt: item.updatedAt,
                     metadata: item.metadata,
+                    summary,
+                    createdById: item.createdById,
+                    createdByName: item.createdBy?.email ?? 'Unknown',
+                    ownedByMe: item.createdById === userId,
+                    hasReminders: item.commands.length > 0,
+                    tags: item.tags.map(({ tag }) => ({
+                        id: tag.id,
+                        name: tag.name,
+                        color: tag.color ?? undefined,
+                        description: tag.description ?? undefined,
+                    })),
                     isFavorite: item.favorites.length > 0,
-                })),
+                };
+            });
+
+            return {
+                items,
                 hasMore,
                 nextCursor:
                     hasMore && lastItem

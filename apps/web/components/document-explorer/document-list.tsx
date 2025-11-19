@@ -1,8 +1,8 @@
 import Link from 'next/link';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tag } from '@/components/ui/tag';
 import type { DocumentListItemType } from '@search-hub/schemas';
 
 type DocumentExplorerListProps = {
@@ -18,17 +18,6 @@ type DocumentExplorerListProps = {
 const DEFAULT_OWNER = 'Workspace';
 const DEFAULT_SUMMARY = 'No description yet.';
 
-function normalizeMetadata(metadata: unknown) {
-    if (
-        metadata &&
-        typeof metadata === 'object' &&
-        !Array.isArray(metadata)
-    ) {
-        return metadata as Record<string, unknown>;
-    }
-    return undefined;
-}
-
 export function DocumentExplorerList({
     documents,
     isLoading,
@@ -39,18 +28,12 @@ export function DocumentExplorerList({
     emptyDescription = 'Adjust the tag selection or search query to explore the placeholder data set.',
 }: DocumentExplorerListProps) {
     const renderDocuments = documents.map((doc) => {
-        const metadata = normalizeMetadata(doc.metadata);
         const summary =
-            typeof metadata?.summary === 'string'
-                ? metadata.summary
+            doc.summary && doc.summary.trim().length > 0
+                ? doc.summary
                 : DEFAULT_SUMMARY;
-        const owner =
-            typeof metadata?.owner === 'string'
-                ? metadata.owner
-                : DEFAULT_OWNER;
-        const tags = Array.isArray(metadata?.tags)
-            ? (metadata?.tags.filter((tag) => typeof tag === 'string') as string[])
-            : [];
+        const owner = doc.createdByName || DEFAULT_OWNER;
+        const tags = doc.tags ?? [];
 
         return (
             <Link
@@ -77,13 +60,16 @@ export function DocumentExplorerList({
                 {tags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-2">
                         {tags.map((tag) => (
-                            <Badge
-                                key={`${doc.id}-${tag}`}
-                                variant="secondary"
+                            <Tag
+                                key={`${doc.id}-${tag.id}`}
+                                tag={{
+                                    id: tag.id,
+                                    name: tag.name,
+                                    color: tag.color ?? '#6366f1',
+                                    description: tag.description ?? undefined,
+                                }}
                                 className="text-xs"
-                            >
-                                {tag}
-                            </Badge>
+                            />
                         ))}
                     </div>
                 )}

@@ -307,13 +307,27 @@ export function createDocumentService(
                 limit,
                 favoritesOnly,
             });
-        const mappedItems = items.map((item) => ({
-            id: item.id,
-            title: item.title,
-            updatedAt: item.updatedAt.toISOString(),
-            metadata: normalizeMetadata(item.metadata),
-            isFavorite: item.isFavorite,
-        }));
+        const mappedItems = items.map((item) => {
+            const normalizedMetadata = normalizeMetadata(item.metadata);
+            return {
+                id: item.id,
+                title: item.title,
+                updatedAt: item.updatedAt.toISOString(),
+                metadata: normalizedMetadata,
+                isFavorite: item.isFavorite,
+                summary: item.summary ?? null,
+                createdById: item.createdById,
+                createdByName: item.createdByName ?? 'Unknown',
+                ownedByMe: item.ownedByMe ?? false,
+                hasReminders: item.hasReminders ?? false,
+                tags: (item.tags ?? []).map((tag) => ({
+                    id: tag.id,
+                    name: tag.name,
+                    color: tag.color ?? null,
+                    description: tag.description ?? null,
+                })),
+            };
+        });
         const encodedNextCursor =
             hasMore && nextCursor
                 ? encodeCursor(nextCursor.updatedAt, nextCursor.id)
