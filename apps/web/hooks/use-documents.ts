@@ -1,6 +1,10 @@
 'use client';
 
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import {
+    useQuery,
+    type UseQueryOptions,
+    useInfiniteQuery,
+} from '@tanstack/react-query';
 import type {
     GetDocumentDetailsResponseType,
     GetDocumentListResponseType,
@@ -21,7 +25,7 @@ export type ApiTag = {
 };
 
 type DocumentDetails = GetDocumentDetailsResponseType['document'];
-type DocumentsList = GetDocumentListResponseType['documents'];
+type DocumentsCursorResult = GetDocumentListResponseType['documents'];
 
 const defaultFetchInit: RequestInit = {
     credentials: 'include',
@@ -65,6 +69,41 @@ export function useDocumentQuery<TData = DocumentDetails>(
     });
 }
 
+type InfiniteDocumentsOptions = {
+    favoritesOnly?: boolean;
+    tenantId?: string;
+    limit?: number;
+    enabled?: boolean;
+};
+
+export function useInfiniteDocumentsQuery({
+    favoritesOnly = false,
+    tenantId,
+    limit = 20,
+    enabled = true,
+}: InfiniteDocumentsOptions = {}) {
+    const keyTenant = tenantId ?? 'global';
+    const shouldEnable = enabled && (tenantId ? Boolean(tenantId) : true);
+
+    return useInfiniteQuery({
+        queryKey: ['documents', { tenantId: keyTenant, favoritesOnly, limit }],
+        enabled: shouldEnable,
+        initialPageParam: undefined as string | undefined,
+        queryFn: async ({ pageParam }) => {
+            const params = new URLSearchParams();
+            params.set('limit', String(limit));
+            if (favoritesOnly) params.set('favoritesOnly', 'true');
+            if (pageParam) params.set('cursor', pageParam);
+
+            const result = await fetchJson<GetDocumentListResponseType>(
+                `/api/documents?${params.toString()}`
+            );
+            return result.documents;
+        },
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    });
+}
+
 export function useDocumentTagsQuery(documentId: string) {
     return useQuery({
         queryKey: ['document', documentId, 'tags'],
@@ -82,15 +121,25 @@ type WorkspaceTagsResponse = {
     total?: number;
 };
 
-type WorkspaceTagsQueryOptions = WorkspaceTagsQueryParams & {
+type WorkspaceTagsQueryOptions = Partial<WorkspaceTagsQueryParams> & {
     enabled?: boolean;
 };
 
-export function useWorkspaceTagsQuery(
-    options: WorkspaceTagsQueryOptions = {}
-) {
+export function useWorkspaceTagsQuery(options: WorkspaceTagsQueryOptions = {}) {
     const { enabled = true, ...params } = options;
-    const normalizedParams = normalizeWorkspaceTagsParams(params);
+    const hasCustomParams =
+        params.includeCount !== undefined ||
+        params.sortBy !== undefined ||
+        params.order !== undefined;
+    const normalizedParams = normalizeWorkspaceTagsParams(
+        hasCustomParams
+            ? {
+                  includeCount: params.includeCount ?? false,
+                  sortBy: params.sortBy ?? 'name',
+                  order: params.order ?? 'asc',
+              }
+            : undefined
+    );
     const searchParams = new URLSearchParams();
 
     if (normalizedParams.includeCount) {
@@ -120,15 +169,13 @@ export function useWorkspaceTagsQuery(
 type UseDocumentsListOptions = {
     favoritesOnly?: boolean;
     limit?: number;
-    offset?: number;
     enabled?: boolean;
     tenantId?: string;
 };
 
 export function useDocumentsListQuery({
     favoritesOnly = false,
-    limit = 10,
-    offset = 0,
+    limit = 20,
     enabled = true,
     tenantId,
 }: UseDocumentsListOptions = {}) {
@@ -139,12 +186,11 @@ export function useDocumentsListQuery({
     return useQuery({
         queryKey: [
             'documents',
-            { tenantId: tenantScopedKey, favoritesOnly, limit, offset },
+            { tenantId: tenantScopedKey, favoritesOnly, limit },
         ],
         queryFn: () => {
             const params = new URLSearchParams();
             params.set('limit', String(limit));
-            params.set('offset', String(offset));
             if (favoritesOnly) {
                 params.set('favoritesOnly', 'true');
             }
@@ -153,7 +199,7 @@ export function useDocumentsListQuery({
                 `/api/documents?${params.toString()}`
             );
         },
-        select: (data) => data.documents as DocumentsList,
+        select: (data) => data.documents as DocumentsCursorResult,
         enabled: shouldEnable,
     });
 }

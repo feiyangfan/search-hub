@@ -31,7 +31,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { NavDocumentActions } from './nav-document-actions';
 import { useDocumentActions } from '@/hooks/use-document-actions';
-import { useDocumentsListQuery } from '@/hooks/use-documents';
+import { useInfiniteDocumentsQuery } from '@/hooks/use-documents';
 
 type NavFavoritesProps = {
     activeTenantId?: string;
@@ -53,13 +53,19 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
     const pathname = usePathname();
     const { renameDocument, deleteDocument, toggleFavorite, editDocumentTags } =
         useDocumentActions();
-    const { data: favoritesData, isLoading } = useDocumentsListQuery({
+    const {
+        data,
+        isLoading,
+        hasNextPage,
+        fetchNextPage,
+        isFetchingNextPage,
+    } = useInfiniteDocumentsQuery({
         favoritesOnly: true,
-        limit: 20,
         tenantId: activeTenantId,
         enabled: Boolean(activeTenantId),
     });
-    const favorites = favoritesData?.items ?? [];
+    const favorites =
+        data?.pages.flatMap((page) => page.items ?? []) ?? [];
     const isFavoritesLoading = !activeTenantId || isLoading;
 
     const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
@@ -285,6 +291,19 @@ export function NavFavorites({ activeTenantId }: NavFavoritesProps) {
                                                 </SidebarMenuItem>
                                             );
                                         })}
+                                    {!isFavoritesLoading && hasNextPage && (
+                                        <SidebarMenuItem>
+                                            <SidebarMenuButton
+                                                onClick={() => fetchNextPage()}
+                                                disabled={isFetchingNextPage}
+                                                className="text-xs text-sidebar-foreground/70 hover:text-sidebar-accent-foreground"
+                                            >
+                                                {isFetchingNextPage
+                                                    ? 'Loading...'
+                                                    : 'Load more'}
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    )}
                                 </SidebarMenu>
                             </SidebarGroupContent>
                         </CollapsibleContent>

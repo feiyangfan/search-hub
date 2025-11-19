@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const parseResult = getDocumentListParamsSchema.safeParse({
         limit: url.searchParams.get('limit') ?? undefined,
-        offset: url.searchParams.get('offset') ?? undefined,
+        cursor: url.searchParams.get('cursor') ?? undefined,
         favoritesOnly: url.searchParams.get('favoritesOnly') ?? undefined,
     });
 

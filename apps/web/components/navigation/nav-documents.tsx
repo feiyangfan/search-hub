@@ -33,7 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { NavDocumentActions } from './nav-document-actions';
 import { useDocumentActions } from '@/hooks/use-document-actions';
-import { useDocumentsListQuery } from '@/hooks/use-documents';
+import { useInfiniteDocumentsQuery } from '@/hooks/use-documents';
 import type { GetDocumentListResponseType } from '@search-hub/schemas';
 
 type NavDocumentsProps = {
@@ -83,13 +83,13 @@ function calculatePickerPosition(rect?: DOMRect | null) {
 export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
     const pathname = usePathname();
     const queryClient = useQueryClient();
-    const { data: documentsData, isLoading } = useDocumentsListQuery({
-        limit: 20,
-        tenantId: activeTenantId,
-        enabled: Boolean(activeTenantId),
-    });
-
-    const documents = documentsData?.items ?? [];
+    const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
+        useInfiniteDocumentsQuery({
+            tenantId: activeTenantId,
+            enabled: Boolean(activeTenantId),
+            limit: 5,
+        });
+    const documents = data?.pages.flatMap((page) => page.items ?? []) ?? [];
     const isListLoading = !activeTenantId || isLoading;
 
     const [editingDocumentId, setEditingDocumentId] = useState<string | null>(
@@ -223,7 +223,8 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                 const nextMetadata =
                     iconEmoji !== null
                         ? {
-                              ...(doc.metadata && typeof doc.metadata === 'object'
+                              ...(doc.metadata &&
+                              typeof doc.metadata === 'object'
                                   ? doc.metadata
                                   : {}),
                               iconEmoji,
@@ -551,6 +552,19 @@ export function NavDocuments({ activeTenantId }: NavDocumentsProps) {
                                               </SidebarMenuItem>
                                           );
                                       })}
+                                {!isListLoading && hasNextPage && (
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            onClick={() => fetchNextPage()}
+                                            disabled={isFetchingNextPage}
+                                            className="text-xs text-sidebar-foreground/70 hover:text-sidebar-accent-foreground"
+                                        >
+                                            {isFetchingNextPage
+                                                ? 'Loading...'
+                                                : 'Load more'}
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                )}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </CollapsibleContent>

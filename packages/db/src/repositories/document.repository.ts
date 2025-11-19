@@ -253,14 +253,17 @@ export const documentRepository = {
     listTenantDocuments: async ({
         tenantId,
         userId,
+        cursor,
         limit = 20,
-        offset = 0,
         favoritesOnly = false,
     }: {
         tenantId: string;
         userId: string;
+        cursor?: {
+            updatedAt: Date;
+            id: string;
+        };
         limit?: number;
-        offset?: number;
         favoritesOnly?: boolean;
     }) => {
         try {
@@ -277,35 +280,65 @@ export const documentRepository = {
                     : {}),
             };
 
-            const [items, total] = await prisma.$transaction([
-                prisma.document.findMany({
-                    where,
-                    orderBy: { updatedAt: 'desc' },
-                    skip: offset,
-                    take: limit,
-                    select: {
-                        id: true,
-                        title: true,
-                        updatedAt: true,
-                        metadata: true,
-                        favorites: {
-                            where: { userId },
-                            select: { id: true },
+            if (cursor) {
+                const additionalCondition: Prisma.DocumentWhereInput = {
+                    OR: [
+                        { updatedAt: { lt: cursor.updatedAt } },
+                        {
+                            updatedAt: cursor.updatedAt,
+                            id: { lt: cursor.id },
                         },
+                    ],
+                };
+                if (Array.isArray(where.AND)) {
+                    where.AND = [...where.AND, additionalCondition];
+                } else if (where.AND) {
+                    where.AND = [where.AND, additionalCondition];
+                } else {
+                    where.AND = [additionalCondition];
+                }
+            }
+
+            const rawItems = await prisma.document.findMany({
+                where,
+                orderBy: [
+                    { updatedAt: 'desc' },
+                    { id: 'desc' },
+                ],
+                take: limit + 1,
+                select: {
+                    id: true,
+                    title: true,
+                    updatedAt: true,
+                    metadata: true,
+                    favorites: {
+                        where: { userId },
+                        select: { id: true },
                     },
-                }),
-                prisma.document.count({ where }),
-            ]);
+                },
+            });
+
+            const hasMore = rawItems.length > limit;
+            const sliced = hasMore ? rawItems.slice(0, limit) : rawItems;
+
+            const lastItem = hasMore ? sliced[sliced.length - 1] : undefined;
 
             return {
-                items: items.map((item) => ({
+                items: sliced.map((item) => ({
                     id: item.id,
                     title: item.title,
                     updatedAt: item.updatedAt,
                     metadata: item.metadata,
                     isFavorite: item.favorites.length > 0,
                 })),
-                total,
+                hasMore,
+                nextCursor:
+                    hasMore && lastItem
+                        ? {
+                              updatedAt: lastItem.updatedAt,
+                              id: lastItem.id,
+                          }
+                        : undefined,
             };
         } catch (error) {
             if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -461,10 +494,7 @@ export const documentRepository = {
             data: { content },
         });
     },
-    updateIconEmoji: async (
-        documentId: string,
-        iconEmoji?: string | null
-    ) => {
+    updateIconEmoji: async (documentId: string, iconEmoji?: string | null) => {
         const current = await prisma.document.findUnique({
             where: { id: documentId },
             select: { metadata: true },

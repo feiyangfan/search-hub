@@ -156,7 +156,8 @@ export type DocumentListItemType = z.infer<typeof documentListItemSchema>;
 // Document list result schema
 export const documentListResultSchema = z.object({
     items: z.array(documentListItemSchema),
-    total: z.coerce.number().int().min(0),
+    nextCursor: z.string().optional(),
+    hasMore: z.boolean().default(false),
 });
 
 export type DocumentListResultType = z.infer<typeof documentListResultSchema>;
@@ -171,7 +172,7 @@ const favoritesOnlyParamSchema = z
 // Get Document list parameters
 export const getDocumentListParamsSchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
-    offset: z.coerce.number().int().min(0).default(0),
+    cursor: z.string().optional(),
     favoritesOnly: favoritesOnlyParamSchema.default(false),
 });
 

@@ -31,9 +31,7 @@ const DEFAULT_QUEUE_OPTIONS = {
     removeOnFail: false, // keep failed jobs for debugging
 };
 
-function normalizeMetadata(
-    value: unknown
-): Record<string, unknown> | null {
+function normalizeMetadata(value: unknown): Record<string, unknown> | null {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
         return value as Record<string, unknown>;
     }
@@ -67,7 +65,7 @@ export interface DocumentService {
         tenantId: string;
         userId: string;
         limit?: number;
-        offset?: number;
+        cursor?: string;
         favoritesOnly?: boolean;
     }): Promise<DocumentListResultType>;
 
@@ -290,32 +288,40 @@ export function createDocumentService(
     async function getDocumentList({
         tenantId,
         userId,
-        limit,
-        offset,
+        limit = 20,
+        cursor,
         favoritesOnly,
     }: {
         tenantId: string;
         userId: string;
         limit?: number;
-        offset?: number;
+        cursor?: string;
         favoritesOnly?: boolean;
     }): Promise<DocumentListResultType> {
-        const { items, total } = await db.document.listTenantDocuments({
-            tenantId,
-            userId,
-            limit,
-            offset,
-            favoritesOnly,
-        });
+        const decodedCursor = decodeCursor(cursor);
+        const { items, hasMore, nextCursor } =
+            await db.document.listTenantDocuments({
+                tenantId,
+                userId,
+                cursor: decodedCursor,
+                limit,
+                favoritesOnly,
+            });
+        const mappedItems = items.map((item) => ({
+            id: item.id,
+            title: item.title,
+            updatedAt: item.updatedAt.toISOString(),
+            metadata: normalizeMetadata(item.metadata),
+            isFavorite: item.isFavorite,
+        }));
+        const encodedNextCursor =
+            hasMore && nextCursor
+                ? encodeCursor(nextCursor.updatedAt, nextCursor.id)
+                : undefined;
         return {
-            items: items.map((item) => ({
-                id: item.id,
-                title: item.title,
-                updatedAt: item.updatedAt.toISOString(),
-                metadata: normalizeMetadata(item.metadata),
-                isFavorite: item.isFavorite,
-            })),
-            total,
+            items: mappedItems,
+            hasMore,
+            nextCursor: encodedNextCursor,
         };
     }
 
@@ -1208,4 +1214,26 @@ export function createDocumentService(
         dismissReminder,
         syncDocumentReminders,
     };
+}
+function encodeCursor(updatedAt: Date, id: string) {
+    return Buffer.from(
+        JSON.stringify({ updatedAt: updatedAt.toISOString(), id })
+    ).toString('base64');
+}
+
+function decodeCursor(cursor?: string) {
+    if (!cursor) {
+        return undefined;
+    }
+    try {
+        const decoded = JSON.parse(
+            Buffer.from(cursor, 'base64').toString('utf-8')
+        ) as { updatedAt: string; id: string };
+        return {
+            updatedAt: new Date(decoded.updatedAt),
+            id: decoded.id,
+        };
+    } catch {
+        return undefined;
+    }
 }

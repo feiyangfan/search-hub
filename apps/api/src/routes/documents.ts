@@ -76,14 +76,14 @@ export function documentRoutes(
                 const requestWithQuery =
                     req as RequestWithValidatedQuery<GetDocumentListParamsType>;
 
-                const { limit, offset, favoritesOnly } =
+                const { limit, cursor, favoritesOnly } =
                     requestWithQuery.validated.query;
 
                 const documents = await service.getDocumentList({
                     tenantId: activeTenantId,
                     userId,
                     limit,
-                    offset,
+                    cursor,
                     favoritesOnly,
                 });
 

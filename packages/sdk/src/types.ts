@@ -907,7 +907,7 @@ export interface paths {
             parameters: {
                 query?: {
                     limit?: number;
-                    offset?: number;
+                    cursor?: string;
                     favoritesOnly?: boolean | "true" | "false";
                 };
                 header?: never;
@@ -947,7 +947,9 @@ export interface paths {
                                     /** @description Indicator whether the document is marked as favorite by the user */
                                     isFavorite: boolean;
                                 }[];
-                                total: number;
+                                nextCursor?: string;
+                                /** @default false */
+                                hasMore: boolean;
                             };
                         };
                     };
