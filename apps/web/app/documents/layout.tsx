@@ -4,8 +4,12 @@ import {
     HydrationBoundary,
     QueryClient,
     dehydrate,
+    type InfiniteData,
 } from '@tanstack/react-query';
-import type { ListTagsResponseType } from '@search-hub/schemas';
+import type {
+    ListTagsResponseType,
+    GetDocumentListResponseType,
+} from '@search-hub/schemas';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import {
@@ -14,6 +18,7 @@ import {
 } from '@/queries/tags';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
+const DOCUMENTS_PAGE_SIZE = 20;
 
 export default async function DocumentsLayout({
     children,
@@ -53,6 +58,44 @@ export default async function DocumentsLayout({
             );
         } catch (error) {
             console.error('Failed to preload document tags', error);
+        }
+
+        try {
+            const documentsUrl = new URL('/v1/documents', apiBase);
+            documentsUrl.searchParams.set(
+                'limit',
+                String(DOCUMENTS_PAGE_SIZE)
+            );
+            const documentsRes = await fetch(documentsUrl, {
+                headers: { cookie: apiSessionCookie },
+            });
+            if (!documentsRes.ok) {
+                throw new Error(
+                    `Failed to preload documents: ${documentsRes.status}`
+                );
+            }
+            const documentsData =
+                (await documentsRes.json()) as GetDocumentListResponseType;
+            const initialData: InfiniteData<
+                GetDocumentListResponseType['documents'],
+                string | undefined
+            > = {
+                pages: [documentsData.documents],
+                pageParams: [undefined],
+            };
+            queryClient.setQueryData(
+                [
+                    'documents',
+                    {
+                        tenantId: 'global',
+                        favoritesOnly: false,
+                        limit: DOCUMENTS_PAGE_SIZE,
+                    },
+                ],
+                initialData
+            );
+        } catch (error) {
+            console.error('Failed to preload documents list', error);
         }
     }
 

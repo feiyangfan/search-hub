@@ -9,66 +9,74 @@ import {
 import { DocumentExplorerList } from '@/components/document-explorer/document-list';
 import { DocumentExplorerFilters } from '@/components/document-explorer/filters';
 import { DEFAULT_TAG_COLOR } from '@/components/ui/tag';
-import { useDocumentActions } from '@/hooks/use-document-actions';
-import { useWorkspaceTagsQuery } from '@/hooks/use-documents';
+import { useInfiniteDocumentsQuery, useWorkspaceTagsQuery } from '@/hooks/use-documents';
 import { DOCUMENTS_PAGE_TAGS_PARAMS } from '@/queries/tags';
+import type { DocumentListItemType } from '@search-hub/schemas';
 
-type PlaceholderDocument = {
-    id: string;
-    title: string;
+const DOCUMENTS_PAGE_SIZE = 20;
+
+type NormalizedMetadata = {
     summary: string;
     tags: string[];
-    updatedLabel: string;
-    updatedAt: number;
     owner: string;
-    isFavorite: boolean;
     hasReminder: boolean;
     ownedByMe: boolean;
 };
 
-const placeholderDocuments: PlaceholderDocument[] = [
-    {
-        id: 'doc-1',
-        title: 'Authentication Runbook',
-        summary:
-            'Step-by-step guide for handling auth outages across services.',
-        tags: ['Backend', 'Incident'],
-        updatedLabel: '2 hours ago',
-        updatedAt: Date.now() - 1000 * 60 * 60 * 2,
-        owner: 'DevOps',
-        isFavorite: true,
-        hasReminder: true,
-        ownedByMe: true,
-    },
-    {
-        id: 'doc-2',
-        title: 'Design System 2.0',
-        summary: 'Launch checklist and rollout plan for the design revamp.',
-        tags: ['Design', 'Launch'],
-        updatedLabel: 'Yesterday',
-        updatedAt: Date.now() - 1000 * 60 * 60 * 24,
-        owner: 'Design Ops',
-        isFavorite: false,
-        hasReminder: false,
-        ownedByMe: false,
-    },
-    {
-        id: 'doc-3',
-        title: 'Database Migration Plan',
-        summary: 'Shard split strategy and validation playbook.',
-        tags: ['Database', 'Migration'],
-        updatedLabel: '3 days ago',
-        updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
-        owner: 'Data Platform',
-        isFavorite: false,
-        hasReminder: true,
-        ownedByMe: false,
-    },
-];
+const defaultMetadata: NormalizedMetadata = {
+    summary: '',
+    tags: [],
+    owner: 'Workspace',
+    hasReminder: false,
+    ownedByMe: false,
+};
+
+const normalizeDocumentMetadata = (metadata: unknown): NormalizedMetadata => {
+    if (
+        metadata &&
+        typeof metadata === 'object' &&
+        !Array.isArray(metadata)
+    ) {
+        const record = metadata as Record<string, unknown>;
+        return {
+            summary:
+                typeof record.summary === 'string'
+                    ? record.summary
+                    : defaultMetadata.summary,
+            tags: Array.isArray(record.tags)
+                ? (record.tags.filter(
+                      (tag): tag is string => typeof tag === 'string'
+                  ) as string[])
+                : defaultMetadata.tags,
+            owner:
+                typeof record.owner === 'string'
+                    ? record.owner
+                    : defaultMetadata.owner,
+            hasReminder:
+                typeof record.hasReminder === 'boolean'
+                    ? record.hasReminder
+                    : defaultMetadata.hasReminder,
+            ownedByMe:
+                typeof record.ownedByMe === 'boolean'
+                    ? record.ownedByMe
+                    : defaultMetadata.ownedByMe,
+        };
+    }
+    return defaultMetadata;
+};
 
 export default function DocumentsPage() {
     const { data: workspaceTags = [], isLoading: tagsLoading } =
         useWorkspaceTagsQuery(DOCUMENTS_PAGE_TAGS_PARAMS);
+    const {
+        data: documentsData,
+        isLoading: documentsLoading,
+        hasNextPage,
+        fetchNextPage,
+        isFetchingNextPage,
+    } = useInfiniteDocumentsQuery({
+        limit: DOCUMENTS_PAGE_SIZE,
+    });
     const [activeTags, setActiveTags] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortOption, setSortOption] = useState<'newest' | 'oldest'>('newest');
@@ -107,19 +115,31 @@ export default function DocumentsPage() {
             .filter((name): name is string => Boolean(name));
     }, [activeTags, tagLookup]);
 
+    const documents = useMemo<DocumentListItemType[]>(() => {
+        if (!documentsData?.pages) {
+            return [];
+        }
+        return documentsData.pages.flatMap((page) => page.items ?? []);
+    }, [documentsData]);
+
     const filteredDocuments = useMemo(() => {
-        const results = placeholderDocuments.filter((doc) => {
+        const results = documents.filter((doc) => {
+            const metadata = normalizeDocumentMetadata(doc.metadata);
+            const tags = metadata.tags.map((tag) => tag.toLowerCase());
             const matchesTag =
                 activeTagNames.length === 0 ||
-                doc.tags.some((tag) =>
-                    activeTagNames.includes(tag.toLowerCase())
-                );
+                tags.some((tag) => activeTagNames.includes(tag));
             const matchesSearch =
                 searchQuery.trim().length === 0 ||
-                doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                doc.summary.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesReminder = !hasReminderOnly || doc.hasReminder;
-            const matchesOwnership = !myDocsOnly || doc.ownedByMe;
+                (doc.title ?? 'Untitled document')
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase()) ||
+                metadata.summary
+                    .toLowerCase()
+                    .includes(searchQuery.toLowerCase());
+            const matchesReminder =
+                !hasReminderOnly || metadata.hasReminder;
+            const matchesOwnership = !myDocsOnly || metadata.ownedByMe;
             return (
                 matchesTag &&
                 matchesSearch &&
@@ -127,12 +147,20 @@ export default function DocumentsPage() {
                 matchesOwnership
             );
         });
-        return results.sort((a, b) =>
-            sortOption === 'newest'
-                ? b.updatedAt - a.updatedAt
-                : a.updatedAt - b.updatedAt
-        );
-    }, [activeTagNames, searchQuery, hasReminderOnly, myDocsOnly, sortOption]);
+
+        return results.sort((a, b) => {
+            const aTime = new Date(a.updatedAt).getTime();
+            const bTime = new Date(b.updatedAt).getTime();
+            return sortOption === 'newest' ? bTime - aTime : aTime - bTime;
+        });
+    }, [
+        documents,
+        activeTagNames,
+        searchQuery,
+        hasReminderOnly,
+        myDocsOnly,
+        sortOption,
+    ]);
 
     const activeTagPill = activeTags.length
         ? `${activeTags.length} filter${
@@ -165,7 +193,13 @@ export default function DocumentsPage() {
                         onMyDocsChange={(value) => setMyDocsOnly(value)}
                     />
 
-                    <DocumentExplorerList documents={filteredDocuments} />
+                    <DocumentExplorerList
+                        documents={filteredDocuments}
+                        isLoading={documentsLoading}
+                        hasMore={Boolean(hasNextPage)}
+                        onLoadMore={() => fetchNextPage()}
+                        isLoadingMore={isFetchingNextPage}
+                    />
                 </section>
             </div>
         </div>

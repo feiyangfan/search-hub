@@ -51,6 +51,11 @@ export function DocumentExplorerFilters({
                         <CardTitle className="text-base font-semibold">
                             Filters
                         </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                            {summary}. Showing{' '}
+                            <span className="font-semibold">{resultCount}</span>{' '}
+                            document{resultCount === 1 ? '' : 's'}.
+                        </p>
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
