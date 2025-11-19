@@ -14,6 +14,7 @@ import {
     CardFooter,
 } from '@/components/ui/card';
 import { SignInForm } from './sign-in-form';
+import { Separator } from '@/components/ui/separator';
 
 export default async function SignInPage() {
     const session = await getServerSession(authOptions);
@@ -40,7 +41,8 @@ export default async function SignInPage() {
                 <CardContent>
                     <SignInForm />
                 </CardContent>
-                <CardFooter>
+                <Separator />
+                <CardFooter className="flex flex-col items-center justify-center">
                     <SignInButtons providers={providers} />
                 </CardFooter>
             </Card>
