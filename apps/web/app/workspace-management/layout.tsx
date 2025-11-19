@@ -6,7 +6,7 @@ import {
     QueryClient,
     dehydrate,
 } from '@tanstack/react-query';
-import { SearchHubClient } from '@search-hub/sdk';
+import type { ListTagsResponseType } from '@search-hub/schemas';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import {
@@ -43,13 +43,27 @@ export default async function WorkspaceManagementLayout({
     const queryClient = new QueryClient();
 
     if (apiSessionCookie) {
-        const client = new SearchHubClient({
-            baseUrl: apiBase,
-            headers: { cookie: apiSessionCookie },
-        });
-
+        const searchParams = new URLSearchParams();
+        if (WORKSPACE_TAGS_MANAGEMENT_PARAMS.includeCount) {
+            searchParams.set('includeCount', 'true');
+        }
+        if (WORKSPACE_TAGS_MANAGEMENT_PARAMS.sortBy) {
+            searchParams.set('sortBy', WORKSPACE_TAGS_MANAGEMENT_PARAMS.sortBy);
+        }
+        if (WORKSPACE_TAGS_MANAGEMENT_PARAMS.order) {
+            searchParams.set('order', WORKSPACE_TAGS_MANAGEMENT_PARAMS.order);
+        }
+        const url = `${apiBase}/v1/tags${
+            searchParams.size ? `?${searchParams.toString()}` : ''
+        }`;
         try {
-            const tagsResponse = await client.getTags();
+            const res = await fetch(url, {
+                headers: { cookie: apiSessionCookie },
+            });
+            if (!res.ok) {
+                throw new Error(`Failed to preload tags: ${res.status}`);
+            }
+            const tagsResponse = (await res.json()) as ListTagsResponseType;
             queryClient.setQueryData(
                 workspaceTagsQueryKey(WORKSPACE_TAGS_MANAGEMENT_PARAMS),
                 tagsResponse

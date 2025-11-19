@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -59,6 +59,8 @@ type TagProps = {
     variant?: 'default' | 'removable';
     onRemove?: () => void;
     className?: string;
+    onClick?: () => void;
+    isActive?: boolean;
 };
 
 /**
@@ -69,7 +71,34 @@ export function Tag({
     variant = 'default',
     onRemove,
     className,
+    onClick,
+    isActive = false,
 }: TagProps) {
+    const interactive = typeof onClick === 'function';
+    const baseStyle = getTagBadgeStyle(tag.color);
+    const badgeStyle =
+        isActive && interactive
+            ? {
+                  ...baseStyle,
+                  backgroundColor: hexToRgba(tag.color, 0.35),
+                  boxShadow: `0 0 0 1px ${tag.color}, 0 8px 20px -8px ${hexToRgba(
+                      tag.color,
+                      0.5
+                  )}`,
+                  color: baseStyle.color,
+              }
+            : baseStyle;
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
+        if (!interactive) {
+            return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onClick?.();
+        }
+    };
+
     if (variant === 'removable') {
         return (
             <Badge
@@ -96,8 +125,13 @@ export function Tag({
     return (
         <Badge
             variant="secondary"
-            className={`w-fit ${className ?? ''}`}
-            style={getTagBadgeStyle(tag.color)}
+            role={interactive ? 'button' : undefined}
+            tabIndex={interactive ? 0 : undefined}
+            onClick={onClick}
+            onKeyDown={handleKeyDown}
+            aria-pressed={interactive ? isActive : undefined}
+            className={`w-fit select-none transition-all ${interactive ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40' : ''} ${isActive ? 'font-semibold' : ''} ${className ?? ''}`}
+            style={badgeStyle}
             title={tag.description}
         >
             {tag.name}

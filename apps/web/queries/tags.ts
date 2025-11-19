@@ -40,3 +40,9 @@ export const WORKSPACE_TAGS_MANAGEMENT_PARAMS = Object.freeze({
     sortBy: 'documentCount',
     order: 'desc',
 }) satisfies WorkspaceTagsQueryParams;
+
+export const DOCUMENTS_PAGE_TAGS_PARAMS = Object.freeze({
+    includeCount: true,
+    sortBy: 'documentCount',
+    order: 'desc',
+}) satisfies WorkspaceTagsQueryParams;
