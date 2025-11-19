@@ -38,9 +38,7 @@ export default async function DashboardLayout({
         });
 
         try {
-            const workspaceStats = await client.getTenantStats(
-                activeTenantId
-            );
+            const workspaceStats = await client.getTenantStats(activeTenantId);
             queryClient.setQueryData(
                 workspaceOverviewQueryKey(activeTenantId),
                 workspaceStats

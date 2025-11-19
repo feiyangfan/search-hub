@@ -311,7 +311,7 @@ export const documentRepository = {
                     createdById: true,
                     createdBy: {
                         select: {
-                            email: true,
+                            name: true,
                         },
                     },
 
@@ -365,7 +365,7 @@ export const documentRepository = {
                     metadata: item.metadata,
                     summary,
                     createdById: item.createdById,
-                    createdByName: item.createdBy?.email ?? 'Unknown',
+                    createdByName: item.createdBy?.name ?? 'Unknown',
                     ownedByMe: item.createdById === userId,
                     hasReminders: item.commands.length > 0,
                     tags: item.tags.map(({ tag }) => ({

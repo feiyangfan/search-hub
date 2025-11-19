@@ -233,11 +233,14 @@ export default async function LandingPage() {
                     <p className="max-w-2xl text-balance text-sm text-muted-foreground sm:text-base">
                         Aggregate search intelligence, pipeline health, tag
                         relationships, and reminders from the moment you land.
-                        The redesigned workspace keeps teams proactive and aligned.
+                        The redesigned workspace keeps teams proactive and
+                        aligned.
                     </p>
                     <div className="flex flex-col gap-3 sm:flex-row">
                         <Button size="lg" asChild>
-                            <Link href="/auth/sign-up">Create your workspace</Link>
+                            <Link href="/auth/sign-up">
+                                Create your workspace
+                            </Link>
                         </Button>
                         <Button variant="ghost" size="lg" asChild>
                             <Link href="/auth/sign-in">Sign in</Link>
@@ -256,9 +259,10 @@ export default async function LandingPage() {
                             See what's waiting inside.
                         </h2>
                         <p className="max-w-3xl text-sm text-muted-foreground">
-                            The public landing page now mirrors the in-product experience so your team
-                            can explore search performance, data ingestion, and collaboration signals
-                            before creating an account.
+                            The public landing page now mirrors the in-product
+                            experience so your team can explore search
+                            performance, data ingestion, and collaboration
+                            signals before creating an account.
                         </p>
                     </div>
 
@@ -298,11 +302,15 @@ function DashboardPreview() {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                             <div className="rounded-lg border border-border/40 bg-muted/30 p-2">
                                 Filters applied ·{' '}
-                                <span className="font-semibold">Engineering</span>
+                                <span className="font-semibold">
+                                    Engineering
+                                </span>
                             </div>
                             <div className="rounded-lg border border-border/40 bg-muted/30 p-2">
                                 Saved view ·{' '}
-                                <span className="font-semibold">Launch prep</span>
+                                <span className="font-semibold">
+                                    Launch prep
+                                </span>
                             </div>
                         </div>
                     </div>

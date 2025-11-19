@@ -62,10 +62,7 @@ export default async function DocumentsLayout({
 
         try {
             const documentsUrl = new URL('/v1/documents', apiBase);
-            documentsUrl.searchParams.set(
-                'limit',
-                String(DOCUMENTS_PAGE_SIZE)
-            );
+            documentsUrl.searchParams.set('limit', String(DOCUMENTS_PAGE_SIZE));
             const documentsRes = await fetch(documentsUrl, {
                 headers: { cookie: apiSessionCookie },
             });

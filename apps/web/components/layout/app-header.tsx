@@ -23,6 +23,7 @@ import {
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { signOut } from 'next-auth/react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -215,6 +216,10 @@ export function AppHeader({
                 });
             }
             return crumbs;
+        }
+
+        if (segments[0] === 'auth') {
+            return [{ label: 'Search Hub', href: '/' }];
         }
 
         const crumbs: BreadcrumbEntry[] = [];
