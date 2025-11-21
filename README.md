@@ -1,13 +1,22 @@
 # Search Hub
 
-A multi-tenant knowledge and productivity platform — blending search, semantic understanding, and inline AI commands that can execute even when you’re away.
+**Your knowledge base that actually understands what you're looking for.**
+
+Search Hub combines enterprise-grade hybrid search (lexical + semantic) with AI-powered insights. Unlike traditional note-taking apps that rely on exact keyword matches, Search Hub understands *meaning* — finding relevant documents even when you don't remember the exact words you used.
+
+Built for teams who need more than folders and tags: intelligent search, automatic embeddings, and AI-driven automation that works while you sleep.
 
 ## Table of Contents
 - [Search Hub](#search-hub)
   - [Table of Contents](#table-of-contents)
-  - [Highlights](#highlights)
+  - [What Makes Search Hub Different](#what-makes-search-hub-different)
+    - [🔍 Intelligent Hybrid Search](#-intelligent-hybrid-search)
+    - [🤖 AI That Works for You](#-ai-that-works-for-you)
+    - [⚡ Built for Scale \& Reliability](#-built-for-scale--reliability)
+    - [🎯 For Engineers Who Care About Architecture](#-for-engineers-who-care-about-architecture)
   - [Core Capabilities](#core-capabilities)
     - [Capture \& Organize](#capture--organize)
+    - [AI-Powered Features](#ai-powered-features)
     - [Search \& Retrieval](#search--retrieval)
     - [Reliability \& Observability](#reliability--observability)
   - [Architecture \& Stack](#architecture--stack)
@@ -17,7 +26,7 @@ A multi-tenant knowledge and productivity platform — blending search, semantic
     - [Background Workers](#background-workers)
     - [Data \& Search](#data--search)
     - [AI Integrations](#ai-integrations)
-    - [File Storage \& CDN](#file-storage--cdn)
+    - [Image Storage \& CDN](#image-storage--cdn)
     - [Observability](#observability)
     - [Reliability \& Security](#reliability--security)
     - [CI/CD \& Deployment](#cicd--deployment)
@@ -36,30 +45,60 @@ A multi-tenant knowledge and productivity platform — blending search, semantic
     - [1. Tenant Creation \& Onboarding](#1-tenant-creation--onboarding)
     - [2. Document Creation](#2-document-creation)
     - [3. Async Tasks](#3-async-tasks)
-    - [4. Command Ingestion](#4-command-ingestion)
+    - [4. Reminder System (MVP)](#4-reminder-system-mvp)
     - [5. Search](#5-search)
     - [6. Notifications](#6-notifications)
 
-## Highlights
-- Hybrid retrieval via Reciprocal Rank Fusion (RRF) keeps both lexical and semantic results relevant.
-- Direct-to-S3 uploads, CloudFront caching, and content-hash keys make file handling fast and safe.
-- Background workers, rate limiting, and circuit breakers keep `/search` responsive even when AI providers wobble.
-- Unified observability stack (traces, logs, metrics) powers Grafana dashboards and alerting.
+## What Makes Search Hub Different
+
+### 🔍 Intelligent Hybrid Search
+Not just keyword matching. Search Hub fuses **PostgreSQL full-text search** with **pgvector semantic embeddings** using Reciprocal Rank Fusion (RRF). Search for "budget concerns" and find documents about "financial worries" — because it understands concepts, not just words.
+
+### 🤖 AI That Works for You
+- **Automatic indexing**: Every document is chunked and embedded in the background (1024-dimensional vectors via Voyage AI)
+- **Weekly summaries**: AI-generated digests of your workspace activity
+- **Natural language reminders**: Type "remind me next Friday" and it just works (powered by chrono-node)
+- **Smart reranking**: Results automatically reordered by relevance using Voyage rerank-2.5-lite
+
+### ⚡ Built for Scale & Reliability
+- **Multi-tenant from day one**: Workspace isolation baked into every query
+- **Circuit breakers & rate limiting**: Graceful degradation when AI services wobble
+- **Idempotent background jobs**: Safe retries with content checksums prevent duplicate work
+- **Production observability**: Prometheus metrics, structured logs, distributed tracing
+
+### 🎯 For Engineers Who Care About Architecture
+This isn't just a CRUD app. It's a showcase of production patterns: hybrid search fusion, async job processing with BullMQ, Redis token-bucket rate limiting, pgvector at scale, and full-stack observability from browser to database.
 
 ## Core Capabilities
+
 ### Capture & Organize
-- Markdown note authoring with tagging.
-- Attachments for PDFs and images stored on S3 with immutable content hashes.
+- **WYSIWYG editor**: Rich text editing powered by Milkdown with CommonMark + GFM support
+- **Block-level editing**: Drag-and-drop, inline formatting, and structured content
+- **Tag system**: Workspace-scoped tags with color coding and many-to-many relationships
+- **Image embedding**: Inline images stored on S3 with CloudFront delivery
+- **Natural language reminders**: Parse dates like "tomorrow at 3pm" or "next Friday" using chrono-node
+
+### AI-Powered Features
+- **Document summarization**: Automatic AI-generated summaries for quick context (planned)
+- **Weekly summaries**: AI-generated weekly digest of your workspace activity and key documents
+- **Semantic search**: pgvector-backed embeddings via Voyage AI (voyage-3.5-lite, 1024 dimensions)
+- **Smart reranking**: Voyage rerank-2.5-lite for improved search relevance
+- **Future integrations**: Content generation, document Q&A, smart categorization (roadmap)
 
 ### Search & Retrieval
-- PostgreSQL full-text search for precise keyword matches.
-- pgvector-backed embeddings for semantic recall.
-- RRF fusion of lexical and vector rankings, with tag and date filters.
+- **Lexical search**: PostgreSQL full-text search (FTS) with `tsvector` for precise keyword matches
+- **Semantic search**: pgvector embeddings for conceptual similarity
+- **Hybrid search**: RRF (Reciprocal Rank Fusion) combining both approaches for best results
+- **Advanced filters**: Tag-based filtering, date ranges, favorites
+- **Multi-tenant isolation**: All searches automatically scoped to current workspace
 
 ### Reliability & Observability
-- Token-bucket rate limiting on critical routes (`/ai/*`, `/search`).
-- Idempotent background jobs with exponential backoff + jitter to prevent retry storms.
-- OpenTelemetry spans from UI → API → DB/Redis/OpenAI, structured logging with Pino, and Prometheus metrics surfaced in Grafana dashboards and alerts.
+- **Rate limiting**: Redis token-bucket on all `/v1/*` routes to prevent abuse
+- **Circuit breakers**: Protect against AI service failures with automatic fallback
+- **Idempotent jobs**: Content checksums prevent redundant reindexing, safe retries
+- **Comprehensive metrics**: Prometheus metrics for latency, errors, queue depth, AI performance
+- **Structured logging**: Pino JSON logs with correlation IDs across the entire stack
+- **Distributed tracing**: Request flows tracked from frontend → API → database → workers
 
 ## Architecture & Stack
 ### Runtime & Tooling
@@ -87,12 +126,13 @@ A multi-tenant knowledge and productivity platform — blending search, semantic
 - Hybrid retrieval measured with nDCG/MRR to stay within latency budgets
 
 ### AI Integrations
-- Voyage for embeddings and rerank
-- gloq for concise summaries
+- **Voyage AI** for embeddings (voyage-3.5-lite, 1024 dimensions) and reranking (rerank-2.5-lite)
+- **Future**: LLM integration for summarization, content generation, and Q&A
 
-### File Storage & CDN
-- S3 presigned PUT uploads for browser clients (direct-to-S3)
-- CloudFront for edge caching and private-bucket access via OAC
+### Image Storage & CDN
+- **S3** for embedded Markdown images with content-addressed storage
+- **CloudFront** for fast, globally-distributed image delivery with edge caching
+- **Planned**: Presigned PUT uploads for direct browser-to-S3 transfers
 
 ### Observability
 - Traces: OpenTelemetry → Grafana Cloud Tempo
@@ -141,7 +181,7 @@ Scenario 3: Queue metrics show job failures, structured logs reveal specific err
 - GitHub Actions for type checks, linting, tests, build, Docker, and deploy
 - Vercel (frontend), Render/Railway/Fly (backend)
 - Neon (PostgreSQL), Upstash (Redis), Grafana Cloud (Tempo/Loki/Prometheus)
-- AWS S3 + CloudFront for asset storage and delivery
+- **AWS S3 + CloudFront** for image storage and CDN delivery
 
 ## Architecture Decision Records
 Architectural choices are documented in ADRs. See the index at [docs/adr/README.md](docs/adr/README.md).
@@ -216,30 +256,37 @@ Architectural choices are documented in ADRs. See the index at [docs/adr/README.
   - Only `owner` or `admin` can invite/manage members.
 
 ### 2. Document Creation
-- Start from the dashboard → `New Document`.
-- Choose type:
-  - 📝 **Note** (inline editor)
-  - 🔗 **Link** (URL ingestion)
-  - 📎 **Upload** (file picker)
+- Start from the dashboard → `New Document`
+- **MVP**: Editor-only document creation
+  - 📝 **Note**: WYSIWYG editor powered by Milkdown
+  - Block-level editing with inline images
+  - Natural language reminder parsing (e.g., "remind me tomorrow at 3pm")
+- **Future iterations**: Link ingestion and file upload
 - On submission:
-  - Save to DB.
-  - Enqueue async processing jobs (indexing, reminder setup, AI digest).
+  - Save to database
+  - Enqueue async indexing job (chunking + embedding generation)
+  - Parse and schedule reminders
 
 ### 3. Async Tasks
-- Handle in background workers:
-  - Indexing, summarization, reminders.
-- Frontend shows **live status** using:
-  - Polling or **Server-Sent Events (SSE)** from `/v1/documents/:id`.
+- Handle in background workers (BullMQ + Redis):
+  - **Document indexing**: Text chunking (1000 chars, 100 char overlap) + embedding generation
+  - **Reminders**: Scheduled notification delivery (MVP focus)
+  - **Future**: Summarization, content generation, smart categorization
+- Job tracking via `IndexJob` table:
+  - States: `queued` → `processing` → `indexed` / `failed`
+  - Idempotency via SHA-256 content checksums
+- Frontend shows indexing status:
+  - 🟡 Processing
+  - 🟢 Indexed
+  - 🔴 Failed (with retry option)
 
-### 4. Command Ingestion
-- After document creation:
-  - Parse embedded or explicit commands.
-  - Attach parsed commands to the document.
-  - Push jobs for:
-    - Reminders 🕒
-    - Formatting 🧩
-    - Digest/summarization 🤖
-- Store outputs (summaries, reminders) back into document fields or related tables.
+### 4. Reminder System (MVP)
+- **Natural language parsing**: Uses chrono-node to parse dates
+  - Examples: "tomorrow at 3pm", "next Friday", "in 2 weeks"
+- **Reminder states**: scheduled, overdue, done
+- **Storage**: `DocumentCommand` table tracks all reminder data
+- **Scheduled delivery**: Background worker sends notifications at specified times
+- **Future commands**: Formatting, summarization, content generation (post-MVP)
 
 ### 5. Search
 - Tenant-scoped search:
@@ -248,11 +295,11 @@ Architectural choices are documented in ADRs. See the index at [docs/adr/README.
   - Display snippet previews from `searchVector`.
 
 ### 6. Notifications
-- Trigger reminders via worker:
-  - Send **emails** or **push notifications**.
-- Record each event in the `Reminder` table:
-  - Prevent duplicates.
-  - Show full reminder history in the document timeline.
+- **Reminders**: Background worker triggers at scheduled times
+- **Delivery channels**: Email notifications (push notifications in future iterations)
+- **Event tracking**: All reminder deliveries logged in `DocumentCommand` table
+- **Deduplication**: Idempotency prevents duplicate notifications
+- **Timeline view**: Full reminder history visible in document interface
 
 ---
 

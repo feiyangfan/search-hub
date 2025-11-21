@@ -63,29 +63,79 @@ VOYAGE_API_KEY=sk-xxxx
 
 ```
 src/
-├─ app.ts                # creates express app, wires middleware
-├─ index.ts              # boots server + session store
-├─ config/env.ts         # wraps loadApiEnv()
+├─ app.ts                        # creates express app, wires middleware
+├─ index.ts                      # boots server + session store
+├─ config/env.ts                 # wraps loadApiEnv()
+├─ queue.ts                      # BullMQ queue instances
+├─ lib/
+│  └─ circuitBreaker.ts          # circuit breaker for AI calls
 ├─ middleware/
-│  ├─ authMiddleware.ts  # session guard for /v1/*
-│  ├─ errorHandlerMiddleware.ts
-│  ├─ rateLimitMiddleware.ts
-│  └─ validateMiddleware.ts
+│  ├─ authMiddleware.ts          # session guard for /v1/*
+│  ├─ correlationMiddleware.ts   # AsyncLocalStorage for tracing
+│  ├─ errorHandlerMiddleware.ts  # centralized error handling
+│  ├─ rateLimitMiddleware.ts     # Redis token bucket rate limiter
+│  ├─ requestLoggerMiddleware.ts # Pino HTTP logging
+│  └─ validateMiddleware.ts      # Zod validation middleware
 ├─ routes/
-│  ├─ auth/              # sign-in/out/up endpoints
-│  ├─ documents.ts       # POST /v1/documents
-│  ├─ search.ts          # GET /v1/search (lexical + semantic)
-│  ├─ tenants.ts         # tenant management endpoints
-│  └─ routes.ts          # mounts everything + auth guard
-├─ services/             # voyage/search helpers
-├─ session/store.ts      # redis session store bootstrap
-└─ types/                # express-session augmentations
+│  ├─ auth/                      # sign-in/out/up + OAuth endpoints
+│  │  ├─ index.ts
+│  │  ├─ sign-in.ts
+│  │  ├─ sign-up.ts
+│  │  ├─ sign-out.ts
+│  │  └─ oauth/                  # OAuth provider routes
+│  ├─ documents.ts               # CRUD operations for documents
+│  ├─ search.ts                  # lexical, semantic, hybrid search
+│  ├─ tags.ts                    # tag management endpoints
+│  ├─ reminders.ts               # reminder endpoints
+│  ├─ tenants.ts                 # tenant/workspace management
+│  ├─ users.ts                   # user profile endpoints
+│  ├─ health.ts                  # health check endpoint
+│  ├─ metrics.ts                 # Prometheus metrics endpoint
+│  └─ routes.ts                  # mounts all v1 routes + auth
+├─ services/
+│  ├─ searchService.ts           # hybrid search with RRF fusion
+│  ├─ documentService.ts         # document operations + job queueing
+│  └─ tagService.ts              # tag operations
+├─ session/
+│  └─ store.ts                   # Redis session store configuration
+└─ types/
+   └─ express/                   # express-session augmentations
+      └─ index.d.ts
 ```
 
 **Design principles**
 - **Contracts first:** All inputs/outputs originate from `@search-hub/schemas`. `validateBody` / `validateQuery` parse raw requests before business logic runs.
 - **Stateless handlers:** Routes collect validated data, call the db/services layer, and format responses. Work is delegated to repositories in `@search-hub/db` or service helpers.
 - **Defensive middleware:** Rate limiting, circuit breaker, and structured error handling wrap every external call so upstream turbulence degrades gracefully.
+
+### Key API Endpoints
+
+#### Public Routes
+- `GET /health` - Health check (database + uptime)
+- `GET /metrics` - Prometheus metrics
+- `GET /docs` - Swagger UI documentation
+- `POST /v1/auth/sign-in` - Email/password authentication
+- `POST /v1/auth/sign-up` - User registration
+- `POST /v1/auth/sign-out` - Session destruction
+- `GET /v1/auth/oauth/:provider` - OAuth flow initiation
+
+#### Protected Routes (require authentication)
+- `GET /v1/documents` - List documents with pagination
+- `POST /v1/documents` - Create document (returns 202, queues indexing)
+- `GET /v1/documents/:id` - Get document by ID
+- `PATCH /v1/documents/:id` - Update document
+- `DELETE /v1/documents/:id` - Delete document
+- `PATCH /v1/documents/:id/icon` - Update document icon
+- `GET /v1/lexical-search` - Full-text search
+- `GET /v1/semantic-search` - Vector similarity search
+- `GET /v1/hybrid-search` - Combined lexical + semantic (RRF)
+- `GET /v1/tags` - List workspace tags
+- `POST /v1/tags` - Create tag
+- `PATCH /v1/tags/:id` - Update tag
+- `DELETE /v1/tags/:id` - Delete tag
+- `GET /v1/tenants` - List user's tenants
+- `POST /v1/tenants` - Create new tenant
+- `GET /v1/users/me` - Get current user profile
 
 ---
 
