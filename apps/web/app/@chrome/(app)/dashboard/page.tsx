@@ -56,13 +56,14 @@ export default async function DashboardPage() {
         });
 
         try {
-            const response = await client.getTags();
+            const response = await client.getTags({ includeCount: true });
             const apiTags = (response.tags ?? []) as TagListItemType[];
             tags = apiTags.map((tag) => ({
                 id: tag.id,
                 name: tag.name,
                 color: tag.color ?? DEFAULT_TAG_COLOR,
                 description: undefined,
+                count: tag.documentCount ?? 0,
             }));
         } catch (error) {
             console.error('Failed to fetch tags:', error);
@@ -273,6 +274,7 @@ export default async function DashboardPage() {
                                         href={`/documents?tag=${encodeURIComponent(
                                             tag.id
                                         )}`}
+                                        count={tag.count}
                                     />
                                 ))}
                             </div>

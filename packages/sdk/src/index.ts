@@ -489,10 +489,27 @@ export class SearchHubClient {
     }
 
     /** GET /v1/tags */
-    async getTags(): Promise<
+    async getTags(params?: {
+        includeCount?: boolean;
+        sortBy?: 'name' | 'createdAt' | 'documentCount';
+        order?: 'asc' | 'desc';
+    }): Promise<
         paths['/v1/tags']['get']['responses']['200']['content']['application/json']
     > {
-        const url = `${this.baseUrl}/v1/tags`;
+        const queryParams = new URLSearchParams();
+        if (params?.includeCount !== undefined) {
+            queryParams.append('includeCount', params.includeCount.toString());
+        }
+        if (params?.sortBy) {
+            queryParams.append('sortBy', params.sortBy);
+        }
+        if (params?.order) {
+            queryParams.append('order', params.order);
+        }
+        const queryString = queryParams.toString();
+        const url = `${this.baseUrl}/v1/tags${
+            queryString ? `?${queryString}` : ''
+        }`;
         const res = await this.fetcher(url, {
             method: 'GET',
             headers: this.defaultHeaders,

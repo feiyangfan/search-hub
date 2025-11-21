@@ -7,6 +7,7 @@ export type TagOption = {
     name: string;
     color: string;
     description?: string;
+    count?: number;
 };
 
 export const DEFAULT_TAG_COLOR = '#6366f1';
@@ -81,10 +82,9 @@ export function Tag({
             ? {
                   ...baseStyle,
                   backgroundColor: hexToRgba(tag.color, 0.35),
-                  boxShadow: `0 0 0 1px ${tag.color}, 0 8px 20px -8px ${hexToRgba(
-                      tag.color,
-                      0.5
-                  )}`,
+                  boxShadow: `0 0 0 1px ${
+                      tag.color
+                  }, 0 8px 20px -8px ${hexToRgba(tag.color, 0.5)}`,
                   color: baseStyle.color,
               }
             : baseStyle;
@@ -130,7 +130,11 @@ export function Tag({
             onClick={onClick}
             onKeyDown={handleKeyDown}
             aria-pressed={interactive ? isActive : undefined}
-            className={`w-fit select-none transition-all ${interactive ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40' : ''} ${isActive ? 'font-semibold' : ''} ${className ?? ''}`}
+            className={`w-fit select-none transition-all ${
+                interactive
+                    ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40'
+                    : ''
+            } ${isActive ? 'font-semibold' : ''} ${className ?? ''}`}
             style={badgeStyle}
             title={tag.description}
         >

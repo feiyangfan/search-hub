@@ -10,6 +10,7 @@ import type {
     ListTagsResponseType,
     GetDocumentListResponseType,
 } from '@search-hub/schemas';
+import { SearchHubClient } from '@search-hub/sdk';
 
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import {
@@ -31,27 +32,15 @@ export default async function DocumentsLayout({
     const queryClient = new QueryClient();
 
     if (apiSessionCookie) {
-        const searchParams = new URLSearchParams();
-        if (DOCUMENTS_PAGE_TAGS_PARAMS.includeCount) {
-            searchParams.set('includeCount', 'true');
-        }
-        if (DOCUMENTS_PAGE_TAGS_PARAMS.sortBy) {
-            searchParams.set('sortBy', DOCUMENTS_PAGE_TAGS_PARAMS.sortBy);
-        }
-        if (DOCUMENTS_PAGE_TAGS_PARAMS.order) {
-            searchParams.set('order', DOCUMENTS_PAGE_TAGS_PARAMS.order);
-        }
-        const url = `${apiBase}/v1/tags${
-            searchParams.size ? `?${searchParams.toString()}` : ''
-        }`;
+        const client = new SearchHubClient({
+            baseUrl: apiBase,
+            headers: { cookie: apiSessionCookie },
+        });
+
         try {
-            const res = await fetch(url, {
-                headers: { cookie: apiSessionCookie },
-            });
-            if (!res.ok) {
-                throw new Error(`Failed to preload tags: ${res.status}`);
-            }
-            const tagsResponse = (await res.json()) as ListTagsResponseType;
+            const tagsResponse = await client.getTags(
+                DOCUMENTS_PAGE_TAGS_PARAMS
+            );
             queryClient.setQueryData(
                 workspaceTagsQueryKey(DOCUMENTS_PAGE_TAGS_PARAMS),
                 tagsResponse
@@ -61,18 +50,9 @@ export default async function DocumentsLayout({
         }
 
         try {
-            const documentsUrl = new URL('/v1/documents', apiBase);
-            documentsUrl.searchParams.set('limit', String(DOCUMENTS_PAGE_SIZE));
-            const documentsRes = await fetch(documentsUrl, {
-                headers: { cookie: apiSessionCookie },
+            const documentsData = await client.listDocuments({
+                limit: DOCUMENTS_PAGE_SIZE,
             });
-            if (!documentsRes.ok) {
-                throw new Error(
-                    `Failed to preload documents: ${documentsRes.status}`
-                );
-            }
-            const documentsData =
-                (await documentsRes.json()) as GetDocumentListResponseType;
             const initialData: InfiniteData<
                 GetDocumentListResponseType['documents'],
                 string | undefined
