@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 
 import { SearchHubClient } from '@search-hub/sdk';
 import { TagOption, DEFAULT_TAG_COLOR } from '@/components/ui/tag';
+import { ClickableTag } from '@/components/dashboard/clickable-tag';
 import {
     DashboardGrid,
     DashboardGridItem,
@@ -257,6 +258,7 @@ export default async function DashboardPage() {
                         </DashboardCard>
                     </DashboardGridItem>
 
+                    {/* Tags List - 1 column, 2 rows */}
                     <DashboardGridItem colSpan={1} rowSpan={2}>
                         <DashboardCard
                             variant="medium"
@@ -265,16 +267,13 @@ export default async function DashboardPage() {
                         >
                             <div className="flex h-full flex-col gap-2 overflow-y-auto pr-1">
                                 {tags.map((tag) => (
-                                    <div
+                                    <ClickableTag
                                         key={tag.id}
-                                        className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium"
-                                        style={{
-                                            backgroundColor: `${tag.color}20`,
-                                            color: tag.color,
-                                        }}
-                                    >
-                                        {tag.name}
-                                    </div>
+                                        tag={tag}
+                                        href={`/documents?tag=${encodeURIComponent(
+                                            tag.id
+                                        )}`}
+                                    />
                                 ))}
                             </div>
                         </DashboardCard>

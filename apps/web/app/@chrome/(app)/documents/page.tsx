@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import {
     DocumentExplorerTagSidebar,
@@ -9,7 +10,10 @@ import {
 import { DocumentExplorerList } from '@/components/document-explorer/document-list';
 import { DocumentExplorerFilters } from '@/components/document-explorer/filters';
 import { DEFAULT_TAG_COLOR } from '@/components/ui/tag';
-import { useInfiniteDocumentsQuery, useWorkspaceTagsQuery } from '@/hooks/use-documents';
+import {
+    useInfiniteDocumentsQuery,
+    useWorkspaceTagsQuery,
+} from '@/hooks/use-documents';
 import { DOCUMENTS_PAGE_TAGS_PARAMS } from '@/queries/tags';
 import type { DocumentListItemType } from '@search-hub/schemas';
 
@@ -24,6 +28,7 @@ type NormalizedMetadata = {
 };
 
 export default function DocumentsPage() {
+    const searchParams = useSearchParams();
     const { data: workspaceTags = [], isLoading: tagsLoading } =
         useWorkspaceTagsQuery(DOCUMENTS_PAGE_TAGS_PARAMS);
     const {
@@ -40,6 +45,17 @@ export default function DocumentsPage() {
     const [sortOption, setSortOption] = useState<'newest' | 'oldest'>('newest');
     const [hasReminderOnly, setHasReminderOnly] = useState(false);
     const [myDocsOnly, setMyDocsOnly] = useState(false);
+
+    // Pre-select tag from URL if present
+    useEffect(() => {
+        const tagParam = searchParams.get('tag');
+        if (tagParam && workspaceTags.length > 0) {
+            const tagExists = workspaceTags.some((tag) => tag.id === tagParam);
+            if (tagExists && !activeTags.includes(tagParam)) {
+                setActiveTags([tagParam]);
+            }
+        }
+    }, [searchParams, workspaceTags]);
 
     const toggleTag = useCallback((tagId: string) => {
         setActiveTags((prev) =>
@@ -96,8 +112,7 @@ export default function DocumentsPage() {
                 (doc.summary ?? '')
                     .toLowerCase()
                     .includes(searchQuery.toLowerCase());
-            const matchesReminder =
-                !hasReminderOnly || doc.hasReminders;
+            const matchesReminder = !hasReminderOnly || doc.hasReminders;
             const matchesOwnership = !myDocsOnly || doc.ownedByMe;
             return (
                 matchesTag &&
