@@ -12,6 +12,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
     title: 'Search Hub',
     description: 'Hybrid search engine for all your needs.',
+    icons: {
+        icon: '/icon.svg',
+    },
 };
 
 type RootLayoutProps = {
