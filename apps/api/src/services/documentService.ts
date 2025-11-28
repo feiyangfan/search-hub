@@ -493,6 +493,9 @@ export function createDocumentService(
 
         const updated = await db.document.updateTitle(documentId, title);
 
+        // Note: Reindex is handled by frontend via separate endpoint
+        // to keep consistency with content update flow
+
         logger.info(
             {
                 documentId,
@@ -573,6 +576,9 @@ export function createDocumentService(
         // Extract and sync reminders from document content
         const reminders = extractRemindCommands(content);
         await syncDocumentReminders(documentId, context, reminders);
+
+        // Note: Reindex is handled by frontend via separate debounced endpoint
+        // to avoid redundant embedding generation on every keystroke
 
         logger.info(
             {

@@ -7335,18 +7335,6 @@
         "parameters": [
           {
             "in": "query",
-            "name": "tenantId",
-            "schema": {
-              "description": "Tenant ID to scope the search",
-              "example": "tenant123",
-              "type": "string",
-              "minLength": 1
-            },
-            "required": true,
-            "description": "Tenant ID to scope the search"
-          },
-          {
-            "in": "query",
             "name": "q",
             "schema": {
               "example": "typescript",

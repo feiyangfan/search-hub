@@ -172,6 +172,90 @@ export const documentCommandRepository = {
         }
     },
 
+    getByIdWithDocument: async (id: string) => {
+        try {
+            return await prisma.documentCommand.findUnique({
+                where: { id },
+                include: {
+                    document: {
+                        select: {
+                            id: true,
+                            title: true,
+                        },
+                    },
+                },
+            });
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                throw AppError.internal(
+                    'DB_OPERATION_FAILED',
+                    'Failed to fetch document command with document',
+                    {
+                        context: {
+                            origin: 'database',
+                            domain: 'documentCommands',
+                            resource: 'DocumentCommand',
+                            resourceId: id,
+                            operation: 'getByIdWithDocument',
+                            metadata: {
+                                prismaCode: error.code,
+                                message: error.message,
+                            },
+                        },
+                    }
+                );
+            }
+            throw error;
+        }
+    },
+
+    updateBody: async (id: string, body: Prisma.InputJsonValue) => {
+        try {
+            return await prisma.documentCommand.update({
+                where: { id },
+                data: { body },
+            });
+        } catch (error) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                switch (error.code) {
+                    case 'P2025':
+                        throw AppError.notFound(
+                            'COMMAND_NOT_FOUND',
+                            'Document command not found',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documentCommands',
+                                    resource: 'DocumentCommand',
+                                    resourceId: id,
+                                    operation: 'updateBody',
+                                },
+                            }
+                        );
+                    default:
+                        throw AppError.internal(
+                            'DB_OPERATION_FAILED',
+                            'Failed to update document command',
+                            {
+                                context: {
+                                    origin: 'database',
+                                    domain: 'documentCommands',
+                                    resource: 'DocumentCommand',
+                                    resourceId: id,
+                                    operation: 'updateBody',
+                                    metadata: {
+                                        prismaCode: error.code,
+                                        message: error.message,
+                                    },
+                                },
+                            }
+                        );
+                }
+            }
+            throw error;
+        }
+    },
+
     getUserReminders: async (userId: string) => {
         try {
             return await prisma.documentCommand.findMany({

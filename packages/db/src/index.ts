@@ -6,11 +6,19 @@ import { jobRepository } from './repositories/job.repository.js';
 import { tenantMembershipRepository } from './repositories/tenantMembership.repository.js';
 import { documentIndexStateRepository } from './repositories/documentIndexState.repository.js';
 import { documentCommandRepository } from './repositories/documentCommand.repository.js';
+import { searchRepository } from './repositories/search.repository.js';
 
 // Re-exports
 export { prisma } from './client.js';
 export type { PrismaClient } from './client.js';
 export type { UserTenant } from './types.js';
+export type {
+    SearchCandidate,
+    DocumentTitleInfo,
+    LexicalSearchResult,
+    LexicalSearchResultItem,
+    DocumentDetailInfo,
+} from './repositories/search.repository.js';
 
 export const db = {
     user: userRepository,
@@ -21,4 +29,5 @@ export const db = {
     tenantMembership: tenantMembershipRepository,
     documentIndexState: documentIndexStateRepository,
     documentCommand: documentCommandRepository,
+    search: searchRepository,
 };

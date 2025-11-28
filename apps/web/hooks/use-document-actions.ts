@@ -158,9 +158,22 @@ export function useDocumentActions() {
 
             return { previousDetail, previousLists: listQueries };
         },
-        onSuccess: (_data, { documentId }) => {
+        onSuccess: async (_data, { documentId }) => {
             invalidateDocument(documentId, [['documents']]);
             toast.success('Document renamed');
+
+            // Queue reindex after title change to update search embeddings
+            try {
+                await fetch(`/api/documents/${documentId}/reindex`, {
+                    method: 'POST',
+                    credentials: 'include',
+                });
+            } catch (error) {
+                console.error(
+                    'Failed to queue reindex after title change:',
+                    error
+                );
+            }
         },
         onError: (error, { documentId }, context) => {
             if (context?.previousDetail) {
@@ -208,9 +221,12 @@ export function useDocumentActions() {
                                     },
                                 ],
                                 queryFn: () =>
-                                    jsonFetch('/api/documents?limit=1&offset=0', {
-                                        method: 'GET',
-                                    }),
+                                    jsonFetch(
+                                        '/api/documents?limit=1&offset=0',
+                                        {
+                                            method: 'GET',
+                                        }
+                                    ),
                             }
                         );
                     const nextDoc = data?.documents?.items?.[0];

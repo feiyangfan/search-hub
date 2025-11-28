@@ -801,4 +801,36 @@ export const documentRepository = {
             },
         });
     },
+    /**
+     * Find documents that need reindexing
+     * A document is stale if:
+     * 1. Never indexed (lastIndexedAt is NULL)
+     * 2. Updated after last index (updatedAt > lastIndexedAt)
+     */
+    findStaleDocuments: async (limit = 100) => {
+        const staleDocuments = await prisma.$queryRaw<
+            {
+                id: string;
+                tenantId: string;
+                title: string;
+                updatedAt: Date;
+                lastIndexedAt: Date | null;
+            }[]
+        >`
+            SELECT 
+                d.id,
+                d."tenantId",
+                d.title,
+                d."updatedAt",
+                dis."lastIndexedAt"
+            FROM "Document" d
+            LEFT JOIN "DocumentIndexState" dis ON d.id = dis."documentId"
+            WHERE dis."lastIndexedAt" IS NULL
+               OR d."updatedAt" > dis."lastIndexedAt"
+            ORDER BY d."updatedAt" DESC
+            LIMIT ${limit}
+        `;
+
+        return staleDocuments;
+    },
 };

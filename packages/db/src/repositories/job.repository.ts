@@ -34,4 +34,12 @@ export const jobRepository = {
         });
         return res.count;
     },
+
+    /** Find the most recent job for a document */
+    findByDocumentId: async (documentId: string) => {
+        return prisma.indexJob.findFirst({
+            where: { documentId },
+            orderBy: { createdAt: 'desc' },
+        });
+    },
 };
