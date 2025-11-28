@@ -2,10 +2,6 @@ import { z } from 'zod';
 import { Id, Pagination } from './common.js';
 
 export const SearchQuery = z.object({
-    tenantId: Id.meta({
-        description: 'Tenant ID to scope the search',
-        example: 'tenant123',
-    }), // for scoping
     q: z.string().min(1).meta({ example: 'typescript' }), // the query itself
     limit: z.coerce.number().int().min(1).max(50).default(10).meta({
         description: 'Maximum number of results to return',
@@ -16,6 +12,26 @@ export const SearchQuery = z.object({
         example: 0,
     }), // simple pagination
 });
+
+export const SemanticQuery = z.object({
+    q: z.string().min(1),
+    k: z.coerce.number().int().min(1).max(50).default(5),
+    recall_k: z.coerce.number().int().min(1).max(50).default(5),
+});
+
+// Export types for use in services/routes
+export type SearchQuery = z.infer<typeof SearchQuery>;
+export type SemanticQuery = z.infer<typeof SemanticQuery>;
+export type HybridSearchQuery = z.infer<typeof HybridSearchQuery>;
+export type SearchResponse = z.infer<typeof SearchResponse>;
+export type SearchResultItem = z.infer<typeof SearchResultItem>;
+
+// Internal types with tenantId (added by routes layer, not from frontend)
+export type SearchQueryWithTenant = SearchQuery & { tenantId: string };
+export type SemanticQueryWithTenant = SemanticQuery & { tenantId: string };
+export type HybridSearchQueryWithTenant = HybridSearchQuery & {
+    tenantId: string;
+};
 
 export const HybridSearchQuery = SearchQuery.extend({
     semanticK: z.coerce.number().int().min(1).max(50).optional().meta({

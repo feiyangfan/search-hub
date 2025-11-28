@@ -3921,8 +3921,6 @@ export interface paths {
         get: {
             parameters: {
                 query: {
-                    /** @description Tenant ID to scope the search */
-                    tenantId: string;
                     q: string;
                     /** @description Maximum number of results to return */
                     limit?: number;

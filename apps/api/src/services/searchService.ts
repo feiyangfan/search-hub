@@ -1,39 +1,25 @@
 import { createVoyageHelpers } from '@search-hub/ai';
 import { loadAiEnv } from '@search-hub/config-env';
 import { env } from '../config/env.js';
-import { prisma as defaultPrisma } from '@search-hub/db';
+import { db, type SearchCandidate } from '@search-hub/db';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
-import type { z } from 'zod';
-import {
-    HybridSearchQuery,
-    SearchQuery,
+import type {
+    SearchQueryWithTenant,
+    SemanticQueryWithTenant,
+    HybridSearchQueryWithTenant,
     SearchResponse,
-    SemanticQuery,
+    SearchResultItem,
 } from '@search-hub/schemas';
 import { logger } from '@search-hub/logger';
 import { metrics } from '@search-hub/observability';
 
-interface Candidate {
-    documentId: string;
-    idx: number;
-    content: string;
-    distance: number;
-    similarity: number;
-}
-
-export interface SemanticSearchResultItem extends Candidate {
+export interface SemanticSearchResultItem extends SearchCandidate {
     rerankScore: number;
+    documentTitle?: string;
 }
 
 export interface SemanticSearchResult {
     items: SemanticSearchResultItem[];
-}
-
-interface LexicalResultRow {
-    id: string;
-    title: string;
-    snippet: string | null;
-    score: number;
 }
 
 interface EnvOverrides {
@@ -44,22 +30,17 @@ interface EnvOverrides {
 }
 
 interface SearchServiceDependencies {
-    prisma?: typeof defaultPrisma;
     voyage?: ReturnType<typeof createVoyageHelpers>;
     breaker?: CircuitBreaker;
     env?: EnvOverrides;
 }
 
 export interface SearchService {
-    lexicalSearch(
-        query: z.infer<typeof SearchQuery>
-    ): Promise<z.infer<typeof SearchResponse>>;
+    lexicalSearch(query: SearchQueryWithTenant): Promise<SearchResponse>;
     semanticSearch(
-        query: z.infer<typeof SemanticQuery>
+        query: SemanticQueryWithTenant
     ): Promise<SemanticSearchResult>;
-    hybridSearch(
-        query: z.infer<typeof HybridSearchQuery>
-    ): Promise<z.infer<typeof SearchResponse>>;
+    hybridSearch(query: HybridSearchQueryWithTenant): Promise<SearchResponse>;
     isSemanticSearchAvailable(): boolean;
 }
 
@@ -84,7 +65,6 @@ export function createSearchService(
         overrides.breakerHalfOpenTimeoutMs ?? API_BREAKER_HALF_OPEN_TIMEOUT_MS;
     const voyageApiKey = overrides.voyageApiKey ?? VOYAGE_API_KEY;
 
-    const prisma = deps.prisma ?? defaultPrisma;
     const voyage = deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });
     const breaker =
         deps.breaker ??
@@ -96,33 +76,18 @@ export function createSearchService(
         });
 
     async function lexicalSearch(
-        query: z.infer<typeof SearchQuery>
-    ): Promise<z.infer<typeof SearchResponse>> {
-        const rows = await prisma.$queryRaw<
-            (LexicalResultRow & { total: number })[]
-        >`
-            SELECT d."id",
-                d."title",
-                ts_headline(
-                    'english',
-                    COALESCE(d."content", ''),
-                    websearch_to_tsquery('english', ${query.q}),
-                    'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=30,MinWords=5'
-                ) AS snippet,
-                ts_rank(d."searchVector", websearch_to_tsquery('english', ${query.q})) AS score,
-                COUNT(*) OVER()::int AS total
-            FROM "Document" d
-            WHERE d."tenantId" = ${query.tenantId}
-            AND d."searchVector" @@ websearch_to_tsquery('english', ${query.q})
-            ORDER BY score DESC, d."createdAt" DESC
-            LIMIT ${query.limit}
-            OFFSET ${query.offset}
-        `;
-        const total = rows[0]?.total ?? 0;
+        query: SearchQueryWithTenant
+    ): Promise<SearchResponse> {
+        const result = await db.search.lexicalSearchDocuments(
+            query.tenantId,
+            query.q,
+            query.limit,
+            query.offset
+        );
 
         return {
-            total,
-            items: rows.map((row) => ({
+            total: result.total,
+            items: result.items.map((row) => ({
                 id: row.id,
                 title: row.title,
                 snippet: row.snippet ?? undefined,
@@ -134,7 +99,7 @@ export function createSearchService(
     }
 
     async function semanticSearch(
-        query: z.infer<typeof SemanticQuery>
+        query: SemanticQueryWithTenant
     ): Promise<SemanticSearchResult> {
         const startEmbedding = Date.now();
         const { tenantId, q, k, recall_k } = query;
@@ -143,7 +108,7 @@ export function createSearchService(
 
         try {
             // embed the query to get its vector representation
-            const qVec = await voyage.embed([String(q)], {
+            const qVecs = await voyage.embed([String(q)], {
                 input_type: 'query',
             });
             metrics.aiRequestDuration.observe(
@@ -151,23 +116,18 @@ export function createSearchService(
                 (Date.now() - startEmbedding) / 1000
             );
 
+            const qVec = qVecs[0];
+            if (!qVec) {
+                throw new Error('Failed to generate embedding for query');
+            }
+
             // query the nearest neighbours using the embedding vector with cosine distance
-            const candidates = await prisma.$queryRawUnsafe<Candidate[]>(
-                `
-                SELECT "documentId",
-                       "idx",
-                       "content",
-                       (embedding <=> $1::vector) AS distance,
-                       1 - (embedding <=> $1::vector) AS similarity
-                FROM "DocumentChunk"
-                WHERE "tenantId" = $2
-                ORDER BY distance ASC
-                LIMIT $3
-                `,
-                `[${qVec.join(',')}]`,
-                tenantId,
-                effectiveRecall
-            );
+            const candidates: SearchCandidate[] =
+                await db.search.findNearestChunks(
+                    tenantId,
+                    qVec,
+                    effectiveRecall
+                );
 
             if (candidates.length === 0) {
                 breaker.recordSuccess();
@@ -204,7 +164,42 @@ export function createSearchService(
                     };
                 });
 
-            return { items };
+            // Deduplicate by documentId, keeping highest scoring chunk per document
+            const docScores = new Map<
+                string,
+                { item: SemanticSearchResultItem; score: number }
+            >();
+            for (const item of items) {
+                const existing = docScores.get(item.documentId);
+                if (!existing || item.rerankScore > existing.score) {
+                    docScores.set(item.documentId, {
+                        item,
+                        score: item.rerankScore,
+                    });
+                }
+            }
+
+            // Fetch document titles from database
+            const documentIds = Array.from(docScores.keys());
+            const documents = (await db.search.getDocumentTitlesByIds(
+                documentIds,
+                tenantId
+            )) as { id: string; title: string }[];
+
+            const docTitleMap = new Map(documents.map((d) => [d.id, d.title]));
+
+            // Add document titles to items
+            const deduplicatedItems: SemanticSearchResultItem[] = Array.from(
+                docScores.values()
+            )
+                .sort((a, b) => b.score - a.score)
+                .map(({ item }) => ({
+                    ...item,
+                    documentTitle:
+                        docTitleMap.get(item.documentId) || 'Untitled',
+                }));
+
+            return { items: deduplicatedItems };
         } catch (error) {
             breaker.recordFailure();
             throw error;
@@ -212,8 +207,8 @@ export function createSearchService(
     }
 
     async function hybridSearch(
-        query: z.infer<typeof HybridSearchQuery>
-    ): Promise<z.infer<typeof SearchResponse>> {
+        query: HybridSearchQueryWithTenant
+    ): Promise<SearchResponse> {
         const { tenantId, q } = query;
 
         // pageination
@@ -232,7 +227,7 @@ export function createSearchService(
         const lexicalOffset = expandLexicalWindow ? 0 : query.offset;
 
         // lexical search first
-        const lexicalInput: z.infer<typeof SearchQuery> = {
+        const lexicalInput: SearchQueryWithTenant = {
             tenantId,
             q,
             limit: lexicalLimit,
@@ -248,7 +243,7 @@ export function createSearchService(
             : lexicalItems;
 
         // if not semantic search, return lexical only
-        const lexicalOnlyResponse: z.infer<typeof SearchResponse> = {
+        const lexicalOnlyResponse: SearchResponse = {
             total: lexicalResponse.total,
             items: lexicalOnlyItems,
             page,
@@ -326,7 +321,7 @@ export function createSearchService(
         const docMeta = new Map<
             string,
             {
-                lexical?: z.infer<typeof SearchResponse>['items'][number];
+                lexical?: SearchResultItem;
                 semanticSnippet?: string;
                 semanticScore?: number;
             }
@@ -387,17 +382,10 @@ export function createSearchService(
 
         const semanticDocDetails =
             semanticOnlyDocIds.length > 0
-                ? await prisma.document.findMany({
-                      where: {
-                          tenantId,
-                          id: { in: semanticOnlyDocIds },
-                      },
-                      select: {
-                          id: true,
-                          title: true,
-                          content: true,
-                      },
-                  })
+                ? await db.search.getDocumentDetailsByIds(
+                      semanticOnlyDocIds,
+                      tenantId
+                  )
                 : [];
 
         const semanticDocMap = new Map(
@@ -441,7 +429,7 @@ export function createSearchService(
                 snippet,
                 score: Number(score.toFixed(6)),
                 url: lexicalItem?.url,
-            } satisfies z.infer<typeof SearchResponse>['items'][number];
+            } satisfies SearchResultItem;
         });
 
         if (fusedItems.length === 0) {

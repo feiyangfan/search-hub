@@ -6,7 +6,6 @@ export * from './tenant.js';
 export * from './jobs.js';
 export * from './chunk.js';
 export * from './hash.js';
-export * from './semanticQuery.js';
 export * from './auth.js';
 export * from './user.js';
 export * from './tenantMembership.js';
