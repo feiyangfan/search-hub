@@ -27,4 +27,8 @@ echo "Applying manual migrations..."
 echo "- Applying pgvector indexes..."
 psql "$PSQL_URL" -f "$MANUAL_MIGRATIONS_DIR/01_pgvector_indexes.sql"
 
+# Apply searchVector trigger
+echo "- Applying searchVector trigger..."
+psql "$PSQL_URL" -f "$MANUAL_MIGRATIONS_DIR/02_searchvector_trigger.sql"
+
 echo "✅ Manual migrations applied successfully"
