@@ -827,10 +827,12 @@ export default function DocumentPage() {
     return (
         <>
             <div className="flex flex-1 flex-col overflow-y-auto bg-card">
-                <div
-                    ref={editorRootRef}
-                    className="crepe theme-frame min-h-[calc(100vh-8rem)] w-full bg-card pb-[10vh]"
-                />
+                <div className="mx-auto w-full px-4 sm:px-8 lg:max-w-5xl">
+                    <div
+                        ref={editorRootRef}
+                        className="crepe theme-frame min-h-[calc(100vh-8rem)] bg-card pb-[10vh]"
+                    />
+                </div>
             </div>
 
             <TagEditingDialog
