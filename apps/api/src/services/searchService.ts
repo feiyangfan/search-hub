@@ -44,6 +44,53 @@ export interface SearchService {
     isSemanticSearchAvailable(): boolean;
 }
 
+/**
+ * Stitch adjacent chunks together, removing overlapping text
+ * Chunks are created with 100 char overlap, so we need to remove duplicates at boundaries
+ */
+function stitchChunks(chunks: { idx: number; content: string }[]): string {
+    if (chunks.length === 0) return '';
+    
+    const firstChunk = chunks[0];
+    if (chunks.length === 1) {
+        return firstChunk?.content ?? '';
+    }
+
+    let result = firstChunk?.content ?? '';
+
+    for (let i = 1; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        if (!chunk) continue;
+        
+        const currentChunk = chunk.content;
+        
+        // Try to find overlap at the boundary (up to 100 chars)
+        let overlapLength = 0;
+        const maxOverlap = Math.min(100, result.length, currentChunk.length);
+        
+        // Search for the longest overlap
+        for (let len = maxOverlap; len > 20; len--) {
+            const endOfPrevious = result.slice(-len);
+            const startOfCurrent = currentChunk.slice(0, len);
+            
+            if (endOfPrevious === startOfCurrent) {
+                overlapLength = len;
+                break;
+            }
+        }
+
+        // If we found overlap, skip it. Otherwise add a space separator
+        if (overlapLength > 0) {
+            result += currentChunk.slice(overlapLength);
+        } else {
+            // No overlap found, add with space separator
+            result += ' ' + currentChunk;
+        }
+    }
+
+    return result;
+}
+
 export function createSearchService(
     deps: SearchServiceDependencies = {}
 ): SearchService {
@@ -116,6 +163,16 @@ export function createSearchService(
                 (Date.now() - startEmbedding) / 1000
             );
 
+            // Track token usage (rough estimate: ~1 token per 4 chars for English)
+            const estimatedTokens = Math.ceil(String(q).length / 4);
+            if (metrics.aiTokensUsed) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+                metrics.aiTokensUsed.inc(
+                    { provider: 'voyage', model: 'voyage-3.5-lite', operation: 'embed' },
+                    estimatedTokens
+                );
+            }
+
             const qVec = qVecs[0];
             if (!qVec) {
                 throw new Error('Failed to generate embedding for query');
@@ -145,6 +202,21 @@ export function createSearchService(
                 (Date.now() - startRerank) / 1000
             );
 
+            // Track rerank token usage: (query tokens × docs) + sum of doc tokens
+            const queryTokens = Math.ceil(String(q).length / 4);
+            const docTokens = candidates.reduce(
+                (sum, c) => sum + Math.ceil(c.content.length / 4),
+                0
+            );
+            const rerankTokens = queryTokens * candidates.length + docTokens;
+            if (metrics.aiTokensUsed) {
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+                metrics.aiTokensUsed.inc(
+                    { provider: 'voyage', model: 'rerank-2.5-lite', operation: 'rerank' },
+                    rerankTokens
+                );
+            }
+
             breaker.recordSuccess();
 
             const items: SemanticSearchResultItem[] = rerank
@@ -164,12 +236,56 @@ export function createSearchService(
                     };
                 });
 
+            // Fetch adjacent chunks for contextual retrieval
+            // For each top result, get surrounding chunks to provide fuller context
+            const contextWindow = 1; // Fetch 1 chunk before and after
+            const itemsWithContext = await Promise.all(
+                items.map(async (item) => {
+                    try {
+                        const adjacentChunks =
+                            await db.search.getAdjacentChunks(
+                                item.documentId,
+                                tenantId,
+                                item.idx,
+                                contextWindow
+                            );
+
+                        // Edge case: If no adjacent chunks found (shouldn't happen), use original
+                        if (adjacentChunks.length === 0) {
+                            return item;
+                        }
+
+                        // Stitch chunks together, removing overlap
+                        const stitchedContent = stitchChunks(adjacentChunks);
+
+                        return {
+                            ...item,
+                            content: stitchedContent,
+                        };
+                    } catch (error) {
+                        // If fetching context fails, fall back to original chunk
+                        logger.warn(
+                            {
+                                error:
+                                    error instanceof Error
+                                        ? error.message
+                                        : String(error),
+                                documentId: item.documentId,
+                                idx: item.idx,
+                            },
+                            'Failed to fetch adjacent chunks, using original'
+                        );
+                        return item;
+                    }
+                })
+            );
+
             // Deduplicate by documentId, keeping highest scoring chunk per document
             const docScores = new Map<
                 string,
                 { item: SemanticSearchResultItem; score: number }
             >();
-            for (const item of items) {
+            for (const item of itemsWithContext) {
                 const existing = docScores.get(item.documentId);
                 if (!existing || item.rerankScore > existing.score) {
                     docScores.set(item.documentId, {
@@ -344,10 +460,17 @@ export function createSearchService(
             (a, b) => b.rerankScore - a.rerankScore
         );
 
+        // Filter out semantic results with very low rerank scores (< 0.3)
+        // This prevents irrelevant documents from polluting hybrid search results
+        const SEMANTIC_THRESHOLD = 0.3;
+        const relevantSemanticItems = semanticItems.filter(
+            (item) => item.rerankScore >= SEMANTIC_THRESHOLD
+        );
+
         const seenSemanticDocs = new Set<string>();
 
         // loop through semantic results and update scores and metadata
-        semanticItems.forEach((item, index) => {
+        relevantSemanticItems.forEach((item, index) => {
             // if this chunk belongs to a doc we've already seen, skip to avoid over-crediting
             if (seenSemanticDocs.has(item.documentId)) {
                 return;
