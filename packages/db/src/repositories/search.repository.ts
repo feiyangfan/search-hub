@@ -6,6 +6,7 @@ export interface SearchCandidate {
     content: string;
     distance: number;
     similarity: number;
+    totalChunks?: number; // Total chunks in the document (for context window bounds)
 }
 
 export interface DocumentTitleInfo {
@@ -75,7 +76,7 @@ export interface LexicalSearchResult {
 }
 
 /**
- * Perform full-text search on documents
+ * Perform full-text search on documents with prefix matching support
  */
 async function lexicalSearchDocuments(
     tenantId: string,
@@ -83,6 +84,14 @@ async function lexicalSearchDocuments(
     limit: number,
     offset: number
 ): Promise<LexicalSearchResult> {
+    // Convert search query to prefix match format (e.g., "work" -> "work:*")
+    // Split by spaces and add :* to each term for partial matching
+    const prefixQuery = searchQuery
+        .trim()
+        .split(/\s+/)
+        .map((term) => `${term}:*`)
+        .join(' & ');
+
     const rows = await prisma.$queryRaw<
         (LexicalSearchResultItem & { total: number })[]
     >`
@@ -92,19 +101,19 @@ async function lexicalSearchDocuments(
                 NULLIF(
                     ts_headline(
                         'english',
-                        COALESCE(d."content", ''),
-                        websearch_to_tsquery('english', ${searchQuery}),
+                        COALESCE(d."title" || ' ' || d."content", d."title", d."content", ''),
+                        to_tsquery('english', ${prefixQuery}),
                         'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=30,MinWords=1'
                     ),
                     ''
                 ),
-                LEFT(d."content", 280)
+                LEFT(COALESCE(d."content", d."title"), 280)
             ) AS snippet,
-            ts_rank(d."searchVector", websearch_to_tsquery('english', ${searchQuery})) AS score,
+            ts_rank_cd(d."searchVector", to_tsquery('english', ${prefixQuery}), 32) AS score,
             COUNT(*) OVER()::int AS total
         FROM "Document" d
         WHERE d."tenantId" = ${tenantId}
-        AND d."searchVector" @@ websearch_to_tsquery('english', ${searchQuery})
+        AND d."searchVector" @@ to_tsquery('english', ${prefixQuery})
         ORDER BY score DESC, d."createdAt" DESC
         LIMIT ${limit}
         OFFSET ${offset}
@@ -149,9 +158,49 @@ async function getDocumentDetailsByIds(
     return documents;
 }
 
+export interface AdjacentChunk {
+    idx: number;
+    content: string;
+}
+
+/**
+ * Fetch adjacent chunks for contextual retrieval
+ * Returns chunks in order (previous, current, next) if they exist
+ */
+async function getAdjacentChunks(
+    documentId: string,
+    tenantId: string,
+    centerIdx: number,
+    contextWindow = 1 // How many chunks before/after to fetch
+): Promise<AdjacentChunk[]> {
+    const minIdx = Math.max(0, centerIdx - contextWindow);
+    const maxIdx = centerIdx + contextWindow;
+
+    const chunks = await prisma.documentChunk.findMany({
+        where: {
+            documentId,
+            tenantId,
+            idx: {
+                gte: minIdx,
+                lte: maxIdx,
+            },
+        },
+        select: {
+            idx: true,
+            content: true,
+        },
+        orderBy: {
+            idx: 'asc',
+        },
+    });
+
+    return chunks;
+}
+
 export const searchRepository = {
     findNearestChunks,
     getDocumentTitlesByIds,
     lexicalSearchDocuments,
     getDocumentDetailsByIds,
+    getAdjacentChunks,
 };

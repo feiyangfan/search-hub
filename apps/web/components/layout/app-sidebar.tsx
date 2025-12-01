@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Home, Search, FilePlus, File, Loader2 } from 'lucide-react';
+import { Home, Search, FilePlus, Files, Loader2 } from 'lucide-react';
 
 import { NavFavorites } from '@/components/navigation/nav-favorites';
 import { NavMain } from '@/components/navigation/nav-main';
@@ -17,6 +17,8 @@ import {
 import { NavUser } from '../navigation/nav-user';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useDocumentActions } from '@/hooks/use-document-actions';
+import { SearchModal } from '@/components/search/search-modal';
+import { useSearch } from '@/components/search/search-provider';
 
 import type { Session } from 'next-auth';
 
@@ -45,6 +47,8 @@ export function AppSidebar({
         image: user?.image,
     };
     const { createDocument, createDocumentPending } = useDocumentActions();
+    const { isOpen, setIsOpen, openSearch } = useSearch();
+
     const handleCreateDocument = React.useCallback(async () => {
         try {
             await createDocument();
@@ -52,6 +56,7 @@ export function AppSidebar({
             // Error toast handled within useDocumentActions
         }
     }, [createDocument]);
+
     const navItems = React.useMemo(
         () => [
             {
@@ -61,23 +66,25 @@ export function AppSidebar({
             },
             {
                 title: 'Search',
-                url: '#',
                 icon: Search,
+                action: openSearch,
             },
             {
                 title: 'New document',
                 icon: createDocumentPending ? Loader2 : FilePlus,
-                iconClassName: createDocumentPending ? 'animate-spin' : undefined,
+                iconClassName: createDocumentPending
+                    ? 'animate-spin'
+                    : undefined,
                 action: handleCreateDocument,
                 disabled: createDocumentPending,
             },
             {
                 title: 'Document Explorer',
                 url: '/documents',
-                icon: File,
+                icon: Files,
             },
         ],
-        [createDocumentPending, handleCreateDocument]
+        [createDocumentPending, handleCreateDocument, openSearch]
     );
     const workspaceItems = workspaces || [];
     const activeWorkspace =
@@ -86,30 +93,33 @@ export function AppSidebar({
     const activeWorkspaceRole = activeWorkspace?.role;
 
     return (
-        <Sidebar collapsible="icon" className="border-r-0" {...props}>
-            <SidebarHeader>
-                <div className="flex items-center justify-between">
-                    <WorkspaceSwitcher
-                        workspaces={workspaceItems}
-                        activeTenantId={activeTenantId}
+        <>
+            <SearchModal open={isOpen} onOpenChange={setIsOpen} />
+            <Sidebar collapsible="icon" className="border-r-0" {...props}>
+                <SidebarHeader>
+                    <div className="flex items-center justify-between">
+                        <WorkspaceSwitcher
+                            workspaces={workspaceItems}
+                            activeTenantId={activeTenantId}
+                        />
+
+                        <SidebarTrigger size="icon" className="shrink-0" />
+                    </div>
+
+                    <NavMain items={navItems} />
+                </SidebarHeader>
+                <SidebarContent>
+                    <NavFavorites activeTenantId={activeTenantId} />
+                    <NavDocuments activeTenantId={activeTenantId} />
+                </SidebarContent>
+                <SidebarFooter>
+                    <NavUser
+                        user={navUser}
+                        activeWorkspaceRole={activeWorkspaceRole}
                     />
-
-                    <SidebarTrigger size="icon" className="shrink-0" />
-                </div>
-
-                <NavMain items={navItems} />
-            </SidebarHeader>
-            <SidebarContent>
-                <NavFavorites activeTenantId={activeTenantId} />
-                <NavDocuments activeTenantId={activeTenantId} />
-            </SidebarContent>
-            <SidebarFooter>
-                <NavUser
-                    user={navUser}
-                    activeWorkspaceRole={activeWorkspaceRole}
-                />
-            </SidebarFooter>
-            <SidebarRail />
-        </Sidebar>
+                </SidebarFooter>
+                <SidebarRail />
+            </Sidebar>
+        </>
     );
 }
