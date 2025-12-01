@@ -11,6 +11,7 @@ declare module 'next-auth' {
     interface Session {
         apiSessionCookie?: string;
         activeTenantId?: string;
+        error?: 'BackendSessionExpired' | string;
         user: {
             name?: string | null;
             email?: string | null;

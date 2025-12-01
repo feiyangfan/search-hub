@@ -144,7 +144,7 @@ export const authOptions: NextAuthOptions = {
                 result.user.memberships?.[0]?.tenantId;
             return true;
         },
-        async session({ session, token }) {
+        async session({ session, token, trigger }) {
             const apiSessionCookie = token.apiSessionCookie;
 
             if (session.user && apiSessionCookie) {
@@ -178,11 +178,32 @@ export const authOptions: NextAuthOptions = {
 
                     session.activeTenantId = resolvedActive;
                     token.activeTenantId = resolvedActive;
-                } catch {
-                    session.user.memberships = token.memberships ?? [];
-                    if (!session.activeTenantId) {
-                        session.activeTenantId =
-                            token.activeTenantId ?? undefined;
+
+                    // Clear any previous error flag
+                    session.error = undefined;
+                } catch (error) {
+                    // If API session is invalid (401), mark session as requiring re-auth
+                    // This happens when backend restarts and Redis sessions are cleared
+                    if (
+                        error &&
+                        typeof error === 'object' &&
+                        'status' in error &&
+                        error.status === 401
+                    ) {
+                        console.log(
+                            'Backend session expired (401), user needs to re-authenticate'
+                        );
+                        // Mark session with error so frontend can detect and force sign-in
+                        session.error = 'BackendSessionExpired';
+                        // Clear the API session cookie from the token for next refresh
+                        token.apiSessionCookie = undefined;
+                    } else {
+                        // For other errors (network issues, etc.), fall back to cached data
+                        session.user.memberships = token.memberships ?? [];
+                        if (!session.activeTenantId) {
+                            session.activeTenantId =
+                                token.activeTenantId ?? undefined;
+                        }
                     }
                 }
             } else if (session.user) {

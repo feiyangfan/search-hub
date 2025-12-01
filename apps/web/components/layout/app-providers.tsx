@@ -10,6 +10,8 @@ import {
     type DehydratedState,
 } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { SessionGuard } from '../auth/session-guard';
+import { SearchProvider } from '../search/search-provider';
 
 type AppProvidersProps = PropsWithChildren<{
     session: Session | null;
@@ -35,13 +37,16 @@ export function AppProviders({
 
     return (
         <SessionProvider session={session}>
+            <SessionGuard />
             <QueryClientProvider client={queryClient}>
-                <HydrationBoundary state={dehydratedState}>
-                    {children}
-                </HydrationBoundary>
-                {process.env.NODE_ENV === 'development' ? (
-                    <ReactQueryDevtools initialIsOpen={false} />
-                ) : null}
+                <SearchProvider>
+                    <HydrationBoundary state={dehydratedState}>
+                        {children}
+                    </HydrationBoundary>
+                    {process.env.NODE_ENV === 'development' ? (
+                        <ReactQueryDevtools initialIsOpen={false} />
+                    ) : null}
+                </SearchProvider>
             </QueryClientProvider>
         </SessionProvider>
     );
