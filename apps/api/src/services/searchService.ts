@@ -50,7 +50,7 @@ export interface SearchService {
  */
 function stitchChunks(chunks: { idx: number; content: string }[]): string {
     if (chunks.length === 0) return '';
-    
+
     const firstChunk = chunks[0];
     if (chunks.length === 1) {
         return firstChunk?.content ?? '';
@@ -61,18 +61,18 @@ function stitchChunks(chunks: { idx: number; content: string }[]): string {
     for (let i = 1; i < chunks.length; i++) {
         const chunk = chunks[i];
         if (!chunk) continue;
-        
+
         const currentChunk = chunk.content;
-        
+
         // Try to find overlap at the boundary (up to 100 chars)
         let overlapLength = 0;
         const maxOverlap = Math.min(100, result.length, currentChunk.length);
-        
+
         // Search for the longest overlap
         for (let len = maxOverlap; len > 20; len--) {
             const endOfPrevious = result.slice(-len);
             const startOfCurrent = currentChunk.slice(0, len);
-            
+
             if (endOfPrevious === startOfCurrent) {
                 overlapLength = len;
                 break;
@@ -168,7 +168,11 @@ export function createSearchService(
             if (metrics.aiTokensUsed) {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
                 metrics.aiTokensUsed.inc(
-                    { provider: 'voyage', model: 'voyage-3.5-lite', operation: 'embed' },
+                    {
+                        provider: 'voyage',
+                        model: 'voyage-3.5-lite',
+                        operation: 'embed',
+                    },
                     estimatedTokens
                 );
             }
@@ -212,7 +216,11 @@ export function createSearchService(
             if (metrics.aiTokensUsed) {
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
                 metrics.aiTokensUsed.inc(
-                    { provider: 'voyage', model: 'rerank-2.5-lite', operation: 'rerank' },
+                    {
+                        provider: 'voyage',
+                        model: 'rerank-2.5-lite',
+                        operation: 'rerank',
+                    },
                     rerankTokens
                 );
             }
