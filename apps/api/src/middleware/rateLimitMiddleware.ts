@@ -1,5 +1,5 @@
 import { env } from '../config/env.js';
-import { logger } from '@search-hub/logger';
+// import { logger } from '@search-hub/logger';
 import type { RequestHandler } from 'express';
 import { Redis } from 'ioredis';
 
@@ -56,17 +56,17 @@ export function createRateLimiter(): RequestHandler {
                 now
             );
             const tokens = Number(raws);
-            if (process.env.DEBUG_API_RATE_LIMIT) {
-                const snapshot = await redisClient.hmget(
-                    key,
-                    'tokens',
-                    'refill_at'
-                );
-                logger.debug(
-                    { key, tokens: snapshot[0], refillAt: snapshot[1] },
-                    'rate.limit.bucket'
-                );
-            }
+            // if (process.env.DEBUG_API_RATE_LIMIT) {
+            //     const snapshot = await redisClient.hmget(
+            //         key,
+            //         'tokens',
+            //         'refill_at'
+            //     );
+            //     logger.debug(
+            //         { key, tokens: snapshot[0], refillAt: snapshot[1] },
+            //         'rate.limit.bucket'
+            //     );
+            // }
 
             if (tokens < 0) {
                 return res.status(429).json({

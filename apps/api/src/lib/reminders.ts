@@ -82,6 +82,5 @@ export function extractRemindCommands(
             id: attrs.id, // Extract ID from markdown attributes
         });
     }
-    console.log('Extracted reminders:', reminders);
     return reminders;
 }
