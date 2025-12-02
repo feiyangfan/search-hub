@@ -56,11 +56,6 @@ router.get('/pending', async (req, res, next) => {
                 createdAt: cmd.createdAt,
             }));
 
-        logger.info(
-            { userId, tenantId, count: pendingReminders.length },
-            'Fetched pending reminders'
-        );
-
         res.json({ reminders: pendingReminders });
     } catch (error) {
         next(error);
@@ -113,11 +108,6 @@ router.get('/document/:documentId', async (req, res, next) => {
                 whenText: body.whenText,
             };
         });
-
-        logger.info(
-            { userId, tenantId, documentId, count: reminderStatuses.length },
-            'Fetched document reminders'
-        );
 
         res.json({ reminders: reminderStatuses });
     } catch (error) {
