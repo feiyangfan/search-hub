@@ -4102,6 +4102,235 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/indexing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    includeRecent?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK - Indexing status for current workspace */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            stats: {
+                                totalDocuments: number;
+                                indexed: number;
+                                queued: number;
+                                processing: number;
+                                failed: number;
+                                emptyContent: number;
+                                totalChunks: number;
+                            };
+                            worker: {
+                                isHealthy: boolean;
+                                queueDepth: number;
+                                activeJobs: number;
+                                maxConcurrency: number;
+                                /** Format: date-time */
+                                lastProcessedAt: string | null;
+                            };
+                            problems: {
+                                failed: {
+                                    id: string;
+                                    title: string;
+                                    tenantId: string;
+                                    contentLength: number;
+                                    chunkCount: number;
+                                    status: ("queued" | "processing" | "indexed" | "failed") | "none";
+                                    lastError: string | null;
+                                    /** Format: date-time */
+                                    lastIndexedAt: string | null;
+                                    /** Format: date-time */
+                                    lastJobUpdatedAt: string | null;
+                                    checksum: string | null;
+                                    recentJobs: {
+                                        id: string;
+                                        /** @enum {string} */
+                                        status: "queued" | "processing" | "indexed" | "failed";
+                                        error: string | null;
+                                        /** Format: date-time */
+                                        createdAt: string;
+                                        /** Format: date-time */
+                                        updatedAt: string;
+                                        durationSeconds?: number;
+                                    }[];
+                                }[];
+                                stuckInQueue: {
+                                    id: string;
+                                    title: string;
+                                    tenantId: string;
+                                    contentLength: number;
+                                    chunkCount: number;
+                                    status: ("queued" | "processing" | "indexed" | "failed") | "none";
+                                    lastError: string | null;
+                                    /** Format: date-time */
+                                    lastIndexedAt: string | null;
+                                    /** Format: date-time */
+                                    lastJobUpdatedAt: string | null;
+                                    checksum: string | null;
+                                    recentJobs: {
+                                        id: string;
+                                        /** @enum {string} */
+                                        status: "queued" | "processing" | "indexed" | "failed";
+                                        error: string | null;
+                                        /** Format: date-time */
+                                        createdAt: string;
+                                        /** Format: date-time */
+                                        updatedAt: string;
+                                        durationSeconds?: number;
+                                    }[];
+                                }[];
+                                emptyContent: {
+                                    id: string;
+                                    title: string;
+                                    tenantId: string;
+                                    contentLength: number;
+                                    chunkCount: number;
+                                    status: ("queued" | "processing" | "indexed" | "failed") | "none";
+                                    lastError: string | null;
+                                    /** Format: date-time */
+                                    lastIndexedAt: string | null;
+                                    /** Format: date-time */
+                                    lastJobUpdatedAt: string | null;
+                                    checksum: string | null;
+                                    recentJobs: {
+                                        id: string;
+                                        /** @enum {string} */
+                                        status: "queued" | "processing" | "indexed" | "failed";
+                                        error: string | null;
+                                        /** Format: date-time */
+                                        createdAt: string;
+                                        /** Format: date-time */
+                                        updatedAt: string;
+                                        durationSeconds?: number;
+                                    }[];
+                                }[];
+                            };
+                            recentlyIndexed?: {
+                                id: string;
+                                title: string;
+                                tenantId: string;
+                                contentLength: number;
+                                chunkCount: number;
+                                status: ("queued" | "processing" | "indexed" | "failed") | "none";
+                                lastError: string | null;
+                                /** Format: date-time */
+                                lastIndexedAt: string | null;
+                                /** Format: date-time */
+                                lastJobUpdatedAt: string | null;
+                                checksum: string | null;
+                                recentJobs: {
+                                    id: string;
+                                    /** @enum {string} */
+                                    status: "queued" | "processing" | "indexed" | "failed";
+                                    error: string | null;
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                    /** Format: date-time */
+                                    updatedAt: string;
+                                    durationSeconds?: number;
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+                /** @description Bad Request - No active tenant selected */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Forbidden - Requires admin/owner role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {

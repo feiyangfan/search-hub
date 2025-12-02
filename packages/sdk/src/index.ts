@@ -640,6 +640,29 @@ export class SearchHubClient {
         await this.ensureOk(res, 'search');
         return (await res.json()) as paths['/v1/search']['get']['responses']['200']['content']['application/json'];
     }
+
+    /** GET /v1/admin/indexing */
+    async getIndexingStatus(params?: {
+        includeRecent?: boolean;
+    }): Promise<
+        paths['/v1/admin/indexing']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        if (params?.includeRecent !== undefined) {
+            searchParams.append(
+                'includeRecent',
+                params.includeRecent.toString()
+            );
+        }
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/admin/indexing${qs ? `?${qs}` : ''}`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getIndexingStatus');
+        return (await res.json()) as paths['/v1/admin/indexing']['get']['responses']['200']['content']['application/json'];
+    }
 }
 
 async function safeText(res: Response) {

@@ -53,6 +53,10 @@ import {
     listTagsResponseSchema,
     getTagResponseSchema,
 } from './tag.js';
+import {
+    IndexingStatusQuerySchema,
+    IndexingStatusResponseSchema,
+} from './admin.js';
 
 /**
  * OpenAPI 3.0 for Zod schemas
@@ -1430,6 +1434,51 @@ export function buildOpenApi(
                         },
                         502: {
                             description: 'Bad Gateway - AI service error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // Admin routes
+            '/v1/admin/indexing': {
+                get: {
+                    requestParams: { query: IndexingStatusQuerySchema },
+                    responses: {
+                        200: {
+                            description:
+                                'OK - Indexing status for current workspace',
+                            content: {
+                                'application/json': {
+                                    schema: IndexingStatusResponseSchema,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - No active tenant selected',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        403: {
+                            description:
+                                'Forbidden - Requires admin/owner role',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },

@@ -833,4 +833,266 @@ export const documentRepository = {
 
         return staleDocuments;
     },
+
+    /**
+     * Count documents by indexing status
+     */
+    countTotal: async (tenantId: string) => {
+        return prisma.document.count({ where: { tenantId } });
+    },
+
+    countIndexed: async (tenantId: string) => {
+        return prisma.documentIndexState.count({
+            where: { document: { tenantId } },
+        });
+    },
+
+    countWithContentButNoChunks: async (tenantId: string) => {
+        return prisma.document.count({
+            where: {
+                tenantId,
+                AND: [
+                    {
+                        OR: [
+                            { content: { not: null } },
+                            { content: { not: '' } },
+                        ],
+                    },
+                    { chunks: { none: {} } },
+                ],
+            },
+        });
+    },
+
+    countChunks: async (tenantId: string) => {
+        return prisma.documentChunk.count({ where: { tenantId } });
+    },
+
+    /**
+     * Find documents with failed jobs
+     */
+    findWithFailedJobs: async (tenantId: string, limit = 50) => {
+        return prisma.document.findMany({
+            where: {
+                tenantId,
+                jobs: {
+                    some: {
+                        status: 'failed',
+                    },
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                tenantId: true,
+                content: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        chunks: true,
+                    },
+                },
+                indexState: {
+                    select: {
+                        lastChecksum: true,
+                        lastIndexedAt: true,
+                    },
+                },
+                jobs: {
+                    where: {
+                        status: 'failed',
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        error: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 3,
+                },
+            },
+            orderBy: {
+                updatedAt: 'desc',
+            },
+            take: limit,
+        });
+    },
+
+    /**
+     * Find documents stuck in queue
+     */
+    findStuckInQueue: async (
+        tenantId: string,
+        stuckThreshold: Date,
+        limit = 50
+    ) => {
+        return prisma.document.findMany({
+            where: {
+                tenantId,
+                jobs: {
+                    some: {
+                        status: 'queued',
+                        updatedAt: {
+                            lt: stuckThreshold,
+                        },
+                    },
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                tenantId: true,
+                content: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        chunks: true,
+                    },
+                },
+                indexState: {
+                    select: {
+                        lastChecksum: true,
+                        lastIndexedAt: true,
+                    },
+                },
+                jobs: {
+                    where: {
+                        status: 'queued',
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        error: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 3,
+                },
+            },
+            orderBy: {
+                updatedAt: 'asc',
+            },
+            take: limit,
+        });
+    },
+
+    /**
+     * Find documents with content but no chunks
+     */
+    findWithEmptyChunks: async (tenantId: string, limit = 50) => {
+        return prisma.document.findMany({
+            where: {
+                tenantId,
+                AND: [
+                    {
+                        OR: [
+                            { content: { not: null } },
+                            { content: { not: '' } },
+                        ],
+                    },
+                    { chunks: { none: {} } },
+                ],
+            },
+            select: {
+                id: true,
+                title: true,
+                tenantId: true,
+                content: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        chunks: true,
+                    },
+                },
+                indexState: {
+                    select: {
+                        lastChecksum: true,
+                        lastIndexedAt: true,
+                    },
+                },
+                jobs: {
+                    select: {
+                        id: true,
+                        status: true,
+                        error: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 3,
+                },
+            },
+            orderBy: {
+                updatedAt: 'desc',
+            },
+            take: limit,
+        });
+    },
+
+    /**
+     * Find recently indexed documents
+     */
+    findRecentlyIndexed: async (tenantId: string, limit = 10) => {
+        return prisma.document.findMany({
+            where: {
+                tenantId,
+                indexState: {
+                    isNot: null,
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                tenantId: true,
+                content: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        chunks: true,
+                    },
+                },
+                indexState: {
+                    select: {
+                        lastChecksum: true,
+                        lastIndexedAt: true,
+                    },
+                },
+                jobs: {
+                    where: {
+                        status: 'indexed',
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        error: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 3,
+                },
+            },
+            orderBy: {
+                indexState: {
+                    lastIndexedAt: 'desc',
+                },
+            },
+            take: limit,
+        });
+    },
 };

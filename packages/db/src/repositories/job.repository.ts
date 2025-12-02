@@ -1,8 +1,30 @@
 import { prisma } from '../client.js';
 
 export const jobRepository = {
-    /** API uses this immediately after creating the Document */
+    /**
+     * API uses this to queue a document for indexing
+     * If a job already exists, reset it to 'queued' status
+     * This allows reindexing of documents
+     */
     enqueueIndex: async (tenantId: string, documentId: string) => {
+        // Try to find an existing job for this document
+        const existingJob = await prisma.indexJob.findFirst({
+            where: { tenantId, documentId },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        if (existingJob) {
+            // Reset existing job to queued status
+            return prisma.indexJob.update({
+                where: { id: existingJob.id },
+                data: {
+                    status: 'queued',
+                    error: null, // Clear any previous error
+                },
+            });
+        }
+
+        // No existing job, create a new one
         return prisma.indexJob.create({
             data: { tenantId, documentId, status: 'queued' },
         });
@@ -40,6 +62,17 @@ export const jobRepository = {
         return prisma.indexJob.findFirst({
             where: { documentId },
             orderBy: { createdAt: 'desc' },
+        });
+    },
+
+    /**
+     * Get job statistics grouped by status for a tenant
+     */
+    getStatusCounts: async (tenantId: string) => {
+        return prisma.indexJob.groupBy({
+            by: ['status'],
+            _count: true,
+            where: { tenantId },
         });
     },
 };
