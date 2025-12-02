@@ -167,15 +167,7 @@ export async function processIndexDocument(
             checksum,
         });
 
-        // 8) Update document title for debugging (shows it was indexed)
-        const indexedTitle = doc.title.endsWith(' - indexed')
-            ? doc.title
-            : `${doc.title} - indexed`;
-        if (indexedTitle !== doc.title) {
-            await db.document.updateTitle(doc.id, indexedTitle);
-        }
-
-        // 9) Transition: processing -> indexed
+        // 8) Transition: processing -> indexed
         const done = await db.job.markIndexed(tenantId, documentId);
 
         if (done === 0) {
