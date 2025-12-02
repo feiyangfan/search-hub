@@ -79,7 +79,8 @@ export async function processIndexDocument(
         );
 
         if (!text) {
-            // No content to index; mark done for now.
+            // No content to index; mark job done but DON'T update DocumentIndexState
+            // findStaleDocuments won't requeue because document has no content
             await db.job.markIndexed(tenantId, documentId);
             logger.info(
                 { documentId, title: doc.title },
@@ -92,9 +93,16 @@ export async function processIndexDocument(
         const checksum = sha256(text);
         const prev = await db.documentIndexState.findUnique(documentId);
         if (prev?.lastChecksum === checksum) {
+            // Content unchanged, but update lastIndexedAt to reflect we checked it
+            // This prevents re-queueing even though we skip actual indexing
+            await db.documentIndexState.upsert(
+                documentId,
+                checksum,
+                new Date()
+            );
             await db.job.markIndexed(tenantId, documentId);
             logger.info(
-                { documentId, title: doc.title },
+                { documentId, title: doc.title, checksum },
                 'already.indexed.skipped'
             );
             return { ok: true, reason: 'already-indexed' };
@@ -102,9 +110,16 @@ export async function processIndexDocument(
 
         logger.info({ documentId }, 'chunking.started');
 
-        // 5) Chunk the text for embedding
+        // 6) Chunk the text for embedding
         const chunks = chunkText(text, 1000, 100); // 1k chars with 100 overlap
         if (chunks.length === 0) {
+            // Edge case: has content but produces no chunks (very short text)
+            // Update index state so we don't keep retrying
+            await db.documentIndexState.upsert(
+                documentId,
+                checksum,
+                new Date()
+            );
             await db.job.markIndexed(tenantId, documentId);
             logger.info({ documentId, title: doc.title }, 'no.chunks.skipped');
             return { ok: true, reason: 'no-chunks' };
@@ -135,7 +150,7 @@ export async function processIndexDocument(
             );
         }
 
-        // 6) Generate embeddings via Voyage AI
+        // 7) Generate embeddings via Voyage AI
         logger.info({ documentId, chunkCount }, 'embedding.started');
         const startEmbedding = Date.now();
         const vectors = await voyage.embed(
@@ -158,7 +173,7 @@ export async function processIndexDocument(
             'embedding.complete'
         );
 
-        // 7) Store chunks and embeddings in database
+        // 8) Store chunks and embeddings in database
         await db.document.replaceChunksWithEmbeddings({
             tenantId,
             documentId,
@@ -167,7 +182,7 @@ export async function processIndexDocument(
             checksum,
         });
 
-        // 8) Transition: processing -> indexed
+        // 9) Transition: processing -> indexed
         const done = await db.job.markIndexed(tenantId, documentId);
 
         if (done === 0) {

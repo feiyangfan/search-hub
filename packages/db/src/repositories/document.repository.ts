@@ -804,10 +804,21 @@ export const documentRepository = {
     /**
      * Find documents that need reindexing
      * A document is stale if:
-     * 1. Never indexed (lastIndexedAt is NULL)
-     * 2. Updated after last index (updatedAt > lastIndexedAt)
+     * 1. Has content AND never indexed (lastIndexedAt is NULL)
+     * 2. Has content AND updated significantly after last index (> 1 second buffer for timing issues)
+     * 3. Has chunks but no index state (data inconsistency)
+     *
+     * Note: We use a 1-second buffer for updatedAt comparison because Prisma's @updatedAt
+     * can be set milliseconds after lastIndexedAt within the same transaction, causing false positives.
+     *
+     * Excludes:
+     * - Documents with no content that were already processed (empty docs)
+     * - Documents with content that hasn't changed since last index
+     *
+     * Note: By default this is system-wide (all tenants) for the periodic sync job.
+     * Pass tenantId to limit to a specific workspace.
      */
-    findStaleDocuments: async (limit = 100) => {
+    findStaleDocuments: async (limit = 100, tenantId?: string) => {
         const staleDocuments = await prisma.$queryRaw<
             {
                 id: string;
@@ -825,19 +836,36 @@ export const documentRepository = {
                 dis."lastIndexedAt"
             FROM "Document" d
             LEFT JOIN "DocumentIndexState" dis ON d.id = dis."documentId"
-            WHERE dis."lastIndexedAt" IS NULL
-               OR d."updatedAt" > dis."lastIndexedAt"
+            WHERE (
+                -- Case 1: Has content and never indexed
+                (dis."lastIndexedAt" IS NULL 
+                 AND d.content IS NOT NULL 
+                 AND d.content != '')
+                -- Case 2: Has content and updated after last index
+                OR (d."updatedAt" > dis."lastIndexedAt"
+                    AND d.content IS NOT NULL 
+                    AND d.content != '')
+                -- Case 3: Has chunks but no index state (data inconsistency - should rarely happen)
+                OR (dis."lastIndexedAt" IS NULL 
+                    AND EXISTS (
+                        SELECT 1 FROM "DocumentChunk" dc 
+                        WHERE dc."documentId" = d.id
+                    ))
+            )
+              ${
+                  tenantId
+                      ? Prisma.sql`AND d."tenantId" = ${tenantId}`
+                      : Prisma.empty
+              }
             ORDER BY d."updatedAt" DESC
             LIMIT ${limit}
         `;
 
         return staleDocuments;
     },
-
     /**
      * Count documents by indexing status
-     */
-    countTotal: async (tenantId: string) => {
+     */ countTotal: async (tenantId: string) => {
         return prisma.document.count({ where: { tenantId } });
     },
 

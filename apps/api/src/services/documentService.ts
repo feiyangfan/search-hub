@@ -217,6 +217,7 @@ export function createDocumentService(
 
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
+            jobId: `${doc.tenantId}-${doc.id}`, // Stable job ID to prevent duplicates
         });
 
         // Increment queue depth when job is added
@@ -743,6 +744,7 @@ export function createDocumentService(
 
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
+            jobId: `${context.tenantId}-${documentId}`, // Stable job ID to prevent duplicates
         });
 
         // Increment queue depth when job is added
