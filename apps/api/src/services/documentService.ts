@@ -208,17 +208,20 @@ export function createDocumentService(
 
         logger.info({ documentId: doc.id }, 'document.create.succeeded');
 
-        await db.job.enqueueIndex(context.tenantId, doc.id);
-
         const jobPayload: IndexDocumentJob = IndexDocumentJobSchema.parse({
             tenantId: doc.tenantId,
             documentId: doc.id,
         });
 
+        // Queue-first pattern: add to BullMQ before DB
+        // If BullMQ fails, no DB record is created (prevents desync)
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
             jobId: `${doc.tenantId}-${doc.id}`, // Stable job ID to prevent duplicates
         });
+
+        // Now safe to write to DB (if this fails, BullMQ job exists but will be handled)
+        await db.job.enqueueIndex(context.tenantId, doc.id);
 
         // Increment queue depth when job is added
         metrics.queueDepth.inc({
@@ -735,17 +738,19 @@ export function createDocumentService(
             );
         }
 
-        await db.job.enqueueIndex(context.tenantId, documentId);
-
         const jobPayload: IndexDocumentJob = IndexDocumentJobSchema.parse({
             tenantId: context.tenantId,
             documentId,
         });
 
+        // Queue-first pattern: add to BullMQ before DB
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
             jobId: `${context.tenantId}-${documentId}`, // Stable job ID to prevent duplicates
         });
+
+        // Now safe to write to DB
+        await db.job.enqueueIndex(context.tenantId, documentId);
 
         // Increment queue depth when job is added
         metrics.queueDepth.inc({

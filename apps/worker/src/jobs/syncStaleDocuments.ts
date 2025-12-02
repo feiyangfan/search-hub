@@ -53,6 +53,35 @@ export async function syncStaleDocuments(
             try {
                 const jobId = `${doc.tenantId}-${doc.id}`;
 
+                // Check DB job status FIRST to avoid race with worker
+                const existingJob = await db.job.findByDocumentId(doc.id);
+
+                // Skip if actively processing (worker has picked it up)
+                if (existingJob && existingJob.status === 'processing') {
+                    logger.info(
+                        { documentId: doc.id, jobId: existingJob.id },
+                        'sync_stale_documents.already_processing'
+                    );
+                    continue;
+                }
+
+                // Skip if recently queued (within last 5 minutes) to avoid duplicate during active processing
+                if (
+                    existingJob &&
+                    existingJob.status === 'queued' &&
+                    existingJob.updatedAt.getTime() > Date.now() - 5 * 60 * 1000
+                ) {
+                    logger.info(
+                        {
+                            documentId: doc.id,
+                            jobId: existingJob.id,
+                            updatedAt: existingJob.updatedAt,
+                        },
+                        'sync_stale_documents.recently_queued'
+                    );
+                    continue;
+                }
+
                 // Check if job is already in BullMQ queue
                 const bullmqJob = await indexQueue.getJob(jobId);
 
@@ -88,18 +117,6 @@ export async function syncStaleDocuments(
                             'sync_stale_documents.removed_old_job'
                         );
                     }
-                }
-
-                // Check DB job status
-                const existingJob = await db.job.findByDocumentId(doc.id);
-
-                // Skip if actively processing (worker has picked it up)
-                if (existingJob && existingJob.status === 'processing') {
-                    logger.info(
-                        { documentId: doc.id, jobId: existingJob.id },
-                        'sync_stale_documents.already_processing'
-                    );
-                    continue;
                 }
 
                 const jobPayload: IndexDocumentJob = {
