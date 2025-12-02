@@ -163,20 +163,6 @@ export function createSearchService(
                 (Date.now() - startEmbedding) / 1000
             );
 
-            // Track token usage (rough estimate: ~1 token per 4 chars for English)
-            const estimatedTokens = Math.ceil(String(q).length / 4);
-            if (metrics.aiTokensUsed) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-                metrics.aiTokensUsed.inc(
-                    {
-                        provider: 'voyage',
-                        model: 'voyage-3.5-lite',
-                        operation: 'embed',
-                    },
-                    estimatedTokens
-                );
-            }
-
             const qVec = qVecs[0];
             if (!qVec) {
                 throw new Error('Failed to generate embedding for query');
@@ -205,25 +191,6 @@ export function createSearchService(
                 { provider: 'voyage', operation: 'rerank' },
                 (Date.now() - startRerank) / 1000
             );
-
-            // Track rerank token usage: (query tokens × docs) + sum of doc tokens
-            const queryTokens = Math.ceil(String(q).length / 4);
-            const docTokens = candidates.reduce(
-                (sum, c) => sum + Math.ceil(c.content.length / 4),
-                0
-            );
-            const rerankTokens = queryTokens * candidates.length + docTokens;
-            if (metrics.aiTokensUsed) {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-                metrics.aiTokensUsed.inc(
-                    {
-                        provider: 'voyage',
-                        model: 'rerank-2.5-lite',
-                        operation: 'rerank',
-                    },
-                    rerankTokens
-                );
-            }
 
             breaker.recordSuccess();
 
