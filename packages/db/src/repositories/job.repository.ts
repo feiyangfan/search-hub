@@ -66,13 +66,36 @@ export const jobRepository = {
     },
 
     /**
-     * Get job statistics grouped by status for a tenant
+     * Get only active job statistics (excludes successfully indexed jobs)
+     * Use this for dashboard metrics to avoid counting old indexed jobs
      */
-    getStatusCounts: async (tenantId: string) => {
+    getActiveStatusCounts: async (tenantId: string) => {
         return prisma.indexJob.groupBy({
             by: ['status'],
             _count: true,
-            where: { tenantId },
+            where: {
+                tenantId,
+                // Only count jobs that represent current work or problems
+                status: { in: ['queued', 'processing', 'failed'] },
+            },
         });
+    },
+
+    /**
+     * Clean up old successfully indexed jobs
+     * Safe to delete since DocumentIndexState maintains the permanent record
+     */
+    deleteOldIndexedJobs: async (olderThanDays: number) => {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+
+        const result = await prisma.indexJob.deleteMany({
+            where: {
+                status: 'indexed',
+                updatedAt: { lt: cutoffDate },
+            },
+        });
+
+        return result.count;
     },
 };

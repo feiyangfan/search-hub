@@ -10,6 +10,7 @@ import {
 import { processIndexDocument } from './jobs/processIndexDocument.js';
 import { processSendReminder } from './jobs/processSendReminder.js';
 import { syncStaleDocuments } from './jobs/syncStaleDocuments.js';
+import { cleanupOldJobs } from './jobs/cleanupOldJobs.js';
 
 const env = loadWorkerEnv();
 
@@ -20,6 +21,7 @@ const logger = base.child({
 const REDIS_URL = env.REDIS_URL ?? 'redis://localhost:6379';
 const WORKER_CONCURRENCY = Number(env.WORKER_CONCURRENCY ?? 5);
 const SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const connection = { url: REDIS_URL };
 
@@ -154,6 +156,34 @@ void runSyncStaleDocuments();
 const syncInterval = setInterval(() => {
     void runSyncStaleDocuments();
 }, SYNC_INTERVAL_MS);
+
+// ===== SCHEDULED JOB: CLEANUP OLD INDEXED JOBS =====
+
+async function runCleanupOldJobs() {
+    try {
+        logger.info('scheduled_cleanup.starting');
+        const result = await cleanupOldJobs();
+        logger.info(
+            {
+                deleted: result.deleted,
+            },
+            'scheduled_cleanup.completed'
+        );
+    } catch (error) {
+        logger.error(
+            {
+                error: error instanceof Error ? error.message : String(error),
+            },
+            'scheduled_cleanup.error'
+        );
+    }
+}
+
+// Run immediately on startup, then every 24 hours
+void runCleanupOldJobs();
+setInterval(() => {
+    void runCleanupOldJobs();
+}, CLEANUP_INTERVAL_MS);
 
 // ===== GRACEFUL SHUTDOWN =====
 

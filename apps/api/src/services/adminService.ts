@@ -36,14 +36,14 @@ async function getIndexingStats(tenantId: string): Promise<IndexingStats> {
         await Promise.all([
             db.document.countTotal(tenantId),
             db.document.countIndexed(tenantId),
-            db.job.getStatusCounts(tenantId),
+            db.job.getActiveStatusCounts(tenantId), // Only count queued/processing/failed (not indexed)
             db.document.countChunks(tenantId),
             db.document.countWithContentButNoChunks(tenantId),
         ]);
 
     return {
         totalDocuments: totalDocs,
-        indexed: indexedDocs,
+        indexed: indexedDocs, // From DocumentIndexState (permanent record)
         queued: jobStats.find((s) => s.status === 'queued')?._count ?? 0,
         processing:
             jobStats.find((s) => s.status === 'processing')?._count ?? 0,
