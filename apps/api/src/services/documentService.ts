@@ -90,6 +90,26 @@ function createScheduleDebouncedReindex(
                         // Clean up Redis marker
                         await redis.del(key);
 
+                        // Check if job already queued/processing for this document
+                        const existingJobs = await indexQueue.getJobs([
+                            'waiting',
+                            'active',
+                            'delayed',
+                        ]);
+                        const hasActiveJob = existingJobs.some(
+                            (j) =>
+                                j.data.tenantId === tenantId &&
+                                j.data.documentId === documentId
+                        );
+
+                        if (hasActiveJob) {
+                            logger.info(
+                                { documentId, tenantId },
+                                'queue.auto_reindex.already_queued'
+                            );
+                            return;
+                        }
+
                         const jobPayload: IndexDocumentJob =
                             IndexDocumentJobSchema.parse({
                                 tenantId,
@@ -101,7 +121,7 @@ function createScheduleDebouncedReindex(
                             jobPayload,
                             {
                                 ...DEFAULT_QUEUE_OPTIONS,
-                                jobId: `${tenantId}-${documentId}`,
+                                jobId: `${tenantId}-${documentId}-${Date.now()}`,
                             }
                         );
 
@@ -347,7 +367,7 @@ export function createDocumentService(
         // If BullMQ fails, no DB record is created (prevents desync)
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
-            jobId: `${doc.tenantId}-${doc.id}`, // Stable job ID to prevent duplicates
+            jobId: `${doc.tenantId}-${doc.id}-${Date.now()}`, // Unique job ID per execution for audit trail
         });
 
         // Now safe to write to DB (if this fails, BullMQ job exists but will be handled)
@@ -877,7 +897,7 @@ export function createDocumentService(
         // Queue-first pattern: add to BullMQ before DB
         const job = await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
             ...DEFAULT_QUEUE_OPTIONS,
-            jobId: `${context.tenantId}-${documentId}`, // Stable job ID to prevent duplicates
+            jobId: `${context.tenantId}-${documentId}-${Date.now()}`, // Unique job ID per execution for audit trail
         });
 
         // Now safe to write to DB

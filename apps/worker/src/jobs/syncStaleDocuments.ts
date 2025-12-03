@@ -51,72 +51,30 @@ export async function syncStaleDocuments(
         // Queue each stale document for reindexing
         for (const doc of staleDocuments) {
             try {
-                const jobId = `${doc.tenantId}-${doc.id}`;
+                // Check if job is already in BullMQ queue (use dynamic jobId to allow multiple jobs)
+                const jobId = `${doc.tenantId}-${doc.id}-${Date.now()}`;
+                const existingJobs = await indexQueue.getJobs([
+                    'waiting',
+                    'active',
+                    'delayed',
+                ]);
 
-                // Check DB job status FIRST to avoid race with worker
-                const existingJob = await db.job.findByDocumentId(doc.id);
+                // Check if this document already has a job queued
+                const hasQueuedJob = existingJobs.some(
+                    (j) =>
+                        j.data.tenantId === doc.tenantId &&
+                        j.data.documentId === doc.id
+                );
 
-                // Skip if actively processing (worker has picked it up)
-                if (existingJob && existingJob.status === 'processing') {
-                    logger.info(
-                        { documentId: doc.id, jobId: existingJob.id },
-                        'sync_stale_documents.already_processing'
-                    );
-                    continue;
-                }
-
-                // Skip if recently queued (within last 5 minutes) to avoid duplicate during active processing
-                if (
-                    existingJob &&
-                    existingJob.status === 'queued' &&
-                    existingJob.updatedAt.getTime() > Date.now() - 5 * 60 * 1000
-                ) {
+                if (hasQueuedJob) {
                     logger.info(
                         {
                             documentId: doc.id,
-                            jobId: existingJob.id,
-                            updatedAt: existingJob.updatedAt,
+                            tenantId: doc.tenantId,
                         },
-                        'sync_stale_documents.recently_queued'
+                        'sync_stale_documents.already_queued'
                     );
                     continue;
-                }
-
-                // Check if job is already in BullMQ queue
-                const bullmqJob = await indexQueue.getJob(jobId);
-
-                if (bullmqJob) {
-                    const state = await bullmqJob.getState();
-
-                    // Skip if job is actively queued or running
-                    if (
-                        state === 'waiting' ||
-                        state === 'active' ||
-                        state === 'delayed'
-                    ) {
-                        logger.info(
-                            {
-                                documentId: doc.id,
-                                bullmqJobId: bullmqJob.id,
-                                state,
-                            },
-                            'sync_stale_documents.already_in_bullmq'
-                        );
-                        continue;
-                    }
-
-                    // If completed or failed, remove it so we can re-queue with same jobId
-                    if (state === 'completed' || state === 'failed') {
-                        await bullmqJob.remove();
-                        logger.info(
-                            {
-                                documentId: doc.id,
-                                state,
-                                jobId,
-                            },
-                            'sync_stale_documents.removed_old_job'
-                        );
-                    }
                 }
 
                 const jobPayload: IndexDocumentJob = {
@@ -124,35 +82,20 @@ export async function syncStaleDocuments(
                     documentId: doc.id,
                 };
 
-                // Try to add job to BullMQ first (may fail if duplicate)
-                try {
-                    await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
-                        jobId, // Stable job ID (old job removed if existed)
-                        attempts: 3,
-                        backoff: {
-                            type: 'exponential',
-                            delay: 1000,
-                        },
-                        removeOnComplete: true, // Remove immediately to avoid history pollution
-                        removeOnFail: false, // Keep failed jobs for debugging
-                    });
+                // Add job to BullMQ with unique jobId (allows multiple jobs per document over time)
+                await indexQueue.add(JOBS.INDEX_DOCUMENT, jobPayload, {
+                    jobId, // Unique job ID per execution
+                    attempts: 3,
+                    backoff: {
+                        type: 'exponential',
+                        delay: 1000,
+                    },
+                    removeOnComplete: true,
+                    removeOnFail: false,
+                });
 
-                    // Only update DB if BullMQ add succeeded
-                    await db.job.enqueueIndex(doc.tenantId, doc.id);
-                } catch (error) {
-                    // If BullMQ rejects (e.g., duplicate jobId), it's already queued
-                    if (
-                        error instanceof Error &&
-                        error.message.includes('job with id')
-                    ) {
-                        logger.info(
-                            { documentId: doc.id, tenantId: doc.tenantId },
-                            'sync_stale_documents.duplicate_jobid_skipped'
-                        );
-                        continue;
-                    }
-                    throw error; // Re-throw other errors
-                }
+                // Create new IndexJob record in DB for audit trail
+                await db.job.enqueueIndex(doc.tenantId, doc.id);
 
                 queued++;
 

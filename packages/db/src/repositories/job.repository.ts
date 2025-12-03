@@ -3,58 +3,71 @@ import { prisma } from '../client.js';
 export const jobRepository = {
     /**
      * API uses this to queue a document for indexing
-     * If a job already exists, reset it to 'queued' status
-     * This allows reindexing of documents
+     * Always creates a new job record for full audit trail
      */
     enqueueIndex: async (tenantId: string, documentId: string) => {
-        // Try to find an existing job for this document
-        const existingJob = await prisma.indexJob.findFirst({
-            where: { tenantId, documentId },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        if (existingJob) {
-            // Reset existing job to queued status
-            return prisma.indexJob.update({
-                where: { id: existingJob.id },
-                data: {
-                    status: 'queued',
-                    error: null, // Clear any previous error
-                },
-            });
-        }
-
-        // No existing job, create a new one
         return prisma.indexJob.create({
             data: { tenantId, documentId, status: 'queued' },
         });
     },
 
-    /** Worker: queued -> processing (idempotent; returns how many rows changed) */
+    /** Worker: queued -> processing (updates most recent queued job) */
     startProcessing: async (tenantId: string, documentId: string) => {
-        const res = await prisma.indexJob.updateMany({
+        // Find the most recent queued job for this document
+        const job = await prisma.indexJob.findFirst({
             where: { tenantId, documentId, status: 'queued' },
-            data: { status: 'processing' },
+            orderBy: { createdAt: 'desc' },
         });
-        return res.count;
+
+        if (!job) return 0;
+
+        await prisma.indexJob.update({
+            where: { id: job.id },
+            data: {
+                status: 'processing',
+                startedAt: new Date(),
+            },
+        });
+        return 1;
     },
 
     /** Worker: processing -> indexed */
     markIndexed: async (tenantId: string, documentId: string) => {
-        const res = await prisma.indexJob.updateMany({
+        const job = await prisma.indexJob.findFirst({
             where: { tenantId, documentId, status: 'processing' },
-            data: { status: 'indexed' },
+            orderBy: { createdAt: 'desc' },
         });
-        return res.count;
+
+        if (!job) return 0;
+
+        await prisma.indexJob.update({
+            where: { id: job.id },
+            data: {
+                status: 'indexed',
+                completedAt: new Date(),
+            },
+        });
+        return 1;
     },
 
     /** Worker: processing -> failed (records error text) */
     markFailed: async (tenantId: string, documentId: string, error: string) => {
-        const res = await prisma.indexJob.updateMany({
+        const job = await prisma.indexJob.findFirst({
             where: { tenantId, documentId, status: 'processing' },
-            data: { status: 'failed', error },
+            orderBy: { createdAt: 'desc' },
         });
-        return res.count;
+
+        if (!job) return 0;
+
+        await prisma.indexJob.update({
+            where: { id: job.id },
+            data: {
+                status: 'failed',
+                error,
+                completedAt: new Date(),
+            },
+        });
+        return 1;
     },
 
     /** Find the most recent job for a document */

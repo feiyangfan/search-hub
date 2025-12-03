@@ -175,9 +175,10 @@ export async function getIndexingStatus(
         const jobs = await db.job.findRecentJobs(tenantId, limit);
 
         response.recentJobs = jobs.map((j) => {
+            // Calculate duration using actual processing time (startedAt -> completedAt)
             const durationSeconds =
-                j.status === 'indexed' || j.status === 'failed'
-                    ? (j.updatedAt.getTime() - j.createdAt.getTime()) / 1000
+                j.startedAt && j.completedAt
+                    ? (j.completedAt.getTime() - j.startedAt.getTime()) / 1000
                     : undefined;
 
             return {

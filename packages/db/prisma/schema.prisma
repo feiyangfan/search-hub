@@ -215,10 +215,10 @@ model IndexJob {
   tenantId   String
   documentId String
 
-  status JobStatus @default(queued)
-  error  String? // capture failure reasons
-
-  // future: attempts, durations, pipeline step metadata...
+  status     JobStatus @default(queued)
+  error      String? // capture failure reasons
+  startedAt  DateTime? // when processing began (for accurate duration)
+  completedAt DateTime? // when processing finished (indexed or failed)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -230,4 +230,5 @@ model IndexJob {
   @@index([documentId])
   @@index([status])
   @@index([tenantId, documentId, status])
+  @@index([createdAt(sort: Desc)]) // optimize recent job queries
 }
