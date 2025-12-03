@@ -30,7 +30,7 @@ export const WorkerStatusSchema = z.object({
     queueDepth: z.number().int().nonnegative(),
     activeJobs: z.number().int().nonnegative(),
     maxConcurrency: z.number().int().positive(),
-    lastProcessedAt: z.string().datetime().nullable(),
+    lastProcessedAt: z.iso.datetime().nullable(),
 });
 export type WorkerStatus = z.infer<typeof WorkerStatusSchema>;
 
@@ -38,8 +38,8 @@ export const JobHistorySchema = z.object({
     id: z.string(),
     status: JobStatusSchema,
     error: z.string().nullable(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
     durationSeconds: z.number().nonnegative().optional(),
 });
 export type JobHistory = z.infer<typeof JobHistorySchema>;
@@ -52,8 +52,8 @@ export const DocumentIndexingDetailSchema = z.object({
     chunkCount: z.number().int().nonnegative(),
     status: JobStatusSchema.or(z.literal('none')),
     lastError: z.string().nullable(),
-    lastIndexedAt: z.string().datetime().nullable(),
-    lastJobUpdatedAt: z.string().datetime().nullable(),
+    lastIndexedAt: z.iso.datetime().nullable(),
+    lastJobUpdatedAt: z.iso.datetime().nullable(),
     checksum: z.string().nullable(),
     recentJobs: z.array(JobHistorySchema).max(5),
 });
@@ -110,3 +110,57 @@ export const TokenUsageResponseSchema = z.object({
     summary: UsageSummarySchema,
 });
 export type TokenUsageResponse = z.infer<typeof TokenUsageResponseSchema>;
+
+// ===== Queue Status =====
+
+export const QueueJobSchema = z.object({
+    id: z.string().nullable(),
+    name: z.string(),
+    data: z.record(z.string(), z.unknown()),
+    timestamp: z.number(),
+    processedOn: z.number().nullable().optional(),
+    attemptsMade: z.number().int().nonnegative(),
+    failedReason: z.string().nullable().optional(),
+});
+export type QueueJob = z.infer<typeof QueueJobSchema>;
+
+export const QueueCountsSchema = z.object({
+    waiting: z.number().int().nonnegative().optional(),
+    active: z.number().int().nonnegative().optional(),
+    delayed: z.number().int().nonnegative().optional(),
+    failed: z.number().int().nonnegative().optional(),
+    completed: z.number().int().nonnegative().optional(),
+    paused: z.number().int().nonnegative().optional(),
+});
+export type QueueCounts = z.infer<typeof QueueCountsSchema>;
+
+export const RecentlyIndexedDocumentSchema = z.object({
+    documentId: z.string(),
+    title: z.string(),
+    tenantId: z.string(),
+    lastIndexedAt: z.iso.datetime(),
+    lastChecksum: z.string().nullable(),
+    documentUpdatedAt: z.iso.datetime(),
+});
+export type RecentlyIndexedDocument = z.infer<
+    typeof RecentlyIndexedDocumentSchema
+>;
+
+export const QueueStatusResponseSchema = z.object({
+    queueName: z.string(),
+    counts: QueueCountsSchema,
+    waiting: z.array(QueueJobSchema),
+    active: z.array(QueueJobSchema),
+    failed: z.array(QueueJobSchema),
+    recentlyIndexed: z.array(RecentlyIndexedDocumentSchema).optional(),
+});
+export type QueueStatusResponse = z.infer<typeof QueueStatusResponseSchema>;
+
+export const QueueStatusQuerySchema = z.object({
+    limit: z.string().optional(),
+    includeRecent: z
+        .string()
+        .optional()
+        .transform((val) => val === 'true'),
+});
+export type QueueStatusQuery = z.infer<typeof QueueStatusQuerySchema>;

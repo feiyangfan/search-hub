@@ -78,7 +78,7 @@ export async function processIndexDocument(
             'content.loaded'
         );
 
-        await new Promise((resolve) => setTimeout(resolve, 3000)); // 3 second delay
+        await new Promise((resolve) => setTimeout(resolve, 10000)); // 3 second delay
 
         if (!text) {
             // No content to index; mark job done but DON'T update DocumentIndexState

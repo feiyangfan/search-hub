@@ -168,3 +168,118 @@ export async function getIndexingStatus(
 
     return response;
 }
+
+/**
+ * Get BullMQ queue status with optional recently indexed documents
+ */
+export async function getQueueStatus(
+    options: { includeRecent?: boolean; limit?: number; tenantId?: string } = {}
+): Promise<{
+    queueName: string;
+    counts: {
+        waiting?: number;
+        active?: number;
+        delayed?: number;
+        failed?: number;
+        completed?: number;
+        paused?: number;
+    };
+    waiting: {
+        id: string | null;
+        name: string;
+        data: Record<string, unknown>;
+        timestamp: number;
+        attemptsMade: number;
+    }[];
+    active: {
+        id: string | null;
+        name: string;
+        data: Record<string, unknown>;
+        timestamp: number;
+        processedOn?: number | null;
+        attemptsMade: number;
+    }[];
+    failed: {
+        id: string | null;
+        name: string;
+        data: Record<string, unknown>;
+        timestamp: number;
+        processedOn?: number | null;
+        attemptsMade: number;
+        failedReason?: string | null;
+    }[];
+    recentlyIndexed?: {
+        documentId: string;
+        title: string;
+        tenantId: string;
+        lastIndexedAt: string;
+        lastChecksum: string | null;
+        documentUpdatedAt: string;
+    }[];
+}> {
+    const limit = Math.min(options.limit ?? 50, 200);
+
+    const counts = await indexQueue.getJobCounts(
+        'waiting',
+        'active',
+        'delayed',
+        'failed',
+        'completed'
+    );
+
+    const [waiting, active, failed] = await Promise.all([
+        indexQueue.getJobs(['waiting'], 0, limit - 1),
+        indexQueue.getJobs(['active'], 0, limit - 1),
+        indexQueue.getJobs(['failed'], 0, limit - 1),
+    ]);
+
+    const response = {
+        queueName: indexQueue.name,
+        counts,
+        waiting: waiting.map((j) => ({
+            id: j.id ?? null,
+            name: j.name,
+            data: j.data as Record<string, unknown>,
+            timestamp: j.timestamp,
+            attemptsMade: j.attemptsMade,
+        })),
+        active: active.map((j) => ({
+            id: j.id ?? null,
+            name: j.name,
+            data: j.data as Record<string, unknown>,
+            timestamp: j.timestamp,
+            processedOn: j.processedOn ?? null,
+            attemptsMade: j.attemptsMade,
+        })),
+        failed: failed.map((j) => ({
+            id: j.id ?? null,
+            name: j.name,
+            data: j.data as Record<string, unknown>,
+            timestamp: j.timestamp,
+            processedOn: j.processedOn ?? null,
+            attemptsMade: j.attemptsMade,
+            failedReason: j.failedReason ?? null,
+        })),
+    };
+
+    if (options.includeRecent && options.tenantId) {
+        const recentlyIndexed = await db.documentIndexState.findRecentlyIndexed(
+            Math.min(limit, 50),
+            options.tenantId
+        );
+
+        return {
+            ...response,
+            recentlyIndexed: recentlyIndexed.map((state) => ({
+                documentId: state.documentId,
+                title: state.document.title,
+                tenantId: state.document.tenantId,
+                lastIndexedAt: state.lastIndexedAt.toISOString(),
+                lastChecksum: state.lastChecksum,
+                documentUpdatedAt: state.document.updatedAt.toISOString(),
+            })),
+        };
+    }
+
+    return response;
+}

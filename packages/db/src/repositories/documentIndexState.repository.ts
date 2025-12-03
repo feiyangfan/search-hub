@@ -33,4 +33,34 @@ export const documentIndexStateRepository = {
             },
         });
     },
+
+    /**
+     * Get recently indexed documents
+     * Returns documents with their index state, ordered by most recent first
+     */
+    findRecentlyIndexed: async (limit: number, tenantId?: string) => {
+        return prisma.documentIndexState.findMany({
+            where: tenantId
+                ? {
+                      document: {
+                          tenantId,
+                      },
+                  }
+                : undefined,
+            orderBy: {
+                lastIndexedAt: 'desc',
+            },
+            take: limit,
+            include: {
+                document: {
+                    select: {
+                        id: true,
+                        title: true,
+                        tenantId: true,
+                        updatedAt: true,
+                    },
+                },
+            },
+        });
+    },
 };
