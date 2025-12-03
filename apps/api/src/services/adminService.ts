@@ -148,7 +148,11 @@ async function getRecentlyIndexedDocuments(
  */
 export async function getIndexingStatus(
     tenantId: string,
-    options: { includeRecent?: boolean } = {}
+    options: {
+        includeRecent?: boolean;
+        includeRecentJobs?: boolean;
+        jobLimit?: number;
+    } = {}
 ): Promise<IndexingStatusResponse> {
     const [stats, worker, problems] = await Promise.all([
         getIndexingStats(tenantId),
@@ -164,6 +168,33 @@ export async function getIndexingStatus(
 
     if (options.includeRecent) {
         response.recentlyIndexed = await getRecentlyIndexedDocuments(tenantId);
+    }
+
+    if (options.includeRecentJobs) {
+        const limit = Math.min(options.jobLimit ?? 50, 200);
+        const jobs = await db.job.findRecentJobs(tenantId, limit);
+
+        response.recentJobs = jobs.map((j) => {
+            const durationSeconds =
+                j.status === 'indexed' || j.status === 'failed'
+                    ? (j.updatedAt.getTime() - j.createdAt.getTime()) / 1000
+                    : undefined;
+
+            return {
+                id: j.id,
+                status: j.status as
+                    | 'queued'
+                    | 'processing'
+                    | 'indexed'
+                    | 'failed',
+                error: j.error,
+                createdAt: j.createdAt.toISOString(),
+                updatedAt: j.updatedAt.toISOString(),
+                durationSeconds,
+                documentId: j.documentId,
+                documentTitle: j.document.title,
+            };
+        });
     }
 
     return response;

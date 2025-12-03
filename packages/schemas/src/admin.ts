@@ -41,6 +41,8 @@ export const JobHistorySchema = z.object({
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     durationSeconds: z.number().nonnegative().optional(),
+    documentId: z.string().optional(),
+    documentTitle: z.string().optional(),
 });
 export type JobHistory = z.infer<typeof JobHistorySchema>;
 
@@ -73,6 +75,7 @@ export const IndexingStatusResponseSchema = z.object({
     worker: WorkerStatusSchema,
     problems: ProblemDocumentsSchema,
     recentlyIndexed: z.array(DocumentIndexingDetailSchema).max(10).optional(),
+    recentJobs: z.array(JobHistorySchema).optional(),
 });
 export type IndexingStatusResponse = z.infer<
     typeof IndexingStatusResponseSchema
@@ -84,6 +87,14 @@ export const IndexingStatusQuerySchema = z.object({
         .string()
         .optional()
         .transform((val) => val === 'true'),
+    includeRecentJobs: z
+        .string()
+        .optional()
+        .transform((val) => val === 'true'),
+    jobLimit: z
+        .string()
+        .optional()
+        .transform((val) => (val ? parseInt(val, 10) : undefined)),
 });
 export type IndexingStatusQuery = z.infer<typeof IndexingStatusQuerySchema>;
 

@@ -32,8 +32,15 @@ router.get(
             }
 
             const includeRecent = req.query.includeRecent === 'true';
+            const includeRecentJobs = req.query.includeRecentJobs === 'true';
+            const jobLimit = req.query.jobLimit
+                ? parseInt(req.query.jobLimit as string, 10)
+                : undefined;
+
             const response = await getIndexingStatus(tenantId, {
                 includeRecent,
+                includeRecentJobs,
+                jobLimit,
             });
             res.json(response);
         } catch (error) {

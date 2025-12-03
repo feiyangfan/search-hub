@@ -7694,10 +7694,26 @@
     },
     "/v1/admin/indexing": {
       "get": {
+        "summary": "Get indexing status with stats, worker health, problems, and optional recent jobs",
+        "description": "Returns comprehensive indexing status for the current workspace. Use includeRecent for recently indexed documents and includeRecentJobs for job history across all documents.",
         "parameters": [
           {
             "in": "query",
             "name": "includeRecent",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeRecentJobs",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "jobLimit",
             "schema": {
               "type": "string"
             }
@@ -7899,6 +7915,12 @@
                                     "durationSeconds": {
                                       "type": "number",
                                       "minimum": 0
+                                    },
+                                    "documentId": {
+                                      "type": "string"
+                                    },
+                                    "documentTitle": {
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -8026,6 +8048,12 @@
                                     "durationSeconds": {
                                       "type": "number",
                                       "minimum": 0
+                                    },
+                                    "documentId": {
+                                      "type": "string"
+                                    },
+                                    "documentTitle": {
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -8153,6 +8181,12 @@
                                     "durationSeconds": {
                                       "type": "number",
                                       "minimum": 0
+                                    },
+                                    "documentId": {
+                                      "type": "string"
+                                    },
+                                    "documentTitle": {
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -8289,6 +8323,12 @@
                                 "durationSeconds": {
                                   "type": "number",
                                   "minimum": 0
+                                },
+                                "documentId": {
+                                  "type": "string"
+                                },
+                                "documentTitle": {
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -8314,6 +8354,58 @@
                           "lastJobUpdatedAt",
                           "checksum",
                           "recentJobs"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "recentJobs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "queued",
+                              "processing",
+                              "indexed",
+                              "failed"
+                            ]
+                          },
+                          "error": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          "durationSeconds": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "documentId": {
+                            "type": "string"
+                          },
+                          "documentTitle": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "status",
+                          "error",
+                          "createdAt",
+                          "updatedAt"
                         ],
                         "additionalProperties": false
                       }

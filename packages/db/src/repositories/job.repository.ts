@@ -98,4 +98,24 @@ export const jobRepository = {
 
         return result.count;
     },
+
+    /**
+     * Get recent jobs for a tenant across all documents
+     * Ordered by most recently updated first
+     */
+    findRecentJobs: async (tenantId: string, limit = 50) => {
+        return prisma.indexJob.findMany({
+            where: { tenantId },
+            orderBy: { updatedAt: 'desc' },
+            take: limit,
+            include: {
+                document: {
+                    select: {
+                        id: true,
+                        title: true,
+                    },
+                },
+            },
+        });
+    },
 };

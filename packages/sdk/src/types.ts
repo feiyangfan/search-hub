@@ -4109,10 +4109,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Get indexing status with stats, worker health, problems, and optional recent jobs
+         * @description Returns comprehensive indexing status for the current workspace. Use includeRecent for recently indexed documents and includeRecentJobs for job history across all documents.
+         */
         get: {
             parameters: {
                 query?: {
                     includeRecent?: string;
+                    includeRecentJobs?: string;
+                    jobLimit?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4168,6 +4174,8 @@ export interface paths {
                                         /** Format: date-time */
                                         updatedAt: string;
                                         durationSeconds?: number;
+                                        documentId?: string;
+                                        documentTitle?: string;
                                     }[];
                                 }[];
                                 stuckInQueue: {
@@ -4193,6 +4201,8 @@ export interface paths {
                                         /** Format: date-time */
                                         updatedAt: string;
                                         durationSeconds?: number;
+                                        documentId?: string;
+                                        documentTitle?: string;
                                     }[];
                                 }[];
                                 emptyContent: {
@@ -4218,6 +4228,8 @@ export interface paths {
                                         /** Format: date-time */
                                         updatedAt: string;
                                         durationSeconds?: number;
+                                        documentId?: string;
+                                        documentTitle?: string;
                                     }[];
                                 }[];
                             };
@@ -4244,7 +4256,22 @@ export interface paths {
                                     /** Format: date-time */
                                     updatedAt: string;
                                     durationSeconds?: number;
+                                    documentId?: string;
+                                    documentTitle?: string;
                                 }[];
+                            }[];
+                            recentJobs?: {
+                                id: string;
+                                /** @enum {string} */
+                                status: "queued" | "processing" | "indexed" | "failed";
+                                error: string | null;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                updatedAt: string;
+                                durationSeconds?: number;
+                                documentId?: string;
+                                documentTitle?: string;
                             }[];
                         };
                     };

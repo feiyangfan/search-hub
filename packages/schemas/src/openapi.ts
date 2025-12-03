@@ -1445,6 +1445,10 @@ export function buildOpenApi(
             // Admin routes
             '/v1/admin/indexing': {
                 get: {
+                    summary:
+                        'Get indexing status with stats, worker health, problems, and optional recent jobs',
+                    description:
+                        'Returns comprehensive indexing status for the current workspace. Use includeRecent for recently indexed documents and includeRecentJobs for job history across all documents.',
                     requestParams: { query: IndexingStatusQuerySchema },
                     responses: {
                         200: {
