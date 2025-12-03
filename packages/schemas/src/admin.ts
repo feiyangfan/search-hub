@@ -40,6 +40,8 @@ export const JobHistorySchema = z.object({
     error: z.string().nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
+    startedAt: z.iso.datetime().nullable().optional(),
+    completedAt: z.iso.datetime().nullable().optional(),
     durationSeconds: z.number().nonnegative().optional(),
     documentId: z.string().optional(),
     documentTitle: z.string().optional(),

@@ -4173,6 +4173,10 @@ export interface paths {
                                         createdAt: string;
                                         /** Format: date-time */
                                         updatedAt: string;
+                                        /** Format: date-time */
+                                        startedAt?: string | null;
+                                        /** Format: date-time */
+                                        completedAt?: string | null;
                                         durationSeconds?: number;
                                         documentId?: string;
                                         documentTitle?: string;
@@ -4200,6 +4204,10 @@ export interface paths {
                                         createdAt: string;
                                         /** Format: date-time */
                                         updatedAt: string;
+                                        /** Format: date-time */
+                                        startedAt?: string | null;
+                                        /** Format: date-time */
+                                        completedAt?: string | null;
                                         durationSeconds?: number;
                                         documentId?: string;
                                         documentTitle?: string;
@@ -4227,6 +4235,10 @@ export interface paths {
                                         createdAt: string;
                                         /** Format: date-time */
                                         updatedAt: string;
+                                        /** Format: date-time */
+                                        startedAt?: string | null;
+                                        /** Format: date-time */
+                                        completedAt?: string | null;
                                         durationSeconds?: number;
                                         documentId?: string;
                                         documentTitle?: string;
@@ -4255,6 +4267,10 @@ export interface paths {
                                     createdAt: string;
                                     /** Format: date-time */
                                     updatedAt: string;
+                                    /** Format: date-time */
+                                    startedAt?: string | null;
+                                    /** Format: date-time */
+                                    completedAt?: string | null;
                                     durationSeconds?: number;
                                     documentId?: string;
                                     documentTitle?: string;
@@ -4269,6 +4285,10 @@ export interface paths {
                                 createdAt: string;
                                 /** Format: date-time */
                                 updatedAt: string;
+                                /** Format: date-time */
+                                startedAt?: string | null;
+                                /** Format: date-time */
+                                completedAt?: string | null;
                                 durationSeconds?: number;
                                 documentId?: string;
                                 documentTitle?: string;

@@ -191,6 +191,8 @@ export async function getIndexingStatus(
                 error: j.error,
                 createdAt: j.createdAt.toISOString(),
                 updatedAt: j.updatedAt.toISOString(),
+                startedAt: j.startedAt?.toISOString() ?? null,
+                completedAt: j.completedAt?.toISOString() ?? null,
                 durationSeconds,
                 documentId: j.documentId,
                 documentTitle: j.document.title,
