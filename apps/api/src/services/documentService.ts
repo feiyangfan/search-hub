@@ -20,6 +20,8 @@ import {
 import { logger as defaultLogger } from '@search-hub/logger';
 import type { Logger } from 'pino';
 import { extractRemindCommands } from '../lib/reminders.js';
+import { redisClient as defaultRedisClient } from '../session/store.js';
+import type { RedisClientType } from 'redis';
 
 const DEFAULT_QUEUE_OPTIONS = {
     attempts: 3,
@@ -31,6 +33,8 @@ const DEFAULT_QUEUE_OPTIONS = {
     removeOnFail: false, // keep failed jobs for debugging
 };
 
+const REINDEX_DEBOUNCE_MS = 60000; // 60 seconds
+
 function normalizeMetadata(value: unknown): Record<string, unknown> | null {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
         return value as Record<string, unknown>;
@@ -38,10 +42,128 @@ function normalizeMetadata(value: unknown): Record<string, unknown> | null {
     return null;
 }
 
+/**
+ * Schedule a debounced reindex using Redis and in-memory timer tracking.
+ * Cancels previous timer if one exists, then sets new timer.
+ * Only the last timer will trigger the reindex.
+ */
+function createScheduleDebouncedReindex(
+    redis: RedisClientType,
+    indexQueue: typeof defaultIndexQueue,
+    db: typeof defaultDb
+) {
+    // Track active timers per document to prevent duplicates
+    const activeTimers = new Map<string, NodeJS.Timeout>();
+
+    return async function scheduleDebouncedReindex(
+        tenantId: string,
+        documentId: string,
+        logger: Logger
+    ): Promise<void> {
+        const key = `reindex-debounce:${tenantId}:${documentId}`;
+        const timerKey = `${tenantId}:${documentId}`;
+
+        try {
+            // Cancel existing timer if one is active
+            const existingTimer = activeTimers.get(timerKey);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+                activeTimers.delete(timerKey);
+                logger.debug(
+                    { documentId, tenantId },
+                    'reindex.debounce.cancelled_previous'
+                );
+            }
+
+            // Set Redis marker for observability (optional, could remove if not needed)
+            await redis.set(key, Date.now().toString(), {
+                EX: Math.ceil(REINDEX_DEBOUNCE_MS / 1000),
+            });
+
+            // Schedule the reindex
+            const timer = setTimeout(() => {
+                void (async () => {
+                    try {
+                        // Remove timer from tracking
+                        activeTimers.delete(timerKey);
+
+                        // Clean up Redis marker
+                        await redis.del(key);
+
+                        const jobPayload: IndexDocumentJob =
+                            IndexDocumentJobSchema.parse({
+                                tenantId,
+                                documentId,
+                            });
+
+                        const job = await indexQueue.add(
+                            JOBS.INDEX_DOCUMENT,
+                            jobPayload,
+                            {
+                                ...DEFAULT_QUEUE_OPTIONS,
+                                jobId: `${tenantId}-${documentId}`,
+                            }
+                        );
+
+                        await db.job.enqueueIndex(tenantId, documentId);
+
+                        metrics.queueDepth.inc({
+                            queue_name: JOBS.INDEX_DOCUMENT,
+                            tenant_id: tenantId,
+                        });
+
+                        logger.info(
+                            {
+                                documentId,
+                                jobId: job.id,
+                                tenantId,
+                                trigger: 'auto-debounced',
+                            },
+                            'queue.auto_reindex.succeeded'
+                        );
+                    } catch (error) {
+                        logger.error(
+                            {
+                                documentId,
+                                tenantId,
+                                error:
+                                    error instanceof Error
+                                        ? error.message
+                                        : String(error),
+                            },
+                            'queue.auto_reindex.failed'
+                        );
+                    }
+                })();
+            }, REINDEX_DEBOUNCE_MS);
+
+            // Track the new timer
+            activeTimers.set(timerKey, timer);
+
+            logger.debug(
+                { documentId, tenantId, delayMs: REINDEX_DEBOUNCE_MS },
+                'reindex.debounce.scheduled'
+            );
+        } catch (error) {
+            logger.error(
+                {
+                    documentId,
+                    tenantId,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+                'reindex.debounce.error'
+            );
+            // Non-fatal: if Redis fails, just log and continue
+        }
+    };
+}
+
 export interface DocumentServiceDependencies {
     db?: typeof defaultDb;
     indexQueue?: typeof defaultIndexQueue;
     reminderQueue?: typeof defaultReminderQueue;
+    redis?: RedisClientType;
     logger?: Logger;
 }
 
@@ -186,7 +308,15 @@ export function createDocumentService(
     const db = deps.db ?? defaultDb;
     const indexQueue = deps.indexQueue ?? defaultIndexQueue;
     const reminderQueue = deps.reminderQueue ?? defaultReminderQueue;
+    const redis = deps.redis ?? defaultRedisClient;
     const logger = deps.logger ?? defaultLogger;
+
+    // Create the debounced reindex scheduler with injected dependencies
+    const scheduleDebouncedReindex = createScheduleDebouncedReindex(
+        redis,
+        indexQueue,
+        db
+    );
 
     async function createAndQueueDocument(
         body: CreateDocumentRequestType,
@@ -581,8 +711,9 @@ export function createDocumentService(
         const reminders = extractRemindCommands(content);
         await syncDocumentReminders(documentId, context, reminders);
 
-        // Note: Reindex is handled by frontend via separate debounced endpoint
-        // to avoid redundant embedding generation on every keystroke
+        // Auto-schedule debounced reindex (backend-based, survives navigation)
+        // This replaces the frontend-based debouncing which breaks on navigation
+        await scheduleDebouncedReindex(context.tenantId, documentId, logger);
 
         logger.info(
             {

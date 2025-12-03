@@ -253,40 +253,6 @@ export default function DocumentPage() {
         8000 // 8 seconds
     );
 
-    // Queue reindex request
-    const queueReindex = async (documentId: string) => {
-        try {
-            const response = await fetch(
-                `/api/documents/${documentId}/reindex`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                }
-            );
-
-            if (!response.ok) {
-                throw new Error('Failed to queue re-indexing');
-            }
-
-            console.log('Re-indexing queued successfully');
-        } catch (error) {
-            console.error('Failed to queue re-indexing:', error);
-        }
-    };
-
-    // Debounced auto re-index trigger (60 seconds after typing stops)
-    const debouncedReindex = useDebouncedCallback(
-        async () => {
-            try {
-                console.log('Triggering re-index for document...');
-                queueReindex(documentId);
-            } catch (error) {
-                console.error('Failed to trigger re-index:', error);
-            }
-        },
-        60000 // 60 seconds
-    );
-
     const handleEditTags = useCallback(() => {
         setShowTagDialog(true);
     }, []);
@@ -361,7 +327,6 @@ export default function DocumentPage() {
         if (content !== lastSavedContentRef.current) {
             setHasUnsavedChanges(true);
             debouncedSave(content);
-            debouncedReindex(); // Separate 60s timer for reindex
         }
     };
 
@@ -414,13 +379,12 @@ export default function DocumentPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // handleManualSave uses refs, so it's stable
 
-    // Cleanup: cancel pending saves and reindex on unmount
+    // Cleanup: cancel pending saves on unmount
     useEffect(() => {
         return () => {
             debouncedSave.cancel();
-            debouncedReindex.cancel();
         };
-    }, [debouncedSave, debouncedReindex]);
+    }, [debouncedSave]);
 
     useEffect(() => {
         if (!document) {
