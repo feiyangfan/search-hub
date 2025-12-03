@@ -59,7 +59,6 @@ export async function POST(
 
     try {
         const body = await request.json();
-        console.log('Request body:', body);
         const client = new SearchHubClient({
             baseUrl: apiBase,
             headers: { cookie: apiSessionCookie },
