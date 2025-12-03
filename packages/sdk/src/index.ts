@@ -644,6 +644,8 @@ export class SearchHubClient {
     /** GET /v1/admin/indexing */
     async getIndexingStatus(params?: {
         includeRecent?: boolean;
+        includeRecentJobs?: boolean;
+        jobLimit?: number;
     }): Promise<
         paths['/v1/admin/indexing']['get']['responses']['200']['content']['application/json']
     > {
@@ -653,6 +655,15 @@ export class SearchHubClient {
                 'includeRecent',
                 params.includeRecent.toString()
             );
+        }
+        if (params?.includeRecentJobs !== undefined) {
+            searchParams.append(
+                'includeRecentJobs',
+                params.includeRecentJobs.toString()
+            );
+        }
+        if (params?.jobLimit !== undefined) {
+            searchParams.append('jobLimit', params.jobLimit.toString());
         }
         const qs = searchParams.toString();
         const url = `${this.baseUrl}/v1/admin/indexing${qs ? `?${qs}` : ''}`;
