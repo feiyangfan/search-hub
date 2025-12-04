@@ -56,6 +56,19 @@ export default async function DashboardLayout({
         } catch (error) {
             console.error('Failed to preload reminders data', error);
         }
+
+        try {
+            const indexingStatus = await client.getIndexingStatus({
+                includeRecentJobs: true,
+                jobLimit: 5,
+            });
+            queryClient.setQueryData(
+                ['admin', 'indexing', activeTenantId],
+                indexingStatus
+            );
+        } catch (error) {
+            console.error('Failed to preload indexing status', error);
+        }
     }
 
     return (

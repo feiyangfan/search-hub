@@ -4178,6 +4178,7 @@ export interface paths {
                                         /** Format: date-time */
                                         completedAt?: string | null;
                                         durationSeconds?: number;
+                                        isStuck?: boolean;
                                         documentId?: string;
                                         documentTitle?: string;
                                     }[];
@@ -4209,6 +4210,7 @@ export interface paths {
                                         /** Format: date-time */
                                         completedAt?: string | null;
                                         durationSeconds?: number;
+                                        isStuck?: boolean;
                                         documentId?: string;
                                         documentTitle?: string;
                                     }[];
@@ -4240,6 +4242,7 @@ export interface paths {
                                         /** Format: date-time */
                                         completedAt?: string | null;
                                         durationSeconds?: number;
+                                        isStuck?: boolean;
                                         documentId?: string;
                                         documentTitle?: string;
                                     }[];
@@ -4272,6 +4275,7 @@ export interface paths {
                                     /** Format: date-time */
                                     completedAt?: string | null;
                                     durationSeconds?: number;
+                                    isStuck?: boolean;
                                     documentId?: string;
                                     documentTitle?: string;
                                 }[];
@@ -4290,6 +4294,7 @@ export interface paths {
                                 /** Format: date-time */
                                 completedAt?: string | null;
                                 durationSeconds?: number;
+                                isStuck?: boolean;
                                 documentId?: string;
                                 documentTitle?: string;
                             }[];

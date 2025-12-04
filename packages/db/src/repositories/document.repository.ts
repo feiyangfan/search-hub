@@ -1014,6 +1014,68 @@ export const documentRepository = {
     },
 
     /**
+     * Find documents stuck in processing status (likely worker crash)
+     */
+    findStuckInProcessing: async (
+        tenantId: string,
+        stuckThreshold: Date,
+        limit = 50
+    ) => {
+        return prisma.document.findMany({
+            where: {
+                tenantId,
+                jobs: {
+                    some: {
+                        status: 'processing',
+                        updatedAt: {
+                            lt: stuckThreshold,
+                        },
+                    },
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                tenantId: true,
+                content: true,
+                createdAt: true,
+                updatedAt: true,
+                _count: {
+                    select: {
+                        chunks: true,
+                    },
+                },
+                indexState: {
+                    select: {
+                        lastChecksum: true,
+                        lastIndexedAt: true,
+                    },
+                },
+                jobs: {
+                    where: {
+                        status: 'processing',
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        error: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 3,
+                },
+            },
+            orderBy: {
+                updatedAt: 'asc',
+            },
+            take: limit,
+        });
+    },
+
+    /**
      * Find documents with content but no chunks
      */
     findWithEmptyChunks: async (tenantId: string, limit = 50) => {

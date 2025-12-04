@@ -7928,6 +7928,9 @@
                                       "type": "number",
                                       "minimum": 0
                                     },
+                                    "isStuck": {
+                                      "type": "boolean"
+                                    },
                                     "documentId": {
                                       "type": "string"
                                     },
@@ -8073,6 +8076,9 @@
                                       "type": "number",
                                       "minimum": 0
                                     },
+                                    "isStuck": {
+                                      "type": "boolean"
+                                    },
                                     "documentId": {
                                       "type": "string"
                                     },
@@ -8217,6 +8223,9 @@
                                     "durationSeconds": {
                                       "type": "number",
                                       "minimum": 0
+                                    },
+                                    "isStuck": {
+                                      "type": "boolean"
                                     },
                                     "documentId": {
                                       "type": "string"
@@ -8372,6 +8381,9 @@
                                   "type": "number",
                                   "minimum": 0
                                 },
+                                "isStuck": {
+                                  "type": "boolean"
+                                },
                                 "documentId": {
                                   "type": "string"
                                 },
@@ -8452,6 +8464,9 @@
                           "durationSeconds": {
                             "type": "number",
                             "minimum": 0
+                          },
+                          "isStuck": {
+                            "type": "boolean"
                           },
                           "documentId": {
                             "type": "string"

@@ -281,80 +281,8 @@ export default async function DashboardPage() {
                         </DashboardCard>
                     </DashboardGridItem>
 
-                    {/* Index Pipeline Status - 2 columns, 3 rows */}
-                    <DashboardGridItem colSpan={2} rowSpan={3}>
-                        <DashboardCard
-                            variant="large"
-                            title="Indexing Pipeline Status"
-                            action={
-                                <Button variant="ghost" size="sm">
-                                    View Queue
-                                </Button>
-                            }
-                            className="h-full"
-                        >
-                            <IndexingPipelineStatus
-                                stats={{
-                                    failed: 3,
-                                    processing: 2,
-                                    queued: 12,
-                                    indexed: 234,
-                                    activeWorkers: { current: 2, max: 5 },
-                                    queueWaitTime: '~3m',
-                                    indexedToday: 18,
-                                }}
-                                recentJobs={[
-                                    {
-                                        id: '1',
-                                        documentName: 'Team Handbook.md',
-                                        status: 'failed',
-                                        statusLabel: 'Failed',
-                                        icon: '⚠️',
-                                        details:
-                                            'Error: Voyage AI rate limit exceeded · Retry 3/3 · 5m ago',
-                                        hasAction: true,
-                                        actionLabel: 'Retry',
-                                    },
-                                    {
-                                        id: '2',
-                                        documentName: 'API Documentation v2.md',
-                                        status: 'processing',
-                                        statusLabel: 'Processing',
-                                        icon: '⚙️',
-                                        details: '45s · 127/189 chunks',
-                                        progress: {
-                                            current: 127,
-                                            total: 189,
-                                            percentage: 67,
-                                        },
-                                    },
-                                    {
-                                        id: '3',
-                                        documentName: 'Deployment Guide.md',
-                                        status: 'queued',
-                                        statusLabel: 'Queued',
-                                        icon: '⏳',
-                                        details: 'Estimated wait: ~4m · 8.2 KB',
-                                        queuePosition: 3,
-                                    },
-                                    {
-                                        id: '4',
-                                        documentName:
-                                            'Design System Guidelines.md',
-                                        status: 'indexed',
-                                        statusLabel: 'Indexed',
-                                        icon: '✓',
-                                        details:
-                                            'Completed in 2.3s · 156 chunks · 2m ago',
-                                    },
-                                ]}
-                                showRetryAll={true}
-                            />
-                        </DashboardCard>
-                    </DashboardGridItem>
-
-                    {/* Recent Activity - 2 columns, 2 rows */}
-                    <DashboardGridItem colSpan={2} rowSpan={2}>
+                    {/* Recent Activity - 3 columns, 2 rows */}
+                    <DashboardGridItem colSpan={3} rowSpan={2}>
                         <DashboardCard
                             variant="medium"
                             title="Recent Activity"
@@ -436,6 +364,24 @@ export default async function DashboardPage() {
                                     </div>
                                 ))}
                             </div>
+                        </DashboardCard>
+                    </DashboardGridItem>
+
+                    {/* Index Pipeline Status - 3 columns, 2 rows */}
+                    <DashboardGridItem colSpan={3} rowSpan={2}>
+                        <DashboardCard
+                            variant="large"
+                            title="Indexing Pipeline Status"
+                            action={
+                                <Button variant="ghost" size="sm">
+                                    View Queue
+                                </Button>
+                            }
+                            className="h-full"
+                        >
+                            <IndexingPipelineStatus
+                                tenantId={session.activeTenantId}
+                            />
                         </DashboardCard>
                     </DashboardGridItem>
                 </DashboardGrid>

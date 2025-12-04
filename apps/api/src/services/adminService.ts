@@ -59,16 +59,29 @@ async function getIndexingStats(tenantId: string): Promise<IndexingStats> {
 async function getProblemDocuments(
     tenantId: string
 ): Promise<ProblemDocuments> {
-    const STUCK_THRESHOLD_MINUTES = 5;
-    const stuckThreshold = new Date(
-        Date.now() - STUCK_THRESHOLD_MINUTES * 60 * 1000
+    // Jobs stuck in 'queued' status for more than 10 minutes (likely queue issue)
+    const STUCK_QUEUED_THRESHOLD_MINUTES = 10;
+    // Jobs stuck in 'processing' status for more than 5 minutes (likely worker crash)
+    const STUCK_PROCESSING_THRESHOLD_MINUTES = 5;
+
+    const queuedThreshold = new Date(
+        Date.now() - STUCK_QUEUED_THRESHOLD_MINUTES * 60 * 1000
+    );
+    const processingThreshold = new Date(
+        Date.now() - STUCK_PROCESSING_THRESHOLD_MINUTES * 60 * 1000
     );
 
-    const [failedDocs, stuckDocs, emptyContentDocs] = await Promise.all([
-        db.document.findWithFailedJobs(tenantId, 50),
-        db.document.findStuckInQueue(tenantId, stuckThreshold, 50),
-        db.document.findWithEmptyChunks(tenantId, 50),
-    ]);
+    const [failedDocs, stuckQueuedDocs, stuckProcessingDocs, emptyContentDocs] =
+        await Promise.all([
+            db.document.findWithFailedJobs(tenantId, 50),
+            db.document.findStuckInQueue(tenantId, queuedThreshold, 50),
+            db.document.findStuckInProcessing(
+                tenantId,
+                processingThreshold,
+                50
+            ),
+            db.document.findWithEmptyChunks(tenantId, 50),
+        ]);
 
     // Helper to map document to schema format
     const mapDocument = (
@@ -100,9 +113,12 @@ async function getProblemDocuments(
         };
     };
 
+    // Combine stuck queued and stuck processing into single "stuckInQueue" category
+    const allStuckDocs = [...stuckQueuedDocs, ...stuckProcessingDocs];
+
     return {
         failed: failedDocs.map(mapDocument),
-        stuckInQueue: stuckDocs.map(mapDocument),
+        stuckInQueue: allStuckDocs.map(mapDocument),
         emptyContent: emptyContentDocs.map(mapDocument),
     };
 }
@@ -173,6 +189,9 @@ export async function getIndexingStatus(
     if (options.includeRecentJobs) {
         const limit = Math.min(options.jobLimit ?? 50, 200);
         const jobs = await db.job.findRecentJobs(tenantId, limit);
+        const now = Date.now();
+        const STUCK_QUEUED_MS = 10 * 60 * 1000; // 10 minutes
+        const STUCK_PROCESSING_MS = 5 * 60 * 1000; // 5 minutes
 
         response.recentJobs = jobs.map((j) => {
             // Calculate duration using actual processing time (startedAt -> completedAt)
@@ -180,6 +199,12 @@ export async function getIndexingStatus(
                 j.startedAt && j.completedAt
                     ? (j.completedAt.getTime() - j.startedAt.getTime()) / 1000
                     : undefined;
+
+            // Determine if job is stuck
+            const updatedAge = now - j.updatedAt.getTime();
+            const isStuck =
+                (j.status === 'queued' && updatedAge > STUCK_QUEUED_MS) ||
+                (j.status === 'processing' && updatedAge > STUCK_PROCESSING_MS);
 
             return {
                 id: j.id,
@@ -194,6 +219,7 @@ export async function getIndexingStatus(
                 startedAt: j.startedAt?.toISOString() ?? null,
                 completedAt: j.completedAt?.toISOString() ?? null,
                 durationSeconds,
+                isStuck,
                 documentId: j.documentId,
                 documentTitle: j.document.title,
             };

@@ -43,6 +43,7 @@ export const JobHistorySchema = z.object({
     startedAt: z.iso.datetime().nullable().optional(),
     completedAt: z.iso.datetime().nullable().optional(),
     durationSeconds: z.number().nonnegative().optional(),
+    isStuck: z.boolean().optional(),
     documentId: z.string().optional(),
     documentTitle: z.string().optional(),
 });
