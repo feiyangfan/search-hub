@@ -137,8 +137,9 @@ export default async function DashboardPage() {
                             title="Quick Search"
                             className="h-full"
                         >
-                            {' '}
-                            <QuickSearchCard />
+                            <QuickSearchCard
+                                tenantId={session.activeTenantId}
+                            />
                         </DashboardCard>
                     </DashboardGridItem>
 
@@ -155,48 +156,7 @@ export default async function DashboardPage() {
                             className="h-full"
                         >
                             <SearchIntelligence
-                                metrics={[
-                                    {
-                                        label: 'Total searches',
-                                        value: '1,248',
-                                        trend: '+12%',
-                                        trendUp: true,
-                                    },
-                                    {
-                                        label: 'P95 latency',
-                                        value: '680ms',
-                                        trend: '−6%',
-                                        trendUp: false,
-                                    },
-                                    {
-                                        label: 'Success rate',
-                                        value: '94.2%',
-                                        trend: '+2.1%',
-                                        trendUp: true,
-                                    },
-                                ]}
-                                topQueries={[
-                                    {
-                                        query: 'authentication flow',
-                                        count: 47,
-                                    },
-                                    {
-                                        query: 'api documentation',
-                                        count: 38,
-                                    },
-                                    {
-                                        query: 'deployment guide',
-                                        count: 29,
-                                    },
-                                    {
-                                        query: 'leetcode',
-                                        count: 29,
-                                    },
-                                    {
-                                        query: 'database',
-                                        count: 29,
-                                    },
-                                ]}
+                                tenantId={session.activeTenantId}
                             />
                         </DashboardCard>
                     </DashboardGridItem>

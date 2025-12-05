@@ -16,6 +16,7 @@ import {
 import type { SearchResultItem } from '@search-hub/schemas';
 import { Button } from '../ui/button';
 import { useSearch } from './search-provider';
+import { useInvalidateSearchAnalytics } from '@/hooks/use-dashboard';
 
 interface SearchModalProps {
     open: boolean;
@@ -25,6 +26,7 @@ interface SearchModalProps {
 export function SearchModal({ open, onOpenChange }: SearchModalProps) {
     const router = useRouter();
     const { initialQuery } = useSearch();
+    const invalidateSearchAnalytics = useInvalidateSearchAnalytics();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResultItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +55,8 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
                 // Backend returns SearchResponse: { total, items, page?, pageSize? }
                 if (data.items && Array.isArray(data.items)) {
                     setResults(data.items);
+                    // Invalidate search analytics cache to update recent searches and intelligence cards
+                    invalidateSearchAnalytics();
                 }
             } catch (error) {
                 console.error('Search failed:', error);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type KeyboardEvent } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Clock } from 'lucide-react';
 import {
     Card,
     CardContent,
@@ -11,18 +11,33 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useSearch } from '@/components/search/search-provider';
+import {
+    useRecentSearchesQuery,
+    useInvalidateSearchAnalytics,
+} from '@/hooks/use-dashboard';
 
-const RECENT_SEARCHES = ['authentication', 'deployment', 'api docs'];
+interface QuickSearchCardProps {
+    tenantId: string | undefined;
+}
 
-export function QuickSearchCard() {
+export function QuickSearchCard({ tenantId }: QuickSearchCardProps) {
     const [inputValue, setInputValue] = useState('');
     const { openSearch } = useSearch();
+    const invalidateSearchAnalytics = useInvalidateSearchAnalytics();
+    const { data: recentSearchesData, isLoading } = useRecentSearchesQuery(
+        tenantId,
+        3
+    );
+
+    const recentSearches = recentSearchesData?.searches || [];
 
     const handleSearch = () => {
         if (inputValue.trim()) {
             openSearch(inputValue);
-            // Keep the input value so user can see what they searched for
+            // Invalidate cache to ensure analytics update after search modal closes
+            setTimeout(() => invalidateSearchAnalytics(), 500);
         }
     };
 
@@ -35,6 +50,8 @@ export function QuickSearchCard() {
     const handleRecentSearchClick = (term: string) => {
         setInputValue(term);
         openSearch(term);
+        // Invalidate cache to ensure analytics update after search modal closes
+        setTimeout(() => invalidateSearchAnalytics(), 500);
     };
 
     return (
@@ -53,26 +70,39 @@ export function QuickSearchCard() {
                 </Button>
             </div>
 
-            {RECENT_SEARCHES.length > 0 && (
+            {isLoading ? (
                 <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
                         Recent searches:
                     </p>
                     <div className="flex flex-row gap-2">
-                        {RECENT_SEARCHES.map((term) => (
+                        <Skeleton className="h-7 w-24 rounded" />
+                        <Skeleton className="h-7 w-20 rounded" />
+                        <Skeleton className="h-7 w-28 rounded" />
+                    </div>
+                </div>
+            ) : recentSearches.length > 0 ? (
+                <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" />
+                        Recent searches:
+                    </p>
+                    <div className="flex flex-row gap-2">
+                        {recentSearches.map((query, idx) => (
                             <Button
-                                key={term}
+                                key={`${query}-${idx}`}
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleRecentSearchClick(term)}
+                                onClick={() => handleRecentSearchClick(query)}
                                 className="text-xs"
                             >
-                                {term}
+                                {query}
                             </Button>
                         ))}
                     </div>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }
