@@ -26,6 +26,7 @@ import {
     RemindersCardContent,
     RemindersCardAction,
 } from '@/components/dashboard/dashboard-card/reminders-card';
+import { QuickSearchCard } from '@/components/dashboard/quick-search-card';
 
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
@@ -136,13 +137,8 @@ export default async function DashboardPage() {
                             title="Quick Search"
                             className="h-full"
                         >
-                            <div className="flex gap-2 h-full">
-                                <Input
-                                    placeholder="Search across documents..."
-                                    className="flex-1"
-                                />
-                                <Button>Search</Button>
-                            </div>
+                            {' '}
+                            <QuickSearchCard />
                         </DashboardCard>
                     </DashboardGridItem>
 

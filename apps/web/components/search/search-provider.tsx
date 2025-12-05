@@ -10,8 +10,9 @@ import {
 
 interface SearchContextType {
     isOpen: boolean;
+    initialQuery: string;
     setIsOpen: (open: boolean) => void;
-    openSearch: () => void;
+    openSearch: (query?: string) => void;
     closeSearch: () => void;
     toggleSearch: () => void;
 }
@@ -20,6 +21,7 @@ const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
 export function SearchProvider({ children }: { children: ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [initialQuery, setInitialQuery] = useState('');
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -33,14 +35,24 @@ export function SearchProvider({ children }: { children: ReactNode }) {
         return () => document.removeEventListener('keydown', down);
     }, []);
 
-    const openSearch = () => setIsOpen(true);
-    const closeSearch = () => setIsOpen(false);
+    const openSearch = (query = '') => {
+        setInitialQuery(query);
+        setIsOpen(true);
+    };
+
+    const closeSearch = () => {
+        setIsOpen(false);
+        // Clear initial query after a delay to avoid flicker when modal closes
+        setTimeout(() => setInitialQuery(''), 300);
+    };
+
     const toggleSearch = () => setIsOpen((open) => !open);
 
     return (
         <SearchContext.Provider
             value={{
                 isOpen,
+                initialQuery,
                 setIsOpen,
                 openSearch,
                 closeSearch,

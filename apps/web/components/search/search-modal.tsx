@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/command';
 import type { SearchResultItem } from '@search-hub/schemas';
 import { Button } from '../ui/button';
+import { useSearch } from './search-provider';
 
 interface SearchModalProps {
     open: boolean;
@@ -23,6 +24,7 @@ interface SearchModalProps {
 
 export function SearchModal({ open, onOpenChange }: SearchModalProps) {
     const router = useRouter();
+    const { initialQuery } = useSearch();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResultItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +73,13 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
             setResults([]);
         }
     }, [query, performSearch]);
+
+    // Set initial query when modal opens
+    useEffect(() => {
+        if (open && initialQuery) {
+            setQuery(initialQuery);
+        }
+    }, [open, initialQuery]);
 
     // Reset state when modal closes
     useEffect(() => {
