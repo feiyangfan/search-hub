@@ -67,6 +67,7 @@ export function searchRoutes(service: SearchService = createSearchService()) {
 
                 // Track successful search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 metrics.searchDuration.observe(
                     {
                         tenant_id: activeTenantId,
@@ -76,10 +77,28 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     duration
                 );
 
+                // Log search event asynchronously
+                if (authReq.session?.userId) {
+                    service
+                        .logSearch({
+                            tenantId: activeTenantId,
+                            userId: authReq.session.userId,
+                            query: query.q,
+                            searchType: 'hybrid',
+                            resultCount: response.total,
+                            duration: durationMs,
+                            status: 'success',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 res.json(response);
             } catch (err) {
                 // Track failed search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 const authReq = req as AuthenticatedRequest;
                 metrics.searchDuration.observe(
                     {
@@ -90,6 +109,30 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     },
                     duration
                 );
+
+                // Log failed search event
+                if (
+                    authReq.session?.userId &&
+                    authReq.session?.currentTenantId
+                ) {
+                    const validatedReq = req as RequestWithValidatedQuery<
+                        z.infer<typeof HybridSearchQuery>
+                    >;
+                    service
+                        .logSearch({
+                            tenantId: authReq.session.currentTenantId,
+                            userId: authReq.session.userId,
+                            query: validatedReq.validated?.query?.q ?? '',
+                            searchType: 'hybrid',
+                            resultCount: 0,
+                            duration: durationMs,
+                            status: 'error',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 next(err);
             }
         }
@@ -141,6 +184,7 @@ export function searchRoutes(service: SearchService = createSearchService()) {
 
                 // Track successful search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 metrics.searchDuration.observe(
                     {
                         tenant_id: activeTenantId,
@@ -150,10 +194,28 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     duration
                 );
 
+                // Log search event asynchronously
+                if (authReq.session?.userId) {
+                    service
+                        .logSearch({
+                            tenantId: activeTenantId,
+                            userId: authReq.session.userId,
+                            query: query.q,
+                            searchType: 'lexical',
+                            resultCount: response.total,
+                            duration: durationMs,
+                            status: 'success',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 res.json(response);
             } catch (err) {
                 // Track failed search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 const authReq = req as AuthenticatedRequest;
                 metrics.searchDuration.observe(
                     {
@@ -164,6 +226,30 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     },
                     duration
                 );
+
+                // Log failed search event
+                if (
+                    authReq.session?.userId &&
+                    authReq.session?.currentTenantId
+                ) {
+                    const validatedReq = req as RequestWithValidatedQuery<
+                        z.infer<typeof SearchQuery>
+                    >;
+                    service
+                        .logSearch({
+                            tenantId: authReq.session.currentTenantId,
+                            userId: authReq.session.userId,
+                            query: validatedReq.validated?.query?.q ?? '',
+                            searchType: 'lexical',
+                            resultCount: 0,
+                            duration: durationMs,
+                            status: 'error',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 next(err);
             }
         }
@@ -215,6 +301,7 @@ export function searchRoutes(service: SearchService = createSearchService()) {
 
                 // Track successful search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 metrics.searchDuration.observe(
                     {
                         tenant_id: activeTenantId,
@@ -224,10 +311,28 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     duration
                 );
 
+                // Log search event asynchronously
+                if (authReq.session?.userId) {
+                    service
+                        .logSearch({
+                            tenantId: activeTenantId,
+                            userId: authReq.session.userId,
+                            query: query.q,
+                            searchType: 'hybrid',
+                            resultCount: response.total,
+                            duration: durationMs,
+                            status: 'success',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 res.json(response);
             } catch (err) {
                 // Track failed search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 const authReq = req as AuthenticatedRequest;
                 metrics.searchDuration.observe(
                     {
@@ -238,6 +343,30 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     },
                     duration
                 );
+
+                // Log failed search event
+                if (
+                    authReq.session?.userId &&
+                    authReq.session?.currentTenantId
+                ) {
+                    const validatedReq = req as RequestWithValidatedQuery<
+                        z.infer<typeof HybridSearchQuery>
+                    >;
+                    service
+                        .logSearch({
+                            tenantId: authReq.session.currentTenantId,
+                            userId: authReq.session.userId,
+                            query: validatedReq.validated?.query?.q ?? '',
+                            searchType: 'hybrid',
+                            resultCount: 0,
+                            duration: durationMs,
+                            status: 'error',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 next(err);
             }
         }
@@ -317,6 +446,7 @@ export function searchRoutes(service: SearchService = createSearchService()) {
 
                 // Track successful search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 metrics.searchDuration.observe(
                     {
                         tenant_id: activeTenantId,
@@ -326,10 +456,28 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     duration
                 );
 
+                // Log search event asynchronously
+                if (authReq.session?.userId) {
+                    service
+                        .logSearch({
+                            tenantId: activeTenantId,
+                            userId: authReq.session.userId,
+                            query: String(searchQuery.q),
+                            searchType: 'semantic',
+                            resultCount: response.total,
+                            duration: durationMs,
+                            status: 'success',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
+
                 res.json(response);
             } catch (error: unknown) {
                 // Track failed search duration
                 const duration = (Date.now() - startTime) / 1000;
+                const durationMs = Date.now() - startTime;
                 const authReq = req as AuthenticatedRequest;
                 metrics.searchDuration.observe(
                     {
@@ -340,6 +488,31 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     },
                     duration
                 );
+
+                // Log failed search event
+                if (
+                    authReq.session?.userId &&
+                    authReq.session?.currentTenantId
+                ) {
+                    const validatedReq = req as RequestWithValidatedQuery<
+                        z.infer<typeof SemanticQuery>
+                    >;
+                    service
+                        .logSearch({
+                            tenantId: authReq.session.currentTenantId,
+                            userId: authReq.session.userId,
+                            query: String(
+                                validatedReq.validated?.query?.q ?? ''
+                            ),
+                            searchType: 'semantic',
+                            resultCount: 0,
+                            duration: durationMs,
+                            status: 'error',
+                        })
+                        .catch(() => {
+                            /* ignore logging errors */
+                        });
+                }
 
                 if (!service.isSemanticSearchAvailable()) {
                     return res.status(503).json({

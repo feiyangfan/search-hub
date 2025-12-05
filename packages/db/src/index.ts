@@ -7,6 +7,8 @@ import { tenantMembershipRepository } from './repositories/tenantMembership.repo
 import { documentIndexStateRepository } from './repositories/documentIndexState.repository.js';
 import { documentCommandRepository } from './repositories/documentCommand.repository.js';
 import { searchRepository } from './repositories/search.repository.js';
+import { searchAnalyticsRepository } from './repositories/searchAnalytics.repository.js';
+import { searchLogRepository } from './repositories/searchLog.repository.js';
 
 // Re-exports
 export { prisma } from './client.js';
@@ -30,4 +32,6 @@ export const db = {
     documentIndexState: documentIndexStateRepository,
     documentCommand: documentCommandRepository,
     search: searchRepository,
+    searchAnalytics: searchAnalyticsRepository,
+    searchLog: searchLogRepository,
 };

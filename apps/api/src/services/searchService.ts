@@ -42,6 +42,15 @@ export interface SearchService {
     ): Promise<SemanticSearchResult>;
     hybridSearch(query: HybridSearchQueryWithTenant): Promise<SearchResponse>;
     isSemanticSearchAvailable(): boolean;
+    logSearch(params: {
+        tenantId: string;
+        userId: string;
+        query: string;
+        searchType: 'lexical' | 'semantic' | 'hybrid';
+        resultCount: number;
+        duration: number;
+        status: 'success' | 'error' | 'partial';
+    }): Promise<void>;
 }
 
 /**
@@ -546,10 +555,44 @@ export function createSearchService(
         return breaker.canExecute();
     }
 
+    async function logSearch(params: {
+        tenantId: string;
+        userId: string;
+        query: string;
+        searchType: 'lexical' | 'semantic' | 'hybrid';
+        resultCount: number;
+        duration: number;
+        status: 'success' | 'error' | 'partial';
+    }): Promise<void> {
+        try {
+            await db.searchLog.create({
+                tenantId: params.tenantId,
+                userId: params.userId,
+                query: params.query,
+                searchType: params.searchType,
+                resultCount: params.resultCount,
+                duration: params.duration,
+                status: params.status,
+            });
+        } catch (error) {
+            // Don't let logging failures affect search requests
+            logger.error(
+                {
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                    tenantId: params.tenantId,
+                    userId: params.userId,
+                },
+                'Failed to log search event'
+            );
+        }
+    }
+
     return {
         lexicalSearch,
         semanticSearch,
         hybridSearch,
         isSemanticSearchAvailable,
+        logSearch,
     };
 }

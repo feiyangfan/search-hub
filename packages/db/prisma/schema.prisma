@@ -23,6 +23,7 @@ model Tenant {
   documents    Document[]
   jobs         IndexJob[]
   tags         Tag[]
+  searchLogs   SearchLog[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
@@ -46,6 +47,7 @@ model User {
   documentCommands DocumentCommand[]
   createdTags Tag[]
   addedDocumentTags DocumentTag[]
+  searchLogs SearchLog[]
 
   @@unique([oauthProvider, oauthAccountId])
 }
@@ -231,4 +233,26 @@ model IndexJob {
   @@index([status])
   @@index([tenantId, documentId, status])
   @@index([createdAt(sort: Desc)]) // optimize recent job queries
+}
+
+// Search analytics and recent searches
+model SearchLog {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String
+  query        String   // the search query text
+  searchType   String   // 'lexical', 'semantic', 'hybrid'
+  resultCount  Int      // number of results returned
+  duration     Int      // milliseconds
+  status       String   // 'success', 'error', 'partial'
+  
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt(sort: Desc)]) // recent searches per user
+  @@index([tenantId, createdAt(sort: Desc)])         // tenant analytics
+  @@index([tenantId, query])                         // top queries analysis
+  @@index([createdAt(sort: Desc)])                   // time-series queries
 }
