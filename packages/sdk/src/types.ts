@@ -4102,6 +4102,580 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/search-analytics/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get recent unique searches for current user
+         * @description Returns recent unique search queries for the authenticated user. Used by Quick Search card to show search history.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK - Recent searches for current user */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            searches: string[];
+                        };
+                    };
+                };
+                /** @description Bad Request - No active tenant or validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/search-analytics/top-queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get most popular search queries
+         * @description Returns the most frequently searched queries across the workspace. Used by Search Intelligence card for analytics.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    daysBack?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK - Top search queries with counts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            queries: {
+                                query: string;
+                                count: number;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Bad Request - No active tenant or validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/search-analytics/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get search analytics metrics with optional comparison
+         * @description Returns core search metrics including total searches, success rate, latency stats, and search type breakdown. Optionally includes trend comparison with previous period.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    startDate?: string;
+                    endDate?: string;
+                    includeComparison?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK - Search analytics metrics with optional trends */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            totalSearches: number;
+                            successRate: number;
+                            avgDuration: number;
+                            p95Duration: number;
+                            searchTypeBreakdown: {
+                                /** @default 0 */
+                                lexical: number;
+                                /** @default 0 */
+                                semantic: number;
+                                /** @default 0 */
+                                hybrid: number;
+                            };
+                            metrics?: {
+                                label: string;
+                                value: string;
+                                trend?: string;
+                                trendUp?: boolean;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Bad Request - No active tenant or validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/search-analytics/volume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get search volume time series data
+         * @description Returns search volume aggregated by hour or day for charting search activity over time.
+         */
+        get: {
+            parameters: {
+                query: {
+                    startDate: string;
+                    endDate: string;
+                    granularity?: "hour" | "day";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK - Time series data for search volume */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                timestamp: string;
+                                count: number;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Bad Request - No active tenant or validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/search-analytics/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get comprehensive search analytics with optional sections
+         * @description Returns detailed search analytics including core metrics and optionally: performance by search type, user behavior stats, and response time distribution. Used for detailed analytics dashboards.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    startDate?: string;
+                    endDate?: string;
+                    daysBack?: number;
+                    searchType?: "lexical" | "semantic" | "hybrid";
+                    includeComparison?: boolean;
+                    includePerformance?: boolean;
+                    includeUserBehavior?: boolean;
+                    includeResponseTime?: boolean;
+                    topQueriesLimit?: number;
+                    topUsersLimit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK - Comprehensive search analytics data */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            totalSearches: number;
+                            successRate: number;
+                            avgDuration: number;
+                            p95Duration: number;
+                            searchTypeBreakdown: {
+                                /** @default 0 */
+                                lexical: number;
+                                /** @default 0 */
+                                semantic: number;
+                                /** @default 0 */
+                                hybrid: number;
+                            };
+                            performance?: {
+                                /** @enum {string} */
+                                searchType: "lexical" | "semantic" | "hybrid";
+                                totalSearches: number;
+                                avgDuration: number;
+                                p95Duration: number;
+                                successRate: number;
+                            }[];
+                            userBehavior?: {
+                                topSearchers: {
+                                    userId: string;
+                                    userName?: string;
+                                    searchCount: number;
+                                    avgDuration: number;
+                                    /** @enum {string} */
+                                    favoriteSearchType?: "lexical" | "semantic" | "hybrid";
+                                }[];
+                                peakTimes: {
+                                    hour: number;
+                                    searchCount: number;
+                                }[];
+                                uniqueSearchers: number;
+                                searchesPerUser: number;
+                            };
+                            responseTime?: {
+                                distribution: {
+                                    bucket: string;
+                                    count: number;
+                                    percentage: number;
+                                }[];
+                                p50: number;
+                                p75: number;
+                                p90: number;
+                                p95: number;
+                                p99: number;
+                                slowestQueries?: {
+                                    query: string;
+                                    duration: number;
+                                    timestamp: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+                /** @description Bad Request - No active tenant or validation error */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Unauthorized - Authentication required */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                message: string;
+                                code: string;
+                                traceId: string;
+                                details?: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/indexing": {
         parameters: {
             query?: never;

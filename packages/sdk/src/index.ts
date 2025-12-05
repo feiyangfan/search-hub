@@ -674,6 +674,213 @@ export class SearchHubClient {
         await this.ensureOk(res, 'getIndexingStatus');
         return (await res.json()) as paths['/v1/admin/indexing']['get']['responses']['200']['content']['application/json'];
     }
+
+    /** GET /v1/search-analytics/recent */
+    async getRecentSearches(params?: {
+        limit?: number;
+    }): Promise<
+        paths['/v1/search-analytics/recent']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        if (params?.limit !== undefined) {
+            searchParams.append('limit', params.limit.toString());
+        }
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search-analytics/recent${
+            qs ? `?${qs}` : ''
+        }`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getRecentSearches');
+        return (await res.json()) as paths['/v1/search-analytics/recent']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/search-analytics/top-queries */
+    async getTopQueries(params?: {
+        limit?: number;
+        daysBack?: number;
+    }): Promise<
+        paths['/v1/search-analytics/top-queries']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        if (params?.limit !== undefined) {
+            searchParams.append('limit', params.limit.toString());
+        }
+        if (params?.daysBack !== undefined) {
+            searchParams.append('daysBack', params.daysBack.toString());
+        }
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search-analytics/top-queries${
+            qs ? `?${qs}` : ''
+        }`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getTopQueries');
+        return (await res.json()) as paths['/v1/search-analytics/top-queries']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/search-analytics/metrics */
+    async getSearchMetrics(params?: {
+        startDate?: string | Date;
+        endDate?: string | Date;
+        includeComparison?: boolean;
+    }): Promise<
+        paths['/v1/search-analytics/metrics']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        if (params?.startDate !== undefined) {
+            const dateStr =
+                params.startDate instanceof Date
+                    ? params.startDate.toISOString()
+                    : params.startDate;
+            searchParams.append('startDate', dateStr);
+        }
+        if (params?.endDate !== undefined) {
+            const dateStr =
+                params.endDate instanceof Date
+                    ? params.endDate.toISOString()
+                    : params.endDate;
+            searchParams.append('endDate', dateStr);
+        }
+        if (params?.includeComparison !== undefined) {
+            searchParams.append(
+                'includeComparison',
+                params.includeComparison.toString()
+            );
+        }
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search-analytics/metrics${
+            qs ? `?${qs}` : ''
+        }`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getSearchMetrics');
+        return (await res.json()) as paths['/v1/search-analytics/metrics']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/search-analytics/volume */
+    async getSearchVolume(params: {
+        startDate: string | Date;
+        endDate: string | Date;
+        granularity?: 'hour' | 'day';
+    }): Promise<
+        paths['/v1/search-analytics/volume']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        const startDateStr =
+            params.startDate instanceof Date
+                ? params.startDate.toISOString()
+                : params.startDate;
+        searchParams.append('startDate', startDateStr);
+        const endDateStr =
+            params.endDate instanceof Date
+                ? params.endDate.toISOString()
+                : params.endDate;
+        searchParams.append('endDate', endDateStr);
+        if (params?.granularity !== undefined) {
+            searchParams.append('granularity', params.granularity);
+        }
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search-analytics/volume${
+            qs ? `?${qs}` : ''
+        }`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getSearchVolume');
+        return (await res.json()) as paths['/v1/search-analytics/volume']['get']['responses']['200']['content']['application/json'];
+    }
+
+    /** GET /v1/search-analytics/detail */
+    async getDetailedSearchAnalytics(params?: {
+        startDate?: string | Date;
+        endDate?: string | Date;
+        daysBack?: number;
+        searchType?: 'lexical' | 'semantic' | 'hybrid';
+        includeComparison?: boolean;
+        includePerformance?: boolean;
+        includeUserBehavior?: boolean;
+        includeResponseTime?: boolean;
+        topQueriesLimit?: number;
+        topUsersLimit?: number;
+    }): Promise<
+        paths['/v1/search-analytics/detail']['get']['responses']['200']['content']['application/json']
+    > {
+        const searchParams = new URLSearchParams();
+        if (params?.startDate !== undefined) {
+            const dateStr =
+                params.startDate instanceof Date
+                    ? params.startDate.toISOString()
+                    : params.startDate;
+            searchParams.append('startDate', dateStr);
+        }
+        if (params?.endDate !== undefined) {
+            const dateStr =
+                params.endDate instanceof Date
+                    ? params.endDate.toISOString()
+                    : params.endDate;
+            searchParams.append('endDate', dateStr);
+        }
+        if (params?.daysBack !== undefined) {
+            searchParams.append('daysBack', params.daysBack.toString());
+        }
+        if (params?.searchType !== undefined) {
+            searchParams.append('searchType', params.searchType);
+        }
+        if (params?.includeComparison !== undefined) {
+            searchParams.append(
+                'includeComparison',
+                params.includeComparison.toString()
+            );
+        }
+        if (params?.includePerformance !== undefined) {
+            searchParams.append(
+                'includePerformance',
+                params.includePerformance.toString()
+            );
+        }
+        if (params?.includeUserBehavior !== undefined) {
+            searchParams.append(
+                'includeUserBehavior',
+                params.includeUserBehavior.toString()
+            );
+        }
+        if (params?.includeResponseTime !== undefined) {
+            searchParams.append(
+                'includeResponseTime',
+                params.includeResponseTime.toString()
+            );
+        }
+        if (params?.topQueriesLimit !== undefined) {
+            searchParams.append(
+                'topQueriesLimit',
+                params.topQueriesLimit.toString()
+            );
+        }
+        if (params?.topUsersLimit !== undefined) {
+            searchParams.append(
+                'topUsersLimit',
+                params.topUsersLimit.toString()
+            );
+        }
+        const qs = searchParams.toString();
+        const url = `${this.baseUrl}/v1/search-analytics/detail${
+            qs ? `?${qs}` : ''
+        }`;
+        const res = await this.fetcher(url, {
+            method: 'GET',
+            headers: this.defaultHeaders,
+        });
+        await this.ensureOk(res, 'getDetailedSearchAnalytics');
+        return (await res.json()) as paths['/v1/search-analytics/detail']['get']['responses']['200']['content']['application/json'];
+    }
 }
 
 async function safeText(res: Response) {

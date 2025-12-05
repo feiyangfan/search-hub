@@ -57,6 +57,18 @@ import {
     IndexingStatusQuerySchema,
     IndexingStatusResponseSchema,
 } from './admin.js';
+import {
+    RecentSearchesQuery,
+    RecentSearchesResponse,
+    TopQueriesQuery,
+    TopQueriesResponse,
+    SearchAnalyticsQuery,
+    SearchAnalyticsResponse,
+    VolumeTimeSeriesQuery,
+    VolumeTimeSeriesResponse,
+    SearchAnalyticsDetailQuery,
+    SearchAnalyticsDetailResponse,
+} from './searchAnalytics.js';
 
 /**
  * OpenAPI 3.0 for Zod schemas
@@ -1434,6 +1446,204 @@ export function buildOpenApi(
                         },
                         502: {
                             description: 'Bad Gateway - AI service error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+
+            // Search Analytics routes
+            '/v1/search-analytics/recent': {
+                get: {
+                    summary: 'Get recent unique searches for current user',
+                    description:
+                        'Returns recent unique search queries for the authenticated user. Used by Quick Search card to show search history.',
+                    requestParams: { query: RecentSearchesQuery },
+                    responses: {
+                        200: {
+                            description:
+                                'OK - Recent searches for current user',
+                            content: {
+                                'application/json': {
+                                    schema: RecentSearchesResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - No active tenant or validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/search-analytics/top-queries': {
+                get: {
+                    summary: 'Get most popular search queries',
+                    description:
+                        'Returns the most frequently searched queries across the workspace. Used by Search Intelligence card for analytics.',
+                    requestParams: { query: TopQueriesQuery },
+                    responses: {
+                        200: {
+                            description: 'OK - Top search queries with counts',
+                            content: {
+                                'application/json': {
+                                    schema: TopQueriesResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - No active tenant or validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/search-analytics/metrics': {
+                get: {
+                    summary:
+                        'Get search analytics metrics with optional comparison',
+                    description:
+                        'Returns core search metrics including total searches, success rate, latency stats, and search type breakdown. Optionally includes trend comparison with previous period.',
+                    requestParams: { query: SearchAnalyticsQuery },
+                    responses: {
+                        200: {
+                            description:
+                                'OK - Search analytics metrics with optional trends',
+                            content: {
+                                'application/json': {
+                                    schema: SearchAnalyticsResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - No active tenant or validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/search-analytics/volume': {
+                get: {
+                    summary: 'Get search volume time series data',
+                    description:
+                        'Returns search volume aggregated by hour or day for charting search activity over time.',
+                    requestParams: { query: VolumeTimeSeriesQuery },
+                    responses: {
+                        200: {
+                            description:
+                                'OK - Time series data for search volume',
+                            content: {
+                                'application/json': {
+                                    schema: VolumeTimeSeriesResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - No active tenant or validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                    },
+                },
+            },
+            '/v1/search-analytics/detail': {
+                get: {
+                    summary:
+                        'Get comprehensive search analytics with optional sections',
+                    description:
+                        'Returns detailed search analytics including core metrics and optionally: performance by search type, user behavior stats, and response time distribution. Used for detailed analytics dashboards.',
+                    requestParams: { query: SearchAnalyticsDetailQuery },
+                    responses: {
+                        200: {
+                            description:
+                                'OK - Comprehensive search analytics data',
+                            content: {
+                                'application/json': {
+                                    schema: SearchAnalyticsDetailResponse,
+                                },
+                            },
+                        },
+                        400: {
+                            description:
+                                'Bad Request - No active tenant or validation error',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        401: {
+                            description:
+                                'Unauthorized - Authentication required',
+                            content: {
+                                'application/json': { schema: ApiError },
+                            },
+                        },
+                        500: {
+                            description: 'Internal Server Error',
                             content: {
                                 'application/json': { schema: ApiError },
                             },
