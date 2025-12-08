@@ -27,6 +27,7 @@ interface EnvOverrides {
     breakerFailureThreshold?: number;
     breakerResetTimeoutMs?: number;
     breakerHalfOpenTimeoutMs?: number;
+    semanticRerankThreshold?: number;
 }
 
 interface SearchServiceDependencies {
@@ -107,6 +108,7 @@ export function createSearchService(
         API_BREAKER_FAILURE_THRESHOLD,
         API_BREAKER_RESET_TIMEOUT_MS,
         API_BREAKER_HALF_OPEN_TIMEOUT_MS,
+        SEMANTIC_RERANK_THRESHOLD,
     } = env;
 
     const { VOYAGE_API_KEY } = loadAiEnv();
@@ -120,6 +122,8 @@ export function createSearchService(
     const breakerHalfOpenTimeoutMs =
         overrides.breakerHalfOpenTimeoutMs ?? API_BREAKER_HALF_OPEN_TIMEOUT_MS;
     const voyageApiKey = overrides.voyageApiKey ?? VOYAGE_API_KEY;
+    const semanticRerankThreshold =
+        overrides.semanticRerankThreshold ?? SEMANTIC_RERANK_THRESHOLD ?? 0.35;
 
     const voyage = deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });
     const breaker =
@@ -444,11 +448,9 @@ export function createSearchService(
             (a, b) => b.rerankScore - a.rerankScore
         );
 
-        // Filter out semantic results with very low rerank scores (< 0.3)
-        // This prevents irrelevant documents from polluting hybrid search results
-        const SEMANTIC_THRESHOLD = 0.3;
+        // Filter out semantic results with low rerank scores to avoid noise
         const relevantSemanticItems = semanticItems.filter(
-            (item) => item.rerankScore >= SEMANTIC_THRESHOLD
+            (item) => item.rerankScore >= semanticRerankThreshold
         );
 
         const seenSemanticDocs = new Set<string>();

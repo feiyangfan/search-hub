@@ -39,6 +39,11 @@ const ServerEnvSchema = z.object({
     API_BREAKER_FAILURE_THRESHOLD: z.coerce.number(),
     API_BREAKER_RESET_TIMEOUT_MS: z.coerce.number(),
     API_BREAKER_HALF_OPEN_TIMEOUT_MS: z.coerce.number(),
+    SEMANTIC_RERANK_THRESHOLD: z.coerce
+        .number()
+        .min(0)
+        .max(1)
+        .default(0.35),
     SESSION_SECRET: z.string().min(32),
 });
 

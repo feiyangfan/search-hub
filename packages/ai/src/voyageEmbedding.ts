@@ -10,7 +10,7 @@ export async function voyageEmbed(
     apiKey: string,
     texts: string[],
     {
-        model = 'voyage-3.5-lite',
+        model = 'voyage-3.5',
         input_type = 'document',
     }: Partial<Omit<VoyageEmbeddingInput, 'input'>> = {}
 ): Promise<number[][]> {
@@ -41,7 +41,9 @@ export async function voyageEmbed(
     }
 
     const json = (await resp.json()) as VoyageEmbeddingResponse;
-    const vecs: number[][] = (json.data ?? []).map(({ embedding }) => embedding);
+    const vecs: number[][] = (json.data ?? []).map(
+        ({ embedding }) => embedding
+    );
 
     // Sanity check: ensure all vectors match the expected dimension
     for (const v of vecs) {

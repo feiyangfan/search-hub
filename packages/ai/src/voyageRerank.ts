@@ -7,7 +7,7 @@ export async function voyageRerank(
     query: string,
     documents: string[]
 ): Promise<{ index: number; score: number }[]> {
-    const model = 'rerank-2.5-lite';
+    const model = 'rerank-2.5';
     if (documents.length === 0) return [];
 
     const resp = await fetch('https://api.voyageai.com/v1/rerank', {
