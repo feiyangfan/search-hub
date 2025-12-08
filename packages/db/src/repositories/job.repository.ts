@@ -1,14 +1,38 @@
 import { prisma } from '../client.js';
+import { Prisma } from '@prisma/client';
 
 export const jobRepository = {
     /**
      * API uses this to queue a document for indexing
-     * Always creates a new job record for full audit trail
+     * If a job already exists (unique constraint), reset it to queued.
      */
     enqueueIndex: async (tenantId: string, documentId: string) => {
-        return prisma.indexJob.create({
-            data: { tenantId, documentId, status: 'queued' },
-        });
+        try {
+            return await prisma.indexJob.create({
+                data: { tenantId, documentId, status: 'queued' },
+            });
+        } catch (error) {
+            // If unique constraint hit, update existing job to queued
+            if (
+                error instanceof Prisma.PrismaClientKnownRequestError &&
+                error.code === 'P2002'
+            ) {
+                await prisma.indexJob.updateMany({
+                    where: { tenantId, documentId },
+                    data: {
+                        status: 'queued',
+                        error: null,
+                        startedAt: null,
+                        completedAt: null,
+                    },
+                });
+                return prisma.indexJob.findFirst({
+                    where: { tenantId, documentId },
+                    orderBy: { createdAt: 'desc' },
+                });
+            }
+            throw error;
+        }
     },
 
     /** Worker: queued -> processing (updates most recent queued job) */
