@@ -8095,6 +8095,18 @@
                       "type": "number",
                       "minimum": 0
                     },
+                    "zeroResultCount": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "zeroResultRate": {
+                      "default": 0,
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
                     "searchTypeBreakdown": {
                       "type": "object",
                       "properties": {
@@ -8140,6 +8152,16 @@
                           },
                           "trendUp": {
                             "type": "boolean"
+                          },
+                          "zeroResultCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "zeroResultRate": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100
                           }
                         },
                         "required": [
@@ -8155,6 +8177,8 @@
                     "successRate",
                     "avgDuration",
                     "p95Duration",
+                    "zeroResultCount",
+                    "zeroResultRate",
                     "searchTypeBreakdown"
                   ],
                   "additionalProperties": false

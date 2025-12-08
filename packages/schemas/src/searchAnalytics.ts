@@ -53,6 +53,8 @@ export const SearchMetric = z.object({
     value: z.string(), // formatted value (e.g., "1,248", "680ms", "94.2%")
     trend: z.string().optional(), // e.g., "+12%", "−6%"
     trendUp: z.boolean().optional(), // true if trending up
+    zeroResultCount: z.number().int().nonnegative().optional(),
+    zeroResultRate: z.number().min(0).max(100).optional(), // percentage
 });
 
 export const SearchTypeBreakdown = z.object({
@@ -66,6 +68,8 @@ export const SearchAnalyticsResponse = z.object({
     successRate: z.number().min(0).max(100), // percentage
     avgDuration: z.number().nonnegative(), // milliseconds
     p95Duration: z.number().nonnegative(), // milliseconds
+    zeroResultCount: z.number().int().nonnegative().default(0),
+    zeroResultRate: z.number().min(0).max(100).default(0), // percentage
     searchTypeBreakdown: SearchTypeBreakdown,
     // Formatted metrics for UI display
     metrics: z.array(SearchMetric).optional(),
@@ -95,6 +99,28 @@ export const VolumeTimeSeriesResponse = z.object({
 export type VolumeTimeSeriesQuery = z.infer<typeof VolumeTimeSeriesQuery>;
 export type VolumeDataPoint = z.infer<typeof VolumeDataPoint>;
 export type VolumeTimeSeriesResponse = z.infer<typeof VolumeTimeSeriesResponse>;
+
+// Quality time series for charts (success vs zero-result)
+export const QualityTimeSeriesQuery = z.object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    granularity: z.enum(['hour', 'day']).default('day').optional(),
+});
+
+export const QualityDataPoint = z.object({
+    timestamp: z.date(),
+    successRate: z.number().min(0).max(100),
+    zeroResultRate: z.number().min(0).max(100),
+    totalSearches: z.number().int().nonnegative().optional(),
+});
+
+export const QualityTimeSeriesResponse = z.object({
+    data: z.array(QualityDataPoint),
+});
+
+export type QualityTimeSeriesQuery = z.infer<typeof QualityTimeSeriesQuery>;
+export type QualityDataPoint = z.infer<typeof QualityDataPoint>;
+export type QualityTimeSeriesResponse = z.infer<typeof QualityTimeSeriesResponse>;
 
 // ---- Combined Analytics Endpoint ----
 

@@ -6,6 +6,7 @@ import type {
     VolumeTimeSeriesResponse,
     SearchAnalyticsDetailResponse,
     SearchMetric,
+    QualityTimeSeriesResponse,
 } from '@search-hub/schemas';
 
 /**
@@ -195,6 +196,8 @@ export const searchAnalyticsService = {
             successRate: currentMetrics.successRate,
             avgDuration: currentMetrics.avgDuration,
             p95Duration: currentMetrics.p95Duration,
+            zeroResultCount: currentMetrics.zeroResultCount,
+            zeroResultRate: currentMetrics.zeroResultRate,
             searchTypeBreakdown: currentMetrics.searchTypeBreakdown,
             metrics,
         };
@@ -210,6 +213,25 @@ export const searchAnalyticsService = {
         granularity: 'hour' | 'day' = 'hour'
     ): Promise<VolumeTimeSeriesResponse> {
         const data = await db.searchAnalytics.getVolumeTimeSeries(
+            tenantId,
+            startDate,
+            endDate,
+            granularity
+        );
+
+        return { data };
+    },
+
+    /**
+     * Get quality time series (success rate and zero-result rate)
+     */
+    async getQualityTimeSeries(
+        tenantId: string,
+        startDate: Date,
+        endDate: Date,
+        granularity: 'hour' | 'day' = 'day'
+    ): Promise<QualityTimeSeriesResponse> {
+        const data = await db.searchAnalytics.getQualityTimeSeries(
             tenantId,
             startDate,
             endDate,

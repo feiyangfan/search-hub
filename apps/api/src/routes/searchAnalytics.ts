@@ -8,6 +8,7 @@ import {
     VolumeTimeSeriesQuery,
     SearchAnalyticsDetailQuery,
     AppError,
+    QualityTimeSeriesQuery,
 } from '@search-hub/schemas';
 
 import { validateQuery } from '../middleware/validateMiddleware.js';
@@ -210,6 +211,52 @@ export function searchAnalyticsRoutes() {
                         query.endDate,
                         query.granularity
                     );
+
+                res.json(response);
+            } catch (err) {
+                next(err);
+            }
+        }
+    );
+
+    /**
+     * GET /quality - Get success vs zero-result rate time series
+     * Used for charts showing search quality over time
+     */
+    router.get(
+        '/quality',
+        validateQuery(QualityTimeSeriesQuery),
+        async (req, res, next) => {
+            try {
+                const authReq = req as AuthenticatedRequest;
+                const tenantId = authReq.session?.currentTenantId;
+
+                if (!tenantId) {
+                    throw AppError.validation(
+                        'NO_ACTIVE_TENANT',
+                        'No active tenant selected.',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'search-analytics',
+                                operation: 'quality',
+                            },
+                        }
+                    );
+                }
+
+                const query = (
+                    req as RequestWithValidatedQuery<
+                        z.infer<typeof QualityTimeSeriesQuery>
+                    >
+                ).validated.query;
+
+                const response = await searchAnalyticsService.getQualityTimeSeries(
+                    tenantId,
+                    query.startDate,
+                    query.endDate,
+                    query.granularity
+                );
 
                 res.json(response);
             } catch (err) {

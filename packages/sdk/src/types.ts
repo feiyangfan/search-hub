@@ -4335,6 +4335,10 @@ export interface paths {
                             successRate: number;
                             avgDuration: number;
                             p95Duration: number;
+                            /** @default 0 */
+                            zeroResultCount: number;
+                            /** @default 0 */
+                            zeroResultRate: number;
                             searchTypeBreakdown: {
                                 /** @default 0 */
                                 lexical: number;
@@ -4348,6 +4352,8 @@ export interface paths {
                                 value: string;
                                 trend?: string;
                                 trendUp?: boolean;
+                                zeroResultCount?: number;
+                                zeroResultRate?: number;
                             }[];
                         };
                     };

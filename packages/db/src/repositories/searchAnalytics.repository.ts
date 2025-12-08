@@ -15,6 +15,8 @@ export interface SearchMetrics {
     successRate: number; // percentage
     avgDuration: number; // milliseconds
     p95Duration: number; // milliseconds
+    zeroResultCount: number;
+    zeroResultRate: number; // percentage
     searchTypeBreakdown: {
         lexical: number;
         semantic: number;
@@ -140,6 +142,7 @@ export const searchAnalyticsRepository = {
                 duration: true,
                 status: true,
                 searchType: true,
+                resultCount: true,
             },
         });
 
@@ -151,6 +154,8 @@ export const searchAnalyticsRepository = {
                 successRate: 0,
                 avgDuration: 0,
                 p95Duration: 0,
+                zeroResultCount: 0,
+                zeroResultRate: 0,
                 searchTypeBreakdown: { lexical: 0, semantic: 0, hybrid: 0 },
             };
         }
@@ -160,6 +165,11 @@ export const searchAnalyticsRepository = {
             (s) => s.status === 'success'
         ).length;
         const successRate = (successful / total) * 100;
+
+        // Zero-result rate
+        const zeroResultCount = searches.filter((s) => s.resultCount === 0)
+            .length;
+        const zeroResultRate = (zeroResultCount / total) * 100;
 
         // Calculate durations
         const durations = searches.map((s) => s.duration).sort((a, b) => a - b);
@@ -180,6 +190,8 @@ export const searchAnalyticsRepository = {
             successRate,
             avgDuration,
             p95Duration,
+            zeroResultCount,
+            zeroResultRate,
             searchTypeBreakdown: breakdown,
         };
     },
@@ -254,6 +266,54 @@ export const searchAnalyticsRepository = {
             timestamp: r.timestamp,
             count: Number(r.count),
         }));
+    },
+
+    /**
+     * Get quality time series (success rate and zero-result rate) for charts
+     */
+    async getQualityTimeSeries(
+        tenantId: string,
+        startDate: Date,
+        endDate: Date,
+        granularity: 'hour' | 'day' = 'day'
+    ) {
+        const truncFunc = granularity === 'hour' ? 'hour' : 'day';
+
+        const results = await prisma.$queryRaw<
+            {
+                timestamp: Date;
+                total: bigint;
+                successCount: bigint;
+                zeroResultCount: bigint;
+            }[]
+        >`
+                SELECT 
+                    DATE_TRUNC(${truncFunc}, "createdAt") as timestamp,
+                    COUNT(*)::bigint as total,
+                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "successCount",
+                    COUNT(*) FILTER (WHERE "resultCount" = 0)::bigint as "zeroResultCount"
+                FROM "SearchLog"
+                WHERE 
+                    "tenantId" = ${tenantId}
+                    AND "createdAt" >= ${startDate}
+                    AND "createdAt" <= ${endDate}
+                GROUP BY timestamp
+                ORDER BY timestamp ASC
+            `;
+
+        return results.map((r) => {
+            const total = Number(r.total);
+            const successRate = total > 0 ? (Number(r.successCount) / total) * 100 : 0;
+            const zeroResultRate =
+                total > 0 ? (Number(r.zeroResultCount) / total) * 100 : 0;
+
+            return {
+                timestamp: r.timestamp,
+                successRate,
+                zeroResultRate,
+                totalSearches: total,
+            };
+        });
     },
 
     /**
