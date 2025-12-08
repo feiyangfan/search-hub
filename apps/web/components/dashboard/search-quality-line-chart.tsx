@@ -74,7 +74,7 @@ export function SearchQualityLineChart({
                     />
                     <XAxis
                         dataKey="date"
-                        className="text-xs"
+                        className="text-[0.5rem] text-muted-foreground"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                         tickLine={{ stroke: 'hsl(var(--border))' }}
                         axisLine={{ stroke: 'hsl(var(--border))' }}
@@ -82,7 +82,7 @@ export function SearchQualityLineChart({
                     <YAxis
                         domain={[0, 100]}
                         tickFormatter={(v) => `${v}%`}
-                        className="text-xs"
+                        className="text-[0.5rem]"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                         tickLine={{ stroke: 'hsl(var(--border))' }}
                         axisLine={{ stroke: 'hsl(var(--border))' }}
