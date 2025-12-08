@@ -16,3 +16,33 @@ export const topQueriesQueryKey = (tenantId: string, limit: number) =>
 
 export const recentSearchesQueryKey = (tenantId: string, limit: number) =>
     ['search-analytics', 'recent', tenantId, limit] as const;
+
+export const searchVolumeQueryKey = (
+    tenantId: string,
+    startDate: string,
+    endDate: string,
+    granularity: 'hour' | 'day'
+) =>
+    [
+        'search-analytics',
+        'volume',
+        tenantId,
+        startDate,
+        endDate,
+        granularity,
+    ] as const;
+
+export const searchQualityQueryKey = (
+    tenantId: string,
+    startDate: string,
+    endDate: string,
+    granularity: 'hour' | 'day'
+) =>
+    [
+        'search-analytics',
+        'quality',
+        tenantId,
+        startDate,
+        endDate,
+        granularity,
+    ] as const;
