@@ -765,6 +765,15 @@ export function buildOpenApi(
             },
             '/v1/documents/{id}/reindex': {
                 post: {
+                    parameters: [
+                        {
+                            in: 'query',
+                            name: 'reindex',
+                            required: false,
+                            schema: { type: 'boolean', default: false },
+                            description: 'Force reindex even if checksum matches',
+                        },
+                    ],
                     responses: {
                         202: {
                             description:

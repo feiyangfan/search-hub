@@ -3816,6 +3816,18 @@
     },
     "/v1/documents/{id}/reindex": {
       "post": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "reindex",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Force reindex even if checksum matches"
+          }
+        ],
         "responses": {
           "202": {
             "description": "Accepted - Re-index job queued successfully",
@@ -7438,6 +7450,10 @@
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 100
+                    },
+                    "noStrongMatches": {
+                      "description": "True when results were filtered out due to low confidence",
+                      "type": "boolean"
                     }
                   },
                   "required": [

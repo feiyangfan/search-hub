@@ -2098,7 +2098,10 @@ export interface paths {
         put?: never;
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Force reindex even if checksum matches */
+                    reindex?: boolean;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3981,6 +3984,8 @@ export interface paths {
                              * @example 10
                              */
                             pageSize: number;
+                            /** @description True when results were filtered out due to low confidence */
+                            noStrongMatches?: boolean;
                         };
                     };
                 };
