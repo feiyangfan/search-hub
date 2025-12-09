@@ -128,13 +128,11 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
                     {isLoading
                         ? 'Searching...'
                         : noStrongMatches
-                          ? 'No strong matches. Try a more specific query.'
-                          : 'No documents found.'}
+                        ? 'No strong matches. Try a more specific query.'
+                        : 'No documents found.'}
                 </CommandEmpty>
                 {results.length > 0 && (
-                    <CommandGroup
-                        heading="Results"
-                    >
+                    <CommandGroup heading="Results">
                         {results.map((result) => (
                             <CommandItem
                                 key={result.id}

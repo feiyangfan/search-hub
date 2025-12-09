@@ -62,7 +62,11 @@ export async function processIndexDocument(
     const startTime = Date.now();
 
     // 1) Validate payload
-    const { tenantId, documentId } = IndexDocumentJobSchema.parse(job.data);
+    const {
+        tenantId,
+        documentId,
+        reindex = false,
+    } = IndexDocumentJobSchema.parse(job.data);
 
     logger.info({ tenantId, documentId, jobId: job.id }, 'processor.started');
 
@@ -112,10 +116,10 @@ export async function processIndexDocument(
             return { ok: true, reason: 'empty-content' };
         }
 
-        // 4) Idempotency check - skip if content hasn't changed
+        // 4) Idempotency check - skip if content hasn't changed (unless reindex)
         const checksum = sha256(cleanedText);
         const prev = await db.documentIndexState.findUnique(documentId);
-        if (prev?.lastChecksum === checksum) {
+        if (!reindex && prev?.lastChecksum === checksum) {
             // Content unchanged, but update lastIndexedAt to reflect we checked it
             // This prevents re-queueing even though we skip actual indexing
             await db.documentIndexState.upsert(

@@ -378,10 +378,15 @@ export class SearchHubClient {
     }
 
     /** POST /v1/documents/{id}/reindex */
-    async reindexDocument(id: string): Promise<void> {
+    async reindexDocument(id: string, opts?: { reindex?: boolean }): Promise<void> {
+        const params = new URLSearchParams();
+        if (opts?.reindex) {
+            params.set('reindex', 'true');
+        }
+        const query = params.toString();
         const url = `${this.baseUrl}/v1/documents/${encodeURIComponent(
             id
-        )}/reindex`;
+        )}/reindex${query ? `?${query}` : ''}`;
         const res = await this.fetcher(url, {
             method: 'POST',
             headers: {

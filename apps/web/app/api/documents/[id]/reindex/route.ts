@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { SearchHubClient } from '@search-hub/sdk';
-
 const apiBase = process.env.API_URL ?? 'http://localhost:3000';
 
 export async function POST(
@@ -23,12 +21,14 @@ export async function POST(
     }
 
     try {
-        const client = new SearchHubClient({
-            baseUrl: apiBase,
+        const params = new URLSearchParams();
+        params.set('reindex', 'true');
+        const url = `/v1/documents/${id}/reindex?${params.toString()}`;
+
+        await fetch(`${apiBase}${url}`, {
+            method: 'POST',
             headers: { cookie: apiSessionCookie },
         });
-
-        await client.reindexDocument(id);
         return NextResponse.json(
             { message: 'Reindexing initiated' },
             { status: 200 }

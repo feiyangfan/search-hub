@@ -23,6 +23,11 @@ export const IndexDocumentJobSchema = z.object({
         description: 'The Document Id to be indexed',
         example: 'doc_123',
     }),
+    reindex: z
+        .boolean()
+        .optional()
+        .default(false)
+        .meta({ description: 'Explicit reindex; treated as force' }),
 });
 
 export type IndexDocumentJob = z.infer<typeof IndexDocumentJobSchema>;
