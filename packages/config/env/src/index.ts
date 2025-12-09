@@ -44,6 +44,11 @@ const ServerEnvSchema = z.object({
         .min(0)
         .max(1)
         .default(0.35),
+    SEMANTIC_TOP_SCORE_CUTOFF: z.coerce
+        .number()
+        .min(0)
+        .max(1)
+        .default(0.55),
     SESSION_SECRET: z.string().min(32),
 });
 

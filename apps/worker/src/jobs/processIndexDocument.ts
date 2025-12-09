@@ -11,6 +11,10 @@ import type { IndexDocumentJob } from '@search-hub/schemas';
 import { createVoyageHelpers } from '@search-hub/ai';
 import { loadAiEnv, loadWorkerEnv } from '@search-hub/config-env';
 import { metrics } from '@search-hub/observability';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkStringify from 'remark-stringify';
+import stripMarkdown from 'strip-markdown';
 
 const VOYAGE_API_KEY = loadAiEnv().VOYAGE_API_KEY;
 const env = loadWorkerEnv();
@@ -27,6 +31,23 @@ type TextChunk = ReturnType<typeof chunkText>[number];
 export type ProcessorResult =
     | { ok: true; reason: 'empty-content' | 'already-indexed' | 'no-chunks' }
     | { ok: true; documentId: string; chunks: number };
+
+function cleanMarkdown(source: string): string {
+    try {
+        const file = unified()
+            .use(remarkParse)
+            .use(stripMarkdown)
+            .use(remarkStringify)
+            .processSync(source);
+        return String(file.value).replace(/\s+/g, ' ').trim();
+    } catch (error) {
+        logger.warn(
+            { error: error instanceof Error ? error.message : String(error) },
+            'markdown.cleaning_failed_fallback'
+        );
+        return source.replace(/\s+/g, ' ').trim();
+    }
+}
 
 /**
  * Process an index document job
@@ -68,17 +89,19 @@ export async function processIndexDocument(
             );
         }
 
-        const text = (doc.content ?? '').trim();
+        const rawText = (doc.content ?? '').trim();
+        const cleanedText = cleanMarkdown(rawText);
         logger.info(
             {
                 tenantId,
                 documentId,
-                textLength: text.length,
+                textLength: rawText.length,
+                cleanedLength: cleanedText.length,
             },
             'content.loaded'
         );
 
-        if (!text) {
+        if (!cleanedText) {
             // No content to index; mark job done but DON'T update DocumentIndexState
             // findStaleDocuments won't requeue because document has no content
             await db.job.markIndexed(tenantId, documentId);
@@ -90,7 +113,7 @@ export async function processIndexDocument(
         }
 
         // 4) Idempotency check - skip if content hasn't changed
-        const checksum = sha256(text);
+        const checksum = sha256(cleanedText);
         const prev = await db.documentIndexState.findUnique(documentId);
         if (prev?.lastChecksum === checksum) {
             // Content unchanged, but update lastIndexedAt to reflect we checked it
@@ -111,7 +134,7 @@ export async function processIndexDocument(
         logger.info({ documentId }, 'chunking.started');
 
         // 6) Chunk the text for embedding
-        const chunks = chunkText(text, 1000, 100); // 1k chars with 100 overlap
+        const chunks = chunkText(cleanedText, 1000, 100); // 1k chars with 100 overlap
         if (chunks.length === 0) {
             // Edge case: has content but produces no chunks (very short text)
             // Update index state so we don't keep retrying

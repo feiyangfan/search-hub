@@ -84,39 +84,61 @@ async function lexicalSearchDocuments(
     limit: number,
     offset: number
 ): Promise<LexicalSearchResult> {
-    // Convert search query to prefix match format (e.g., "work" -> "work:*")
-    // Split by spaces and add :* to each term for partial matching
-    const prefixQuery = searchQuery
+    const terms = searchQuery
         .trim()
         .split(/\s+/)
-        .map((term) => `${term}:*`)
+        .filter(Boolean);
+
+    if (terms.length === 0) {
+        return { items: [], total: 0 };
+    }
+
+    // Use prefix matching only for longer tokens to reduce noise on very short queries
+    const tsQuery = terms
+        .map((term) => (term.length > 3 ? `${term}:*` : term))
         .join(' & ');
 
     const rows = await prisma.$queryRaw<
         (LexicalSearchResultItem & { total: number })[]
     >`
-        SELECT d."id",
-            d."title",
-            COALESCE(
-                NULLIF(
-                    ts_headline(
-                        'english',
-                        COALESCE(d."title" || ' ' || d."content", d."title", d."content", ''),
-                        to_tsquery('english', ${prefixQuery}),
-                        'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=30,MinWords=1'
+        WITH doc_text AS (
+            SELECT 
+                d."id",
+                d."title",
+                COALESCE(
+                    (
+                        SELECT string_agg(dc."content", ' ' ORDER BY dc."idx")
+                        FROM "DocumentChunk" dc
+                        WHERE dc."documentId" = d."id"
                     ),
+                    d."content",
                     ''
-                ),
-                LEFT(COALESCE(d."content", d."title"), 280)
-            ) AS snippet,
-            ts_rank_cd(d."searchVector", to_tsquery('english', ${prefixQuery}), 32) AS score,
-            COUNT(*) OVER()::int AS total
-        FROM "Document" d
-        WHERE d."tenantId" = ${tenantId}
-        AND d."searchVector" @@ to_tsquery('english', ${prefixQuery})
+                ) AS body
+            FROM "Document" d
+            WHERE d."tenantId" = ${tenantId}
+        )
+        SELECT dt.id,
+               dt.title,
+               COALESCE(
+                   NULLIF(
+                       ts_headline(
+                           'english',
+                           dt.body,
+                           to_tsquery('english', ${tsQuery}),
+                           'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=30,MinWords=1'
+                       ),
+                       ''
+                   ),
+                   LEFT(dt.body, 280)
+               ) AS snippet,
+               ts_rank_cd(d."searchVector", to_tsquery('english', ${tsQuery}), 32) AS score,
+               COUNT(*) OVER()::int AS total
+        FROM doc_text dt
+        JOIN "Document" d ON d."id" = dt.id
+        WHERE d."searchVector" @@ to_tsquery('english', ${tsQuery})
         ORDER BY score DESC, d."createdAt" DESC
         LIMIT ${limit}
-        OFFSET ${offset}
+        OFFSET ${offset};
     `;
 
     const total = rows[0]?.total ?? 0;

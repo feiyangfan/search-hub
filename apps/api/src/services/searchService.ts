@@ -36,6 +36,14 @@ interface SearchServiceDependencies {
     env?: EnvOverrides;
 }
 
+function normalizeAndTokenize(query: string): string[] {
+    return query
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+}
+
 export interface SearchService {
     lexicalSearch(query: SearchQueryWithTenant): Promise<SearchResponse>;
     semanticSearch(
@@ -109,6 +117,7 @@ export function createSearchService(
         API_BREAKER_RESET_TIMEOUT_MS,
         API_BREAKER_HALF_OPEN_TIMEOUT_MS,
         SEMANTIC_RERANK_THRESHOLD,
+        SEMANTIC_TOP_SCORE_CUTOFF,
     } = env;
 
     const { VOYAGE_API_KEY } = loadAiEnv();
@@ -124,6 +133,7 @@ export function createSearchService(
     const voyageApiKey = overrides.voyageApiKey ?? VOYAGE_API_KEY;
     const semanticRerankThreshold =
         overrides.semanticRerankThreshold ?? SEMANTIC_RERANK_THRESHOLD ?? 0.35;
+    const semanticTopScoreCutoff = SEMANTIC_TOP_SCORE_CUTOFF ?? 0.55;
 
     const voyage = deps.voyage ?? createVoyageHelpers({ apiKey: voyageApiKey });
     const breaker =
@@ -314,6 +324,26 @@ export function createSearchService(
         query: HybridSearchQueryWithTenant
     ): Promise<SearchResponse> {
         const { tenantId, q } = query;
+        const tokens = normalizeAndTokenize(String(q));
+        const meaningfulTokens = tokens.filter((t) => t.length > 3);
+
+        // Guard: very short or only stopwords -> empty result to avoid noise
+        if (meaningfulTokens.length === 0) {
+            logger.debug(
+                {
+                    tenantId,
+                    query: q,
+                    reason: 'short_or_stopword_only',
+                },
+                'search.query.filtered'
+            );
+            return {
+                total: 0,
+                items: [],
+                page: Math.floor(query.offset / query.limit) + 1,
+                pageSize: query.limit,
+            };
+        }
 
         // pageination
         const page = Math.floor(query.offset / query.limit) + 1;
@@ -340,6 +370,16 @@ export function createSearchService(
 
         const lexicalResponse = await lexicalSearch(lexicalInput);
         const lexicalItems = lexicalResponse.items;
+        logger.debug(
+            {
+                tenantId,
+                query: q,
+                type: 'lexical',
+                count: lexicalItems.length,
+                topIds: lexicalItems.slice(0, 5).map((i) => i.id),
+            },
+            'search.lexical.results'
+        );
 
         // slice out the requested page if we expanded the window
         const lexicalOnlyItems = expandLexicalWindow
@@ -386,6 +426,22 @@ export function createSearchService(
                 k: semanticK,
                 recall_k: semanticRecall,
             });
+            logger.debug(
+                {
+                    tenantId,
+                    query: q,
+                    type: 'semantic',
+                    count: semanticResult?.items.length ?? 0,
+                    topIds: semanticResult
+                        ? semanticResult.items.slice(0, 5).map((i) => ({
+                              docId: i.documentId,
+                              score: i.rerankScore,
+                          }))
+                        : [],
+                    threshold: semanticRerankThreshold,
+                },
+                'search.semantic.results'
+            );
         } catch (error) {
             // failed semantic, return lexical only as fallback
             logger.error(
@@ -453,6 +509,32 @@ export function createSearchService(
             (item) => item.rerankScore >= semanticRerankThreshold
         );
 
+        // If no lexical hits and top semantic score is weak, return empty
+        if (
+            lexicalItems.length === 0 &&
+            relevantSemanticItems.length > 0 &&
+            (relevantSemanticItems[0]?.rerankScore ?? 0) <
+                semanticTopScoreCutoff
+        ) {
+            logger.debug(
+                {
+                    tenantId,
+                    query: q,
+                    topSemanticScore:
+                        relevantSemanticItems[0]?.rerankScore ?? null,
+                    cutoff: semanticTopScoreCutoff,
+                },
+                'search.semantic.filtered_by_top_score'
+            );
+            return {
+                total: 0,
+                items: [],
+                page,
+                pageSize: query.limit,
+                noStrongMatches: true,
+            };
+        }
+
         const seenSemanticDocs = new Set<string>();
 
         // loop through semantic results and update scores and metadata
@@ -501,11 +583,23 @@ export function createSearchService(
             semanticDocDetails.map((doc) => [doc.id, doc])
         );
 
-        const truncateSnippet = (text: string, maxLength = 280) => {
+        const truncateSnippet = (text: string, maxLength = 220) => {
             if (text.length <= maxLength) {
                 return text;
             }
-            return `${text.slice(0, maxLength).trimEnd()}...`;
+            // Try to cut at a word boundary before maxLength
+            let cutoff = text.lastIndexOf(' ', maxLength);
+            if (cutoff === -1 || cutoff < maxLength * 0.6) {
+                cutoff = maxLength;
+            }
+            let candidate = text.slice(0, cutoff).trimEnd();
+            // Avoid cutting inside an HTML tag
+            const lastOpen = candidate.lastIndexOf('<');
+            const lastClose = candidate.lastIndexOf('>');
+            if (lastOpen > lastClose) {
+                candidate = candidate.slice(0, lastOpen).trimEnd();
+            }
+            return `${candidate}...`;
         };
 
         const pagedEntries = scoredEntries.slice(
@@ -522,7 +616,9 @@ export function createSearchService(
             const lexicalItem = meta?.lexical;
             const semanticDoc = semanticDocMap.get(docId);
             const snippet =
-                lexicalItem?.snippet ??
+                (lexicalItem?.snippet
+                    ? truncateSnippet(lexicalItem.snippet)
+                    : undefined) ??
                 (meta?.semanticSnippet
                     ? truncateSnippet(meta.semanticSnippet)
                     : semanticDoc?.content

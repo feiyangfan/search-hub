@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Sparkles } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { useDebouncedCallback } from 'use-debounce';
 
 import {
@@ -14,9 +14,22 @@ import {
     CommandList,
 } from '@/components/ui/command';
 import type { SearchResultItem } from '@search-hub/schemas';
-import { Button } from '../ui/button';
 import { useSearch } from './search-provider';
 import { useInvalidateSearchAnalytics } from '@/hooks/use-dashboard';
+
+function tokenize(query: string) {
+    return query
+        .toLowerCase()
+        .replace(/[^\w\s]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+}
+
+function isMeaningfulQuery(value: string) {
+    const tokens = tokenize(value);
+    const meaningful = tokens.filter((t) => t.length > 3);
+    return meaningful.length > 0;
+}
 
 interface SearchModalProps {
     open: boolean;
@@ -30,14 +43,13 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<SearchResultItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [searchType, setSearchType] = useState<'lexical' | 'hybrid'>(
-        'lexical'
-    );
+    const [noStrongMatches, setNoStrongMatches] = useState(false);
 
     const performSearch = useDebouncedCallback(
-        async (searchQuery: string, type: 'lexical' | 'hybrid' = 'lexical') => {
-            if (!searchQuery.trim()) {
+        async (searchQuery: string, type: 'lexical' | 'hybrid' = 'hybrid') => {
+            if (!searchQuery.trim() || !isMeaningfulQuery(searchQuery)) {
                 setResults([]);
+                setIsLoading(false);
                 return;
             }
 
@@ -55,26 +67,28 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
                 // Backend returns SearchResponse: { total, items, page?, pageSize? }
                 if (data.items && Array.isArray(data.items)) {
                     setResults(data.items);
+                    setNoStrongMatches(Boolean(data.noStrongMatches));
                     // Invalidate search analytics cache to update recent searches and intelligence cards
                     invalidateSearchAnalytics();
                 }
             } catch (error) {
                 console.error('Search failed:', error);
                 setResults([]);
+                setNoStrongMatches(false);
             } finally {
                 setIsLoading(false);
             }
         },
-        300
+        1000
     );
 
     useEffect(() => {
-        // Always use lexical search for real-time typing
-        if (query.trim()) {
-            setSearchType('lexical');
-            performSearch(query, 'lexical');
+        // Always use hybrid search for typing and submit
+        if (query.trim() && isMeaningfulQuery(query)) {
+            performSearch(query, 'hybrid');
         } else {
             setResults([]);
+            setNoStrongMatches(false);
         }
     }, [query, performSearch]);
 
@@ -90,16 +104,8 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
         if (!open) {
             setQuery('');
             setResults([]);
-            setSearchType('lexical');
         }
     }, [open]);
-
-    const handleSmartSearch = () => {
-        if (query.trim()) {
-            setSearchType('hybrid');
-            performSearch(query, 'hybrid');
-        }
-    };
 
     const handleSelect = (documentId: string) => {
         onOpenChange(false);
@@ -117,30 +123,17 @@ export function SearchModal({ open, onOpenChange }: SearchModalProps) {
                 value={query}
                 onValueChange={setQuery}
             />
-            {query.trim() && searchType === 'lexical' && (
-                <div className="px-2 py-1.5 border-b">
-                    <Button
-                        onClick={handleSmartSearch}
-                        disabled={isLoading}
-                        variant={'outline'}
-                        className="flex items-center gap-2  px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <Sparkles className="h-4 w-4" />
-                        <span>Smart Search with AI</span>
-                    </Button>
-                </div>
-            )}
             <CommandList>
                 <CommandEmpty>
-                    {isLoading ? 'Searching...' : 'No documents found.'}
+                    {isLoading
+                        ? 'Searching...'
+                        : noStrongMatches
+                          ? 'No strong matches. Try a more specific query.'
+                          : 'No documents found.'}
                 </CommandEmpty>
                 {results.length > 0 && (
                     <CommandGroup
-                        heading={
-                            searchType === 'hybrid'
-                                ? 'Smart Results'
-                                : 'Documents'
-                        }
+                        heading="Results"
                     >
                         {results.map((result) => (
                             <CommandItem

@@ -79,4 +79,8 @@ export const SearchResponse = z.object({
     items: z.array(SearchResultItem), // paginated result items
     page: Pagination.shape.page.optional(), // page-stype hints optional
     pageSize: Pagination.shape.pageSize.optional(),
+    noStrongMatches: z
+        .boolean()
+        .optional()
+        .meta({ description: 'True when results were filtered out due to low confidence' }),
 });
