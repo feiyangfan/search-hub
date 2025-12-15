@@ -19,11 +19,11 @@
         "lint": "eslint src/**/*.ts --config ../../eslint.config.mjs --ignore-pattern src/types.ts --max-warnings=0"
     },
     "devDependencies": {
-        "@eslint/js": "^9.36.0",
-        "eslint": "^9.36.0",
-        "openapi-typescript": "^7.9.1",
-        "tsup": "^8.5.0",
-        "typescript": "^5.9.2",
-        "typescript-eslint": "^8.44.1"
+        "@eslint/js": "^9.39.2",
+        "eslint": "^9.39.2",
+        "openapi-typescript": "^7.10.1",
+        "tsup": "^8.5.1",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.49.0"
     }
 }
