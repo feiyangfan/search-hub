@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '@search-hub/schemas';
 import { prisma } from '../client.js';
 import type { UserTenant } from '../types.js';

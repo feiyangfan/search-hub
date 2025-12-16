@@ -1,8 +1,7 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, Tag } from '../../generated/prisma/client.js';
 import { AppError } from '@search-hub/schemas';
 import { prisma } from '../client.js';
 import { DocumentSourceType } from '@search-hub/schemas';
-import { Tag } from '@prisma/client';
 
 export const documentRepository = {
     create: async ({

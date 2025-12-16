@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/prisma/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { loadDbEnv } from '@search-hub/config-env';
 import { metrics } from '@search-hub/observability';
 
@@ -11,10 +12,15 @@ const env: ReturnType<typeof loadDbEnv> = loadDbEnv();
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+const connectionString = env.DATABASE_URL;
+
+const adapter = new PrismaPg({ connectionString });
+
 const basePrismaClient =
     globalForPrisma.prisma ??
     new PrismaClient({
-        log: env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+        adapter,
+        log: ['error', 'warn'],
     });
 
 if (env.NODE_ENV !== 'production') {
@@ -71,4 +77,4 @@ export const prisma = basePrismaClient.$extends({
 });
 
 // Re-export PrismaClient type for convenience
-export type { PrismaClient } from '@prisma/client';
+export type { PrismaClient } from '../generated/prisma/client.js';

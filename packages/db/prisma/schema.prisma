@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ---- enums ----
@@ -17,37 +17,37 @@ enum JobStatus {
 
 // ---- models ----
 model Tenant {
-  id           String             @id @default(cuid())
-  name         String             
-  memberships  TenantMembership[]
-  documents    Document[]
-  jobs         IndexJob[]
-  tags         Tag[]
-  searchLogs   SearchLog[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id          String             @id @default(cuid())
+  name        String
+  memberships TenantMembership[]
+  documents   Document[]
+  jobs        IndexJob[]
+  tags        Tag[]
+  searchLogs  SearchLog[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([name])
 }
 
 model User {
-  id           String             @id @default(cuid())
-  email        String             @unique
-  name         String?
-  passwordHash String?
-  oauthProvider String?
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  passwordHash   String?
+  oauthProvider  String?
   oauthAccountId String?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  memberships TenantMembership[]
-  createdDocuments Document[]      @relation("DocumentCreatedBy")
-  updatedDocuments Document[]      @relation("DocumentUpdatedBy")
+  memberships       TenantMembership[]
+  createdDocuments  Document[]         @relation("DocumentCreatedBy")
+  updatedDocuments  Document[]         @relation("DocumentUpdatedBy")
   favoriteDocuments DocumentFavorite[]
-  documentCommands DocumentCommand[]
-  createdTags Tag[]
+  documentCommands  DocumentCommand[]
+  createdTags       Tag[]
   addedDocumentTags DocumentTag[]
-  searchLogs SearchLog[]
+  searchLogs        SearchLog[]
 
   @@unique([oauthProvider, oauthAccountId])
 }
@@ -80,15 +80,15 @@ enum DocumentSource {
 }
 
 model Document {
-  id           String   @id @default(cuid())
-  tenantId     String   // viewbility 
-  title        String
-  source       DocumentSource @default(editor)
-  sourceUrl    String?
-  
+  id        String         @id @default(cuid())
+  tenantId  String // viewbility 
+  title     String
+  source    DocumentSource @default(editor)
+  sourceUrl String?
+
   content      String?
   summary      String?
-  metadata     Json?          @default("{}")
+  metadata     Json?                   @default("{}")
   searchVector Unsupported("tsvector") @default(dbgenerated("''::tsvector"))
 
   createdById String
@@ -97,14 +97,14 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdBy User   @relation("DocumentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   updatedBy User   @relation("DocumentUpdatedBy", fields: [updatedById], references: [id], onDelete: Cascade)
 
-  favorites DocumentFavorite[]
-  commands  DocumentCommand[]
+  favorites  DocumentFavorite[]
+  commands   DocumentCommand[]
   jobs       IndexJob[]
-  chunks     DocumentChunk[]     
+  chunks     DocumentChunk[]
   indexState DocumentIndexState?
   tags       DocumentTag[]
 
@@ -117,20 +117,21 @@ model Document {
 
 // Tags
 model Tag {
-  id  String @id @default(cuid())
-  tenantId String // workspace-scoped
-  name String // 'leetcode' / 'development'
-  color String? // hex color
+  id          String  @id @default(cuid())
+  tenantId    String // workspace-scoped
+  name        String // 'leetcode' / 'development'
+  color       String? // hex color
   description String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   createdById String
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy   User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   documentTags DocumentTag[]
+
   @@unique([tenantId, name]) // Tag names must be unique per workspace
   @@index([tenantId])
   @@index([name])
@@ -138,16 +139,16 @@ model Tag {
 
 // Many-to-many relationship between Document and Tag
 model DocumentTag {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   documentId String
   tagId      String
-  
-  addedById  String   // who added this tag
-  createdAt  DateTime @default(now())
 
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  addedBy    User     @relation(fields: [addedById], references: [id], onDelete: Cascade)
+  addedById String // who added this tag
+  createdAt DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  addedBy  User     @relation(fields: [addedById], references: [id], onDelete: Cascade)
 
   @@unique([documentId, tagId]) // A document can't have the same tag twice
   @@index([documentId])
@@ -157,10 +158,10 @@ model DocumentTag {
 
 // Favorites
 model DocumentFavorite {
-  id          String   @id @default(cuid())
-  documentId  String  
-  userId      String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  documentId String
+  userId     String
+  createdAt  DateTime @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -171,9 +172,9 @@ model DocumentFavorite {
 
 // command
 model DocumentCommand {
-  id          String @id @default(cuid())
-  documentId  String 
-  userId      String
+  id         String   @id @default(cuid())
+  documentId String
+  userId     String
   body       Json
   createdAt  DateTime @default(now())
 
@@ -195,12 +196,12 @@ model DocumentChunk {
   createdAt  DateTime              @default(now())
 
   document Document @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
+  // NOTE: pgvector index managed manually in prisma/manual-migrations/01_pgvector_indexes.sql
+  // Prisma doesn't support USING ivfflat syntax, so we maintain this externally
 
   @@unique([documentId, idx])
   @@index([tenantId])
   @@index([documentId, idx])
-  // NOTE: pgvector index managed manually in prisma/manual-migrations/01_pgvector_indexes.sql
-  // Prisma doesn't support USING ivfflat syntax, so we maintain this externally
 }
 
 // idempotency checkpoint
@@ -217,9 +218,9 @@ model IndexJob {
   tenantId   String
   documentId String
 
-  status     JobStatus @default(queued)
-  error      String? // capture failure reasons
-  startedAt  DateTime? // when processing began (for accurate duration)
+  status      JobStatus @default(queued)
+  error       String? // capture failure reasons
+  startedAt   DateTime? // when processing began (for accurate duration)
   completedAt DateTime? // when processing finished (indexed or failed)
 
   createdAt DateTime @default(now())
@@ -237,22 +238,22 @@ model IndexJob {
 
 // Search analytics and recent searches
 model SearchLog {
-  id           String   @id @default(cuid())
-  tenantId     String
-  userId       String
-  query        String   // the search query text
-  searchType   String   // 'lexical', 'semantic', 'hybrid'
-  resultCount  Int      // number of results returned
-  duration     Int      // milliseconds
-  status       String   // 'success', 'error', 'partial'
-  
-  createdAt    DateTime @default(now())
+  id          String @id @default(cuid())
+  tenantId    String
+  userId      String
+  query       String // the search query text
+  searchType  String // 'lexical', 'semantic', 'hybrid'
+  resultCount Int // number of results returned
+  duration    Int // milliseconds
+  status      String // 'success', 'error', 'partial'
+
+  createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId, createdAt(sort: Desc)]) // recent searches per user
-  @@index([tenantId, createdAt(sort: Desc)])         // tenant analytics
-  @@index([tenantId, query])                         // top queries analysis
-  @@index([createdAt(sort: Desc)])                   // time-series queries
+  @@index([tenantId, createdAt(sort: Desc)]) // tenant analytics
+  @@index([tenantId, query]) // top queries analysis
+  @@index([createdAt(sort: Desc)]) // time-series queries
 }
