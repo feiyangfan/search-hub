@@ -7,6 +7,8 @@ import type {
     DocumentIndexingDetail,
     ProblemDocuments,
 } from '@search-hub/schemas';
+import { env } from '../config/env.js';
+const WORKER_CONCURRENCY = env.WORKER_CONCURRENCY;
 
 /**
  * Get worker status from BullMQ
@@ -21,7 +23,7 @@ async function getWorkerStatus(): Promise<WorkerStatus> {
         isHealthy: (queueCounts.active ?? 0) >= 0, // Worker exists if we can query it
         queueDepth: queueCounts.waiting ?? 0,
         activeJobs: queueCounts.active ?? 0,
-        maxConcurrency: Number(process.env.WORKER_CONCURRENCY ?? 5),
+        maxConcurrency: WORKER_CONCURRENCY,
         lastProcessedAt: lastCompletedJob[0]?.finishedOn
             ? new Date(lastCompletedJob[0].finishedOn).toISOString()
             : null,
