@@ -1,9 +1,9 @@
 import pino from 'pino';
-import { loadApiEnv } from '@search-hub/config-env';
+
 import { getRequestContext } from './correlation.js';
 
 // Add context mixin to automatically include traceId and other context info
-const contextMixin = () => {
+const defaultContextMixin = () => {
     const context = getRequestContext();
     return context
         ? {
@@ -15,47 +15,66 @@ const contextMixin = () => {
         : {};
 };
 
-export function createLogger(service = 'api') {
-    const env = loadApiEnv();
-    const isProd = env.NODE_ENV === 'production';
-    const level = env.LOG_LEVEL ?? (isProd ? 'info' : 'debug');
+const defaultRedact = [
+    'password',
+    'pass',
+    'user.password',
+    'req.headers.authorization',
+    'req.headers.cookie',
+    "res.headers['set-cookie']",
+    'config.database.password',
+    'config.redis.password',
+    'secret',
+    'secrets[*]',
+    'token',
+    'accessToken',
+    'refreshToken',
+    'id_token',
+    'idToken',
+];
 
-    const transport =
-        !isProd && process.stdout.isTTY
-            ? {
-                  target: 'pino-pretty',
-                  options: {
-                      colorize: true,
-                      translateTime: 'HH:MM:ss.l',
-                      ignore: 'pid,hostname',
-                  },
-              }
-            : undefined;
+export function createLogger(options: {
+    service: string;
+    env?: string; // e.g., 'production' or 'development'
+    level?: string;
+    base?: Record<string, unknown>; // additional base fields to include
+    redactPaths?: string[]; // additional paths to redact
+    pretty?: boolean; // pretty print logs (for non-production)
+    contextMixin?: () => Record<string, unknown>; // custom context mixin
+}) {
+    const { service, level, env, base, redactPaths, pretty, contextMixin } =
+        options;
+
+    const isProd = env === 'production';
+    const usePretty = pretty ?? (!isProd && process.stdout.isTTY);
+    const levelFinal = level || (isProd ? 'info' : 'debug');
+    const defaultBase = { service, ...(env ? { env } : {}) };
+    const resolvedBase = { ...defaultBase, ...(base ?? {}) };
+
+    const mixin = contextMixin || defaultContextMixin;
+
+    const redact = Array.from(
+        new Set([...(redactPaths ?? []), ...defaultRedact])
+    );
+
+    const transport = usePretty
+        ? {
+              target: 'pino-pretty',
+              options: {
+                  colorize: true,
+                  translateTime: 'HH:MM:ss.l',
+                  ignore: 'pid,hostname',
+              },
+          }
+        : undefined;
 
     return pino({
-        name: service,
-        level,
-        base: undefined,
+        level: levelFinal,
+        base: resolvedBase,
         timestamp: pino.stdTimeFunctions.isoTime,
-        mixin: contextMixin,
+        mixin: mixin,
         redact: {
-            paths: [
-                'password',
-                'pass',
-                'user.password',
-                // http redactions (align with pino-http fields)
-                'req.headers.authorization',
-                'req.headers.cookie',
-                "res.headers['set-cookie']",
-                // common secret-ish fields
-                'config.database.password',
-                'config.redis.password',
-                'secret',
-                'secrets[*]',
-                'token',
-                'accessToken',
-                'refreshToken',
-            ],
+            paths: redact,
             censor: '**Redacted**',
         },
         formatters: {
@@ -63,7 +82,7 @@ export function createLogger(service = 'api') {
                 return { level: label };
             },
             bindings(b) {
-                return { ...b, service };
+                return { ...b };
             }, // keep service name on every line
         },
         ...(transport ? { transport } : {}),
