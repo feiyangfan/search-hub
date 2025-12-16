@@ -18,10 +18,8 @@ export const AuthPayload = z.object({
 export type AuthPayload = z.infer<typeof AuthPayload>;
 
 export const OAuthSignInPayload = z.object({
-    provider: z.literal('google'), // enum for future providers
-    providerAccountId: z.string(),
-    email: z.email(),
-    name: z.string().min(1).max(80),
+    provider: z.literal('google'),
+    idToken: z.string(),
 });
 
 export type OAuthSignInPayload = z.infer<typeof OAuthSignInPayload>;

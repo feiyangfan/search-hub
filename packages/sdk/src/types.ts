@@ -286,10 +286,7 @@ export interface paths {
                     "application/json": {
                         /** @enum {string} */
                         provider: "google";
-                        providerAccountId: string;
-                        /** Format: email */
-                        email: string;
-                        name: string;
+                        idToken: string;
                     };
                 };
             };

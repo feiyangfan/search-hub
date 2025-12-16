@@ -26,12 +26,7 @@ export function signUpRoutes() {
                 const typedReq =
                     req as RequestWithValidatedBody<RegistrationPayload>;
                 const { email, name, password } = typedReq.validated.body;
-                console.log(
-                    'Received sign-up request for email:',
-                    email,
-                    'name:',
-                    name
-                );
+
                 // Optimistic check - catches most duplicate attempts early
                 const existingUser = await db.user.findByEmail({ email });
                 if (existingUser) {

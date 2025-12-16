@@ -103,6 +103,10 @@ export const authOptions: NextAuthOptions = {
                 return false;
             }
 
+            if (!account?.id_token) {
+                return false;
+            }
+
             let apiSessionCookie: string | undefined;
             const client = new SearchHubClient({
                 baseUrl: apiBase,
@@ -130,9 +134,7 @@ export const authOptions: NextAuthOptions = {
 
             const result = await client.oauthSignIn({
                 provider: 'google',
-                providerAccountId: account.providerAccountId ?? '',
-                email: profile.email,
-                name: profile.name ?? profile.email,
+                idToken: account.id_token,
             });
 
             // Attach custom data so jwt/session callbacks can reuse it.

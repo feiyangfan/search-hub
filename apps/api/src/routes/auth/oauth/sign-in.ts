@@ -1,13 +1,16 @@
 import { Router } from 'express';
 import { metrics } from '@search-hub/observability';
-import {
-    OAuthSignInPayload,
-    OAuthSignInResponse,
-} from '@search-hub/schemas';
+import { OAuthSignInPayload, OAuthSignInResponse } from '@search-hub/schemas';
+import { OAuth2Client } from 'google-auth-library';
+import { env } from '../../../config/env.js';
 
 import { validateBody } from '../../../middleware/validateMiddleware.js';
 import type { RequestWithValidatedBody } from '../../types.js';
 import { db } from '@search-hub/db';
+
+const googleClient = new OAuth2Client();
+
+const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID;
 
 export function oauthSignInRoutes() {
     const router = Router();
@@ -19,14 +22,32 @@ export function oauthSignInRoutes() {
             try {
                 const typedReq =
                     req as RequestWithValidatedBody<OAuthSignInPayload>;
-                const { email, name, provider, providerAccountId } =
-                    typedReq.validated.body;
+                const { provider, idToken } = typedReq.validated.body;
+
+                const ticket = await googleClient.verifyIdToken({
+                    idToken,
+                    audience: GOOGLE_CLIENT_ID,
+                });
+                const payload = ticket.getPayload();
+
+                if (!payload) {
+                    throw new Error('Invalid ID token payload');
+                }
+                const userid = payload['sub'];
+
+                if (payload.email_verified === false) {
+                    throw new Error('Email not verified by OAuth provider');
+                }
+
+                if (payload.email === undefined) {
+                    throw new Error('Email not provided by OAuth provider');
+                }
 
                 const userRecord = await db.user.upsertOAuthUser({
-                    email,
-                    name,
+                    email: payload.email,
+                    name: payload.name || undefined,
                     provider,
-                    providerAccountId,
+                    providerAccountId: userid,
                 });
 
                 const userTenants = await db.tenant.listForUser({
