@@ -40,8 +40,10 @@ Configuration is loaded via `@search-hub/config-env` (`packages/config/env`). On
 | `REDIS_URL` | Redis connection string. | Sessions + rate limiter. |
 | `SESSION_SECRET` | 32+ char secret for signing cookies. | Required. |
 | `API_RATE_LIMIT_MAX`, `API_RATE_LIMIT_WINDOW_MS` | Token bucket limits. | Entire `/v1/*` tree is protected. |
+| `AI_RATE_LIMIT_MAX`, `AI_RATE_LIMIT_WINDOW_MS` | Token bucket limits for `/v1/qa`. | Tighter cap for AI. |
 | `API_BREAKER_*` | Circuit breaker thresholds for Voyage AI calls. | Prevents cascading failures. |
 | `VOYAGE_API_KEY` | Upstream embedding/rerank key. | Needed for semantic search. |
+| `GOOGLE_CLIENT_ID` | Google OAuth audience for ID token verification. | Needed for `/v1/auth/oauth/sign-in`. |
 
 Sample snippet for local development:
 
@@ -51,13 +53,22 @@ REDIS_URL=redis://localhost:6379
 SESSION_SECRET=dev-secret-change-me-please-1234567890
 API_RATE_LIMIT_MAX=60
 API_RATE_LIMIT_WINDOW_MS=60000
+AI_RATE_LIMIT_MAX=25
+AI_RATE_LIMIT_WINDOW_MS=60000
 API_BREAKER_FAILURE_THRESHOLD=3
 API_BREAKER_RESET_TIMEOUT_MS=30000
 API_BREAKER_HALF_OPEN_TIMEOUT_MS=2000
 VOYAGE_API_KEY=sk-xxxx
+GOOGLE_CLIENT_ID=your-google-client-id
 ```
 
 ---
+### Env pattern & best practice (how this repo does it)
+- **Per-service env files:** `apps/api/.env` (API), `apps/web/.env.local` (NextAuth), `apps/worker/.env` (worker). Each file only lists what that runtime needs. Do not share a single root `.env`.
+- **Shared validation package:** `@search-hub/config-env` exports service-specific loaders (e.g., `loadApiEnv`). API wraps it in `src/config/env.ts` and imports `env` everywhere else—one parse per process.
+- **Templates, not secrets:** Check in `.env.example` per service with placeholders. Never commit real secrets.
+- **Duped public keys:** Public-ish keys like `GOOGLE_CLIENT_ID` live in both web and API envs; private secrets stay only where required (web server-side for NextAuth; API for backend verification).
+- **Fail fast:** If a required var is missing or invalid, the service exits at startup. This avoids “mysterious” runtime failures.
 
 ## 3. Directory Map
 
