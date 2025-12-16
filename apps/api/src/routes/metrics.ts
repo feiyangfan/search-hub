@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { register, resetMetrics } from '@search-hub/observability';
+import { env } from '../config/env.js';
+
+const NODE_ENV = env.NODE_ENV;
 
 export function metricsRoutes() {
     const router = Router();
@@ -12,7 +15,7 @@ export function metricsRoutes() {
 
     // Reset metrics (development only)
     // WARNING: Never expose in production
-    if (process.env.NODE_ENV !== 'production') {
+    if (NODE_ENV !== 'production') {
         router.post('/reset', (_req, res) => {
             resetMetrics();
             res.json({ message: 'Metrics reset successfully' });

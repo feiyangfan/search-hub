@@ -10,11 +10,19 @@ declare global {
 
 export const redisClient = globalThis.__redis__ ?? new Redis(REDIS_URL);
 
-if (process.env.NODE_ENV !== 'production') {
+if (env.NODE_ENV !== 'production') {
     globalThis.__redis__ = redisClient;
 }
 
-export function createRateLimiter(): RequestHandler {
+export function createRateLimiter(opts?: {
+    windowMs?: number;
+    max?: number;
+    prefix?: string;
+}): RequestHandler {
+    const windowMs = opts?.windowMs ?? API_RATE_LIMIT_WINDOW_MS;
+    const max = opts?.max ?? API_RATE_LIMIT_MAX;
+    const prefix = opts?.prefix ?? 'rate';
+
     const script = `
     local key    = KEYS[1]
     local max    = tonumber(ARGV[1])
@@ -43,7 +51,7 @@ export function createRateLimiter(): RequestHandler {
   `;
 
     return async function rateLimitMiddleware(req, res, next) {
-        const key = `rate:${req.ip}`;
+        const key = `${prefix}:${req.ip}`;
         const now = Date.now();
 
         try {
@@ -51,8 +59,8 @@ export function createRateLimiter(): RequestHandler {
                 script,
                 1,
                 key,
-                API_RATE_LIMIT_MAX,
-                API_RATE_LIMIT_WINDOW_MS,
+                max,
+                windowMs,
                 now
             );
             const tokens = Number(raws);
