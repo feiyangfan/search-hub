@@ -7,6 +7,7 @@ import { Id } from './common.js';
 export const JOBS = {
     INDEX_DOCUMENT: 'index-document',
     SEND_REMINDER: 'send-reminder',
+    SYNC_STALE_DOCUMENTS: 'sync-stale-documents',
 } as const;
 
 /**
@@ -44,3 +45,10 @@ export const SendReminderJobSchema = z.object({
 });
 
 export type SendReminderJob = z.infer<typeof SendReminderJobSchema>;
+
+/**
+ * Sync stale documents job - no payload needed (scans all tenants)
+ */
+export const SyncStaleDocumentsJobSchema = z.object({});
+
+export type SyncStaleDocumentsJob = z.infer<typeof SyncStaleDocumentsJobSchema>;
