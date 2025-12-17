@@ -5,14 +5,9 @@
 
 import type { Job } from 'bullmq';
 import { db } from '@search-hub/db';
-import { logger as baseLogger } from '@search-hub/logger';
+import { logger as baseLogger } from '../logger.js';
 import { SendReminderJobSchema } from '@search-hub/schemas';
 import type { SendReminderJob } from '@search-hub/schemas';
-
-const logger = baseLogger.child({
-    service: 'worker',
-    processor: 'send-reminder',
-});
 
 export type ReminderProcessorResult =
     | { ok: true; reason: 'not-found' | 'already-processed' }
@@ -31,10 +26,14 @@ export async function processSendReminder(
         job.data
     );
 
-    logger.info(
-        { documentCommandId, tenantId, jobId: job.id },
-        'processor.started'
-    );
+    // Create job-scoped logger with context
+    const logger = baseLogger.child({
+        component: 'send-reminder-job',
+        jobId: job.id,
+        tenantId,
+        documentCommandId,
+        attempt: job.attemptsMade + 1,
+    });
 
     try {
         // Fetch the reminder command with related document info
@@ -43,10 +42,7 @@ export async function processSendReminder(
         );
 
         if (!command) {
-            logger.warn(
-                { documentCommandId },
-                'DocumentCommand not found, may have been deleted'
-            );
+            logger.warn('job.skipped.command_not_found');
             return { ok: true, reason: 'not-found' };
         }
 
@@ -56,8 +52,8 @@ export async function processSendReminder(
         // Only notify if still scheduled (not already done/snoozed)
         if (currentStatus !== 'scheduled') {
             logger.info(
-                { documentCommandId, status: currentStatus },
-                'Reminder already processed or cancelled'
+                { status: currentStatus },
+                'job.skipped.already_processed'
             );
             return { ok: true, reason: 'already-processed' };
         }
@@ -74,20 +70,21 @@ export async function processSendReminder(
 
         logger.info(
             {
-                documentCommandId,
                 userId: command.userId,
                 documentId: command.documentId,
                 documentTitle: command.document?.title,
                 whenText: body?.whenText,
             },
-            'processor.success'
+            'job.completed'
         );
 
         return { ok: true, documentCommandId };
     } catch (error) {
         logger.error(
-            { error, documentCommandId, tenantId, jobId: job.id },
-            'processor.failed'
+            {
+                error: error instanceof Error ? error.message : String(error),
+            },
+            'job.failed'
         );
         throw error;
     }

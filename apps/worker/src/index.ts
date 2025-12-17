@@ -1,11 +1,12 @@
 import { Worker, Queue, QueueEvents } from 'bullmq';
-import { logger as base } from '@search-hub/logger';
+import { logger as baseLogger } from './logger.js';
 import { loadWorkerEnv } from '@search-hub/config-env';
 import { metrics } from '@search-hub/observability';
 import {
     JOBS,
     type IndexDocumentJob,
     type SendReminderJob,
+    type SyncStaleDocumentsJob,
 } from '@search-hub/schemas';
 import { processIndexDocument } from './jobs/processIndexDocument.js';
 import { processSendReminder } from './jobs/processSendReminder.js';
@@ -14,14 +15,24 @@ import { cleanupOldJobs } from './jobs/cleanupOldJobs.js';
 
 const env = loadWorkerEnv();
 
-const logger = base.child({
-    service: 'worker',
+const logger = baseLogger.child({
+    component: 'worker-lifecycle',
 });
 
 const REDIS_URL = env.REDIS_URL ?? 'redis://localhost:6379';
 const WORKER_CONCURRENCY = Number(env.WORKER_CONCURRENCY ?? 5);
 const SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+logger.info(
+    {
+        concurrency: WORKER_CONCURRENCY,
+        redisUrl: REDIS_URL,
+        syncIntervalMs: SYNC_INTERVAL_MS,
+        cleanupIntervalMs: CLEANUP_INTERVAL_MS,
+    },
+    'worker.bootstrap.started'
+);
 
 const connection = { url: REDIS_URL };
 
@@ -42,22 +53,21 @@ const indexWorker = new Worker<IndexDocumentJob>(
     }
 );
 
-indexWorker.on('ready', () => logger.info('Index worker started'));
-indexWorker.on('error', (err) =>
-    logger.error({ err }, 'Index worker fatal error')
-);
-indexWorker.on('failed', (job, err) =>
-    logger.debug(
-        { jobId: job?.id, err },
-        'Index job failed (will retry if attempts remain)'
+indexWorker.on('ready', () =>
+    logger.info(
+        { worker: 'index-document', concurrency: WORKER_CONCURRENCY },
+        'worker.ready'
     )
+);
+indexWorker.on('error', (err) =>
+    logger.error({ err, worker: 'index-document' }, 'worker.error')
 );
 
 // Listen to queue-level events for observability
 const indexQueueEvents = new QueueEvents(JOBS.INDEX_DOCUMENT, { connection });
 
 indexQueueEvents.on('completed', ({ jobId }) => {
-    logger.info({ jobId }, 'Index job completed');
+    logger.info({ jobId, jobType: 'index_document' }, 'job.completed');
 
     // Decrease queue depth (job finished processing)
     metrics.queueDepth.dec({
@@ -73,7 +83,10 @@ indexQueueEvents.on('completed', ({ jobId }) => {
 });
 
 indexQueueEvents.on('failed', ({ jobId, failedReason }) => {
-    logger.error({ jobId, failedReason }, 'Index job failed');
+    logger.error(
+        { jobId, jobType: 'index_document', failedReason },
+        'job.failed'
+    );
 
     // Decrease queue depth (job finished, even though it failed)
     metrics.queueDepth.dec({
@@ -103,9 +116,11 @@ const reminderWorker = new Worker<SendReminderJob>(
     }
 );
 
-reminderWorker.on('ready', () => logger.info('Reminder worker started'));
+reminderWorker.on('ready', () =>
+    logger.info({ worker: 'send-reminder', concurrency: 5 }, 'worker.ready')
+);
 reminderWorker.on('error', (err) =>
-    logger.error({ err }, 'Reminder worker fatal error')
+    logger.error({ err, worker: 'send-reminder' }, 'worker.error')
 );
 
 const reminderQueueEvents = new QueueEvents(JOBS.SEND_REMINDER, {
@@ -113,7 +128,7 @@ const reminderQueueEvents = new QueueEvents(JOBS.SEND_REMINDER, {
 });
 
 reminderQueueEvents.on('completed', ({ jobId }) => {
-    logger.info({ jobId }, 'Reminder job completed');
+    logger.info({ jobId, jobType: 'send_reminder' }, 'job.completed');
     metrics.jobsProcessed.inc({
         job_type: 'send_reminder',
         result: 'success',
@@ -121,60 +136,111 @@ reminderQueueEvents.on('completed', ({ jobId }) => {
 });
 
 reminderQueueEvents.on('failed', ({ jobId, failedReason }) => {
-    logger.error({ jobId, failedReason }, 'Reminder job failed');
+    logger.error(
+        { jobId, jobType: 'send_reminder', failedReason },
+        'job.failed'
+    );
     metrics.jobsProcessed.inc({
         job_type: 'send_reminder',
         result: 'failure',
     });
 });
 
-// ===== SCHEDULED JOB: SYNC STALE DOCUMENTS =====
+// ===== SYNC STALE DOCUMENTS WORKER =====
 
-async function runSyncStaleDocuments() {
-    try {
-        logger.info('scheduled_sync.starting');
-        const result = await syncStaleDocuments(indexQueue);
-        logger.info(
-            {
-                queued: result.queued,
-                errors: result.errors,
-            },
-            'scheduled_sync.completed'
-        );
-    } catch (error) {
-        logger.error(
-            {
-                error: error instanceof Error ? error.message : String(error),
-            },
-            'scheduled_sync.error'
-        );
+// Queue instance for sync stale documents jobs
+const syncStaleQueue = new Queue<SyncStaleDocumentsJob>(
+    JOBS.SYNC_STALE_DOCUMENTS,
+    { connection }
+);
+
+// Create worker - passes indexQueue to processor for queueing stale docs
+const syncStaleWorker = new Worker<SyncStaleDocumentsJob>(
+    JOBS.SYNC_STALE_DOCUMENTS,
+    async (job) => syncStaleDocuments(job, indexQueue),
+    {
+        connection,
+        concurrency: 1, // Only one sync job should run at a time
     }
-}
+);
 
-// Run immediately on startup, then every 30 minutes
-void runSyncStaleDocuments();
-const syncInterval = setInterval(() => {
-    void runSyncStaleDocuments();
-}, SYNC_INTERVAL_MS);
+syncStaleWorker.on('ready', () =>
+    logger.info(
+        { worker: 'sync-stale-documents', concurrency: 1 },
+        'worker.ready'
+    )
+);
+syncStaleWorker.on('error', (err) =>
+    logger.error({ err, worker: 'sync-stale-documents' }, 'worker.error')
+);
+
+const syncStaleQueueEvents = new QueueEvents(JOBS.SYNC_STALE_DOCUMENTS, {
+    connection,
+});
+
+syncStaleQueueEvents.on('completed', ({ jobId, returnvalue }) => {
+    const result = returnvalue as unknown as { queued: number; errors: number };
+    logger.info(
+        {
+            jobId,
+            jobType: 'sync_stale_documents',
+            queued: result.queued,
+            errors: result.errors,
+        },
+        'job.completed'
+    );
+    metrics.jobsProcessed.inc({
+        job_type: 'sync_stale_documents',
+        result: 'success',
+    });
+});
+
+syncStaleQueueEvents.on('failed', ({ jobId, failedReason }) => {
+    logger.error(
+        { jobId, jobType: 'sync_stale_documents', failedReason },
+        'job.failed'
+    );
+    metrics.jobsProcessed.inc({
+        job_type: 'sync_stale_documents',
+        result: 'failure',
+    });
+});
+
+// Schedule sync stale documents job with BullMQ repeat pattern
+await syncStaleQueue.add(
+    JOBS.SYNC_STALE_DOCUMENTS,
+    {},
+    {
+        repeat: {
+            pattern: '*/30 * * * *', // Every 30 minutes (cron format)
+        },
+        jobId: 'sync-stale-documents-repeating', // Ensures only one repeating job exists
+    }
+);
+
+logger.info(
+    { pattern: '*/30 * * * *', jobId: 'sync-stale-documents-repeating' },
+    'schedule.sync_stale.configured'
+);
 
 // ===== SCHEDULED JOB: CLEANUP OLD INDEXED JOBS =====
 
 async function runCleanupOldJobs() {
     try {
-        logger.info('scheduled_cleanup.starting');
+        logger.info('schedule.cleanup.started');
         const result = await cleanupOldJobs();
         logger.info(
             {
                 deleted: result.deleted,
             },
-            'scheduled_cleanup.completed'
+            'schedule.cleanup.completed'
         );
     } catch (error) {
         logger.error(
             {
                 error: error instanceof Error ? error.message : String(error),
             },
-            'scheduled_cleanup.error'
+            'schedule.cleanup.failed'
         );
     }
 }
@@ -185,16 +251,41 @@ setInterval(() => {
     void runCleanupOldJobs();
 }, CLEANUP_INTERVAL_MS);
 
+// ===== BOOTSTRAP COMPLETE =====
+
+logger.info(
+    {
+        workers: ['index-document', 'send-reminder', 'sync-stale-documents'],
+        scheduledJobs: ['cleanup-old-jobs'],
+    },
+    'worker.bootstrap.completed'
+);
+
 // ===== GRACEFUL SHUTDOWN =====
 
 const handleSigint = async () => {
-    logger.info('Shutting down workers...');
-    clearInterval(syncInterval);
-    await indexWorker.close();
-    await reminderWorker.close();
-    await indexQueueEvents.close();
-    await reminderQueueEvents.close();
-    process.exit(0);
+    logger.info('worker.shutdown.initiated');
+
+    try {
+        logger.info('worker.shutdown.closing_workers');
+        await indexWorker.close();
+        await reminderWorker.close();
+        await syncStaleWorker.close();
+        await indexQueueEvents.close();
+        await reminderQueueEvents.close();
+        await syncStaleQueueEvents.close();
+
+        logger.info('worker.shutdown.completed');
+        process.exit(0);
+    } catch (error) {
+        logger.error(
+            {
+                error: error instanceof Error ? error.message : String(error),
+            },
+            'worker.shutdown.failed'
+        );
+        process.exit(1);
+    }
 };
 
 process.on('SIGINT', () => {

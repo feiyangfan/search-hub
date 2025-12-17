@@ -9,7 +9,7 @@
  */
 
 import { db } from '@search-hub/db';
-import { logger } from '@search-hub/logger';
+import { logger as baseLogger } from '../logger.js';
 
 const RETENTION_DAYS = 1; // Keep indexed jobs for 1 day
 
@@ -21,9 +21,11 @@ export async function cleanupOldJobs(): Promise<{
 }> {
     const startTime = Date.now();
 
-    try {
-        logger.info('cleanup_old_jobs.started');
+    const logger = baseLogger.child({
+        component: 'cleanup-old-jobs',
+    });
 
+    try {
         const deletedCount = await db.job.deleteOldIndexedJobs(RETENTION_DAYS);
 
         const duration = Date.now() - startTime;
@@ -33,7 +35,7 @@ export async function cleanupOldJobs(): Promise<{
                 retentionDays: RETENTION_DAYS,
                 durationMs: duration,
             },
-            'cleanup_old_jobs.completed'
+            'cleanup.completed'
         );
 
         return { deleted: deletedCount };
@@ -44,7 +46,7 @@ export async function cleanupOldJobs(): Promise<{
                 error: error instanceof Error ? error.message : String(error),
                 durationMs: duration,
             },
-            'cleanup_old_jobs.failed'
+            'cleanup.failed'
         );
         throw error;
     }

@@ -1,51 +1,57 @@
 /**
  * Periodic job to reindex stale documents
- * Runs every 30-60 minutes to catch documents that:
+ * Runs every 30 minutes to catch documents that:
  * - Were updated but reindex failed
  * - Were updated while worker was down
  * - Have never been indexed
  */
 
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import { db } from '@search-hub/db';
-import { logger } from '@search-hub/logger';
-import { JOBS } from '@search-hub/schemas';
-import type { IndexDocumentJob } from '@search-hub/schemas';
+import { logger as baseLogger } from '../logger.js';
+import {
+    JOBS,
+    SyncStaleDocumentsJobSchema,
+    type SyncStaleDocumentsJob,
+    type IndexDocumentJob,
+} from '@search-hub/schemas';
 
 /**
- * Queue stale documents for reindexing
+ * Process sync stale documents job
+ * Scans for stale documents and queues them for reindexing
  */
 export async function syncStaleDocuments(
+    job: Job<SyncStaleDocumentsJob>,
     indexQueue: Queue<IndexDocumentJob>
 ): Promise<{
     queued: number;
     errors: number;
 }> {
+    // Validate job data
+    SyncStaleDocumentsJobSchema.parse(job.data);
+
     const startTime = Date.now();
     let queued = 0;
     let errors = 0;
 
-    try {
-        logger.info('sync_stale_documents.started');
+    // Create job-scoped logger with context
+    const logger = baseLogger.child({
+        component: 'sync-stale-documents-job',
+        jobId: job.id,
+        attempt: job.attemptsMade + 1,
+    });
 
+    try {
         const staleDocuments = await db.document.findStaleDocuments(100);
 
         if (staleDocuments.length === 0) {
-            logger.info('sync_stale_documents.no_stale_documents');
+            logger.info('sync.skipped.no_stale_documents');
             return { queued: 0, errors: 0 };
         }
 
         logger.info(
-            {
-                count: staleDocuments.length,
-                documents: staleDocuments.map((d) => ({
-                    id: d.id,
-                    title: d.title,
-                    updatedAt: d.updatedAt,
-                    lastIndexedAt: d.lastIndexedAt,
-                })),
-            },
-            'sync_stale_documents.found_stale'
+            { count: staleDocuments.length },
+            'sync.found_stale_documents'
         );
 
         // Queue each stale document for reindexing
@@ -67,12 +73,12 @@ export async function syncStaleDocuments(
                 );
 
                 if (hasQueuedJob) {
-                    logger.info(
+                    logger.debug(
                         {
                             documentId: doc.id,
                             tenantId: doc.tenantId,
                         },
-                        'sync_stale_documents.already_queued'
+                        'sync.skipped.already_queued'
                     );
                     continue;
                 }
@@ -80,6 +86,7 @@ export async function syncStaleDocuments(
                 const jobPayload: IndexDocumentJob = {
                     tenantId: doc.tenantId,
                     documentId: doc.id,
+                    reindex: true,
                 };
 
                 // Add job to BullMQ with unique jobId (allows multiple jobs per document over time)
@@ -98,26 +105,18 @@ export async function syncStaleDocuments(
                 await db.job.enqueueIndex(doc.tenantId, doc.id);
 
                 queued++;
-
-                logger.info(
-                    {
-                        documentId: doc.id,
-                        tenantId: doc.tenantId,
-                        title: doc.title,
-                    },
-                    'sync_stale_documents.queued'
-                );
             } catch (error) {
                 errors++;
                 logger.error(
                     {
                         documentId: doc.id,
+                        tenantId: doc.tenantId,
                         error:
                             error instanceof Error
                                 ? error.message
                                 : String(error),
                     },
-                    'sync_stale_documents.queue_failed'
+                    'sync.document_queue_failed'
                 );
             }
         }
@@ -130,7 +129,7 @@ export async function syncStaleDocuments(
                 total: staleDocuments.length,
                 durationMs: duration,
             },
-            'sync_stale_documents.completed'
+            'sync.completed'
         );
 
         return { queued, errors };
@@ -141,7 +140,7 @@ export async function syncStaleDocuments(
                 error: error instanceof Error ? error.message : String(error),
                 durationMs: duration,
             },
-            'sync_stale_documents.failed'
+            'sync.failed'
         );
         throw error;
     }

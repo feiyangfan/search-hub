@@ -5,26 +5,22 @@
 
 import type { Job } from 'bullmq';
 import { db } from '@search-hub/db';
-import { logger as baseLogger } from '@search-hub/logger';
+import { logger as baseLogger } from '../logger.js';
 import { chunkText, sha256, IndexDocumentJobSchema } from '@search-hub/schemas';
 import type { IndexDocumentJob } from '@search-hub/schemas';
 import { createVoyageHelpers } from '@search-hub/ai';
-import { loadAiEnv, loadWorkerEnv } from '@search-hub/config-env';
+import { loadWorkerEnv } from '@search-hub/config-env';
 import { metrics } from '@search-hub/observability';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import stripMarkdown from 'strip-markdown';
 
-const VOYAGE_API_KEY = loadAiEnv().VOYAGE_API_KEY;
 const env = loadWorkerEnv();
+const VOYAGE_API_KEY = env.VOYAGE_API_KEY;
 const MAX_CHUNK_LIMIT = Number(env.WORKER_MAX_CHUNK_LIMIT ?? 5000);
 
 const voyage = createVoyageHelpers({ apiKey: VOYAGE_API_KEY });
-const logger = baseLogger.child({
-    service: 'worker',
-    processor: 'index-document',
-});
 
 type TextChunk = ReturnType<typeof chunkText>[number];
 
@@ -32,20 +28,27 @@ export type ProcessorResult =
     | { ok: true; reason: 'empty-content' | 'already-indexed' | 'no-chunks' }
     | { ok: true; documentId: string; chunks: number };
 
-function cleanMarkdown(source: string): string {
+function cleanMarkdown(source: string): {
+    text: string;
+    cleaningFailed: boolean;
+} {
     try {
         const file = unified()
             .use(remarkParse)
             .use(stripMarkdown)
             .use(remarkStringify)
             .processSync(source);
-        return String(file.value).replace(/\s+/g, ' ').trim();
+        return {
+            text: String(file.value).replace(/\s+/g, ' ').trim(),
+            cleaningFailed: false,
+        };
     } catch (error) {
-        logger.warn(
-            { error: error instanceof Error ? error.message : String(error) },
-            'markdown.cleaning_failed_fallback'
-        );
-        return source.replace(/\s+/g, ' ').trim();
+        // Fallback: return raw text with basic normalization
+        console.warn('Markdown cleaning failed, using fallback', { error });
+        return {
+            text: source.replace(/\s+/g, ' ').trim(),
+            cleaningFailed: true,
+        };
     }
 }
 
@@ -68,21 +71,20 @@ export async function processIndexDocument(
         reindex = false,
     } = IndexDocumentJobSchema.parse(job.data);
 
-    logger.info({ tenantId, documentId, jobId: job.id }, 'processor.started');
+    // Create job-scoped logger with context
+    const logger = baseLogger.child({
+        component: 'index-document-job',
+        jobId: job.id,
+        tenantId,
+        documentId,
+        attempt: job.attemptsMade + 1,
+    });
 
     // Track active job (job is now being processed)
     metrics.activeJobs.inc({ job_type: 'index_document', tenant_id: tenantId });
 
     // 2) Transition: queued -> processing
-    const start = await db.job.startProcessing(tenantId, documentId);
-
-    if (start === 0) {
-        // No matching queued job. Could be a duplicate/retry or manual replay.
-        logger.warn(
-            { tenantId, documentId },
-            'No queued job found to move to processing; continuing'
-        );
-    }
+    await db.job.startProcessing(tenantId, documentId);
 
     try {
         // 3) Fetch the document content
@@ -94,25 +96,20 @@ export async function processIndexDocument(
         }
 
         const rawText = (doc.content ?? '').trim();
-        const cleanedText = cleanMarkdown(rawText);
-        logger.info(
-            {
-                tenantId,
-                documentId,
-                textLength: rawText.length,
-                cleanedLength: cleanedText.length,
-            },
-            'content.loaded'
-        );
+        const { text: cleanedText, cleaningFailed } = cleanMarkdown(rawText);
+
+        if (cleaningFailed) {
+            logger.warn(
+                { textLength: rawText.length },
+                'markdown.cleaning.fallback'
+            );
+        }
 
         if (!cleanedText) {
             // No content to index; mark job done but DON'T update DocumentIndexState
             // findStaleDocuments won't requeue because document has no content
             await db.job.markIndexed(tenantId, documentId);
-            logger.info(
-                { documentId, title: doc.title },
-                'empty.content.skipped'
-            );
+            logger.info({ title: doc.title }, 'job.skipped.empty_content');
             return { ok: true, reason: 'empty-content' };
         }
 
@@ -129,13 +126,11 @@ export async function processIndexDocument(
             );
             await db.job.markIndexed(tenantId, documentId);
             logger.info(
-                { documentId, title: doc.title, checksum },
-                'already.indexed.skipped'
+                { title: doc.title, checksum },
+                'job.skipped.already_indexed'
             );
             return { ok: true, reason: 'already-indexed' };
         }
-
-        logger.info({ documentId }, 'chunking.started');
 
         // 6) Chunk the text for embedding
         const chunks = chunkText(cleanedText, 1000, 100); // 1k chars with 100 overlap
@@ -148,29 +143,19 @@ export async function processIndexDocument(
                 new Date()
             );
             await db.job.markIndexed(tenantId, documentId);
-            logger.info({ documentId, title: doc.title }, 'no.chunks.skipped');
+            logger.info({ title: doc.title }, 'job.skipped.no_chunks');
             return { ok: true, reason: 'no-chunks' };
         }
 
         const chunkCount = chunks.length;
-        logger.info(
-            {
-                tenantId,
-                documentId,
-                chunkCount,
-            },
-            'chunking.complete'
-        );
 
         if (chunkCount > MAX_CHUNK_LIMIT) {
             logger.error(
                 {
-                    tenantId,
-                    documentId,
                     chunkCount,
                     maxChunkLimit: MAX_CHUNK_LIMIT,
                 },
-                'chunk.limit.exceeded'
+                'job.failed.chunk_limit_exceeded'
             );
             throw new Error(
                 `Chunk count ${chunkCount} exceeds limit ${MAX_CHUNK_LIMIT}`
@@ -178,7 +163,6 @@ export async function processIndexDocument(
         }
 
         // 7) Generate embeddings via Voyage AI
-        logger.info({ documentId, chunkCount }, 'embedding.started');
         const startEmbedding = Date.now();
         const vectors = await voyage.embed(
             chunks.map((c: TextChunk) => c.text),
@@ -191,15 +175,6 @@ export async function processIndexDocument(
             (Date.now() - startEmbedding) / 1000
         );
 
-        logger.info(
-            {
-                tenantId,
-                documentId,
-                vectorCount: vectors.length,
-            },
-            'embedding.complete'
-        );
-
         // 8) Store chunks and embeddings in database
         await db.document.replaceChunksWithEmbeddings({
             tenantId,
@@ -210,14 +185,7 @@ export async function processIndexDocument(
         });
 
         // 9) Transition: processing -> indexed
-        const done = await db.job.markIndexed(tenantId, documentId);
-
-        if (done === 0) {
-            logger.warn(
-                { tenantId, documentId },
-                'No processing job found to mark indexed (was it already updated?)'
-            );
-        }
+        await db.job.markIndexed(tenantId, documentId);
 
         // Track successful job duration
         const duration = (Date.now() - startTime) / 1000;
@@ -231,8 +199,8 @@ export async function processIndexDocument(
         );
 
         logger.info(
-            { documentId, chunks: chunks.length, durationMs: duration * 1000 },
-            'processor.success'
+            { chunks: chunks.length, durationMs: Math.round(duration * 1000) },
+            'job.completed'
         );
 
         return { ok: true, documentId, chunks: chunks.length };
@@ -241,10 +209,7 @@ export async function processIndexDocument(
 
         // Mark failed in DB and rethrow so BullMQ can retry
         await db.job.markFailed(tenantId, documentId, error.message);
-        logger.error(
-            { err: error, jobId: job.id, tenantId, documentId },
-            'processor.failed'
-        );
+        logger.error({ error: error.message }, 'job.failed');
 
         // Track failed job duration
         const duration = (Date.now() - startTime) / 1000;

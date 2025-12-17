@@ -36,26 +36,23 @@ const ServerEnvSchema = z.object({
     REDIS_URL: z.url(),
     API_RATE_LIMIT_WINDOW_MS: z.coerce.number(),
     API_RATE_LIMIT_MAX: z.coerce.number(),
+    AI_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),
+    AI_RATE_LIMIT_MAX: z.coerce.number().default(25),
     API_BREAKER_FAILURE_THRESHOLD: z.coerce.number(),
     API_BREAKER_RESET_TIMEOUT_MS: z.coerce.number(),
     API_BREAKER_HALF_OPEN_TIMEOUT_MS: z.coerce.number(),
-    SEMANTIC_RERANK_THRESHOLD: z.coerce
-        .number()
-        .min(0)
-        .max(1)
-        .default(0.35),
-    SEMANTIC_TOP_SCORE_CUTOFF: z.coerce
-        .number()
-        .min(0)
-        .max(1)
-        .default(0.55),
+    SEMANTIC_RERANK_THRESHOLD: z.coerce.number().min(0).max(1).default(0.35),
+    SEMANTIC_TOP_SCORE_CUTOFF: z.coerce.number().min(0).max(1).default(0.55),
+    WORKER_CONCURRENCY: z.coerce.number().min(1).default(5),
     SESSION_SECRET: z.string().min(32),
+    GOOGLE_CLIENT_ID: z.string(),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
 
 const AiEnvSchema = z.object({
     VOYAGE_API_KEY: z.string(),
+    GROQ_API_KEY: z.string(),
 });
 
 export type AiEnv = z.infer<typeof AiEnvSchema>;
@@ -64,6 +61,7 @@ const DbEnvSchema = z.object({
     NODE_ENV: z
         .enum(['development', 'test', 'production'])
         .default('development'),
+    DATABASE_URL: z.url(),
 });
 
 export type DbEnv = z.infer<typeof DbEnvSchema>;
@@ -74,6 +72,15 @@ const WorkerEnvSchema = z.object({
     WORKER_MAX_CHUNK_LIMIT: z.coerce.number().min(1),
 
     VOYAGE_API_KEY: z.string(),
+
+    DATABASE_URL: z.url(),
+
+    NODE_ENV: z
+        .enum(['development', 'test', 'production'])
+        .default('development'),
+    LOG_LEVEL: z
+        .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+        .optional(),
 });
 
 export type WorkerEnv = z.infer<typeof WorkerEnvSchema>;
