@@ -5,6 +5,8 @@ import {
     registrationPayload,
 } from '@search-hub/schemas';
 import { type RegistrationPayload } from '@search-hub/schemas';
+
+import { logger as baseLogger } from '../../logger.js';
 import { metrics } from '@search-hub/observability';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -12,6 +14,8 @@ import type { RequestWithValidatedBody } from '../types.js';
 
 import { db } from '@search-hub/db';
 import bcrypt from 'bcrypt';
+
+const logger = baseLogger.child({ component: 'sign-up-routes' });
 
 const SALT_ROUNDS = 10;
 
@@ -58,6 +62,15 @@ export function signUpRoutes() {
                         passwordHash,
                     });
 
+                    logger.info(
+                        {
+                            userId: user.id,
+                            email: user.email,
+                            name: user.name,
+                        },
+                        'user.created'
+                    );
+
                     // Track successful sign-up
                     metrics.authAttempts.inc({
                         method: 'sign-up',
@@ -85,6 +98,13 @@ export function signUpRoutes() {
                     ) {
                         // Prisma unique constraint error for email field
                         // Track failed sign-up (race condition duplicate)
+                        logger.warn(
+                            {
+                                email,
+                                reason: 'race_condition',
+                            },
+                            'sign_up.race_condition_duplicate'
+                        );
                         metrics.authAttempts.inc({
                             method: 'sign-up',
                             status: 'failure',

@@ -1,6 +1,6 @@
 import type { Server } from 'node:http';
 
-import { logger } from '@search-hub/logger';
+import { logger } from './logger.js';
 import { createServer } from './app.js';
 
 import { initSessionStore, closeSessionStore } from './session/store.js';
@@ -9,21 +9,25 @@ import { env } from './config/env.js';
 let server: Server | null = null;
 
 async function bootstrap() {
+    logger.info('bootstrap.started');
+
+    logger.info('session_store.initializing');
     await initSessionStore();
+    logger.info('session_store.initialized');
 
     const app = createServer();
     server = app.listen(env.PORT, () => {
-        logger.info({ env: env.NODE_ENV, port: env.PORT }, 'api listening');
+        logger.info({ env: env.NODE_ENV, port: env.PORT }, 'server.listening');
     });
 
     server.on('error', (err) => {
-        logger.error({ err }, 'Failed to start server:');
+        logger.error({ err }, 'server.start_failed');
         process.exit(1);
     });
 }
 
 bootstrap().catch((err: Error) => {
-    logger.error({ err }, 'Failed to bootstrap api server');
+    logger.error({ err }, 'bootstrap.failed');
     process.exit(1);
 });
 
@@ -63,28 +67,36 @@ async function flushLogger() {
 
 async function shutdown(signal: NodeJS.Signals) {
     if (isShuttingDown) {
+        logger.warn({ signal }, 'shutdown.already_in_progress');
         return;
     }
     isShuttingDown = true;
 
-    logger.warn({ signal }, 'shutting down server');
+    logger.warn({ signal }, 'shutdown.initiated');
 
     const shutdownTimer = setTimeout(() => {
-        logger.error(
-            'Could not close connections in time, forcefully shutting down'
-        );
+        logger.error('shutdown.timeout');
         process.exit(1);
     }, 5000).unref();
 
     try {
+        logger.info('server.closing');
         await closeServer(server);
+        logger.info('server.closed');
+
+        logger.info('session_store.closing');
         await closeSessionStore();
+        logger.info('session_store.closed');
+
+        logger.info('logger.flushing');
         await flushLogger();
+
         clearTimeout(shutdownTimer);
+        logger.info('shutdown.completed');
         process.exit(0);
     } catch (error) {
         clearTimeout(shutdownTimer);
-        logger.error({ error }, 'graceful shutdown failed');
+        logger.error({ error }, 'shutdown.failed');
         process.exit(1);
     }
 }

@@ -8,6 +8,12 @@ import { validateBody } from '../../../middleware/validateMiddleware.js';
 import type { RequestWithValidatedBody } from '../../types.js';
 import { db } from '@search-hub/db';
 
+import { logger as baseLogger } from '../../../logger.js';
+
+const logger = baseLogger.child({ component: 'oauth-sign-in-routes' });
+
+import { AppError } from '@search-hub/schemas';
+
 const googleClient = new OAuth2Client();
 
 const GOOGLE_CLIENT_ID = env.GOOGLE_CLIENT_ID;
@@ -31,16 +37,61 @@ export function oauthSignInRoutes() {
                 const payload = ticket.getPayload();
 
                 if (!payload) {
-                    throw new Error('Invalid ID token payload');
+                    metrics.authAttempts.inc({
+                        method: 'oauth',
+                        status: 'failed',
+                    });
+                    throw AppError.authentication(
+                        'OAUTH_INVALID_TOKEN',
+                        'Invalid OAuth token payload',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'auth',
+                                operation: 'oauth-sign-in',
+                                metadata: { provider },
+                            },
+                        }
+                    );
                 }
                 const userid = payload['sub'];
 
                 if (payload.email_verified === false) {
-                    throw new Error('Email not verified by OAuth provider');
+                    metrics.authAttempts.inc({
+                        method: 'oauth',
+                        status: 'failed',
+                    });
+                    throw AppError.authentication(
+                        'OAUTH_EMAIL_NOT_VERIFIED',
+                        'Email not verified by OAuth provider',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'auth',
+                                operation: 'oauth-sign-in',
+                                metadata: { provider, email: payload.email },
+                            },
+                        }
+                    );
                 }
 
                 if (payload.email === undefined) {
-                    throw new Error('Email not provided by OAuth provider');
+                    metrics.authAttempts.inc({
+                        method: 'oauth',
+                        status: 'failed',
+                    });
+                    throw AppError.authentication(
+                        'OAUTH_EMAIL_MISSING',
+                        'Email not provided by OAuth provider',
+                        {
+                            context: {
+                                origin: 'server',
+                                domain: 'auth',
+                                operation: 'oauth-sign-in',
+                                metadata: { provider },
+                            },
+                        }
+                    );
                 }
 
                 const userRecord = await db.user.upsertOAuthUser({
@@ -70,6 +121,16 @@ export function oauthSignInRoutes() {
 
                     req.session.save((err) => {
                         if (err) return next(err);
+
+                        logger.info(
+                            {
+                                userId: userRecord.id,
+                                email: userRecord.email,
+                                provider,
+                                tenantId: primaryTenantId,
+                            },
+                            'sign_in.success'
+                        );
 
                         metrics.authAttempts.inc({
                             method: 'oauth',

@@ -1,7 +1,9 @@
-import { getRequestContext } from '@search-hub/logger';
+import { createHttpLogger } from '@search-hub/logger';
 import { metrics } from '@search-hub/observability';
+import { logger } from '../logger.js';
 import type { Request, Response, NextFunction } from 'express';
 
+const pinoHttp = createHttpLogger(logger);
 /**
  * Request logging middleware
  *
@@ -30,60 +32,39 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
         return next();
     }
 
-    // Reuse traceId from correlationMiddleware instead of generating new one
-    const context = getRequestContext();
-    const traceId = context?.traceId || 'unknown';
+    pinoHttp(req, res);
 
-    // Store traceId on request object for backward compatibility
-    req.traceId = traceId;
-
+    // Track metrics separately
     const startTime = Date.now();
+    let isTracked = false;
 
-    // Flag to ensure we only log once (finish OR close, whichever comes first)
-    let isLogged = false;
+    const trackMetrics = () => {
+        if (isTracked) return;
+        isTracked = true;
 
-    const logCompletion = () => {
-        if (isLogged) return; // Prevent duplicate logs
-        isLogged = true;
+        const duration = (Date.now() - startTime) / 1000;
+        const tenantId = req.session?.currentTenantId || 'unknown';
 
-        try {
-            const duration = (Date.now() - startTime) / 1000; // Convert to seconds
+        metrics.apiRequests.inc({
+            tenant_id: tenantId,
+            endpoint: req.path,
+            method: req.method,
+            status_code: String(res.statusCode),
+        });
 
-            // Track API request metrics
-            const tenantId = req.session?.currentTenantId || 'unknown';
-            const endpoint = req.path; // e.g., /v1/documents
-            const method = req.method; // e.g., POST
-            const statusCode = String(res.statusCode); // e.g., 200
-
-            // Increment request counter
-            metrics.apiRequests.inc({
+        metrics.apiRequestDuration.observe(
+            {
                 tenant_id: tenantId,
-                endpoint,
-                method,
-                status_code: statusCode,
-            });
-
-            // Track request duration histogram
-            metrics.apiRequestDuration.observe(
-                {
-                    tenant_id: tenantId,
-                    endpoint,
-                    method,
-                    status_code: statusCode,
-                },
-                duration
-            );
-        } catch (err) {
-            // Fallback - don't let logging errors crash the response
-            console.error('Request logger error:', err);
-        }
+                endpoint: req.path,
+                method: req.method,
+                status_code: String(res.statusCode),
+            },
+            duration
+        );
     };
 
-    // Log on finish (normal completion)
-    res.on('finish', logCompletion);
-
-    // Also log on close (in case of early termination/error)
-    res.on('close', logCompletion);
+    res.on('finish', trackMetrics);
+    res.on('close', trackMetrics);
 
     next();
 }

@@ -17,11 +17,13 @@ import {
     indexQueue as defaultIndexQueue,
     reminderQueue as defaultReminderQueue,
 } from '../queue.js';
-import { logger as defaultLogger } from '@search-hub/logger';
+import { logger as baseLogger } from '../logger.js';
 import type { Logger } from 'pino';
 import { extractRemindCommands } from '../lib/reminders.js';
 import { redisClient as defaultRedisClient } from '../session/store.js';
 import type { RedisClientType } from 'redis';
+
+const defaultLogger = baseLogger.child({ component: 'document-service' });
 
 const DEFAULT_QUEUE_OPTIONS = {
     attempts: 3,
@@ -1017,6 +1019,18 @@ export function createDocumentService(
             context.userId
         );
 
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+                addedCount: result.added.length,
+                alreadyExistsCount: result.alreadyExists?.length ?? 0,
+                notFoundCount: result.notFound?.length ?? 0,
+            },
+            'document.tags.added'
+        );
+
         // matching the return type to the response schema
         return {
             added: result.added.map((tag) => {
@@ -1077,6 +1091,17 @@ export function createDocumentService(
                 }
             );
         }
+
+        logger.info(
+            {
+                documentId,
+                tagId: payload.tagId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+            },
+            'document.tag.removed'
+        );
+
         return 'success';
     }
 
@@ -1085,6 +1110,16 @@ export function createDocumentService(
         context: { tenantId: string; userId: string }
     ): Promise<{ message: string }> {
         await db.document.favoriteDocument(documentId, context.userId);
+
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+            },
+            'document.favorited'
+        );
+
         return { message: 'Document favorited successfully' };
     }
 
@@ -1093,6 +1128,16 @@ export function createDocumentService(
         context: { tenantId: string; userId: string }
     ): Promise<{ message: string }> {
         await db.document.unfavoriteDocument(documentId, context.userId);
+
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+            },
+            'document.unfavorited'
+        );
+
         return { message: 'Document unfavorited successfully' };
     }
 
@@ -1240,6 +1285,15 @@ export function createDocumentService(
         }
 
         await db.documentCommand.deleteDocumentReminders(documentId);
+
+        logger.info(
+            {
+                documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+            },
+            'reminders.deleted_all'
+        );
     }
 
     async function dismissReminder(
@@ -1280,6 +1334,16 @@ export function createDocumentService(
         }
 
         await db.documentCommand.updateToDone(reminderId);
+
+        logger.info(
+            {
+                reminderId,
+                documentId: reminder.documentId,
+                userId: context.userId,
+                tenantId: context.tenantId,
+            },
+            'reminder.dismissed'
+        );
     }
 
     async function syncDocumentReminders(
@@ -1366,7 +1430,7 @@ export function createDocumentService(
                     delay,
                     whenISO,
                 },
-                'Scheduled reminder job'
+                'reminder.job.scheduled'
             );
         }
     }

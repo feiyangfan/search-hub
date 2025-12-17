@@ -7,6 +7,10 @@ import { db } from '@search-hub/db';
 import { validateBody } from '../middleware/validateMiddleware.js';
 import type { AuthenticatedRequestWithBody } from './types.js';
 import { env } from '../config/env.js';
+import { logger as baseLogger } from '../logger.js';
+
+const logger = baseLogger.child({ component: 'user-routes' });
+
 export function userRoutes() {
     const router = Router();
     router.delete(
@@ -20,10 +24,22 @@ export function userRoutes() {
                     validated: { body },
                     session,
                 } = request;
+
+                // Log BEFORE deletion while we still have user context
+                logger.warn(
+                    {
+                        userId: body.id,
+                        email: session.email,
+                        requesterId: session.userId,
+                    },
+                    'user.deleted'
+                );
+
                 await db.user.deleteSelf({
                     userId: body.id,
                     requesterId: session.userId,
                 });
+
                 session.destroy((destroyErr) => {
                     if (destroyErr) {
                         next(destroyErr);

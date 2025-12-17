@@ -11,6 +11,7 @@ import { createRateLimiter } from './middleware/rateLimitMiddleware.js';
 import { correlationMiddleware } from './middleware/correlationMiddleware.js';
 import { authRequired } from './middleware/authMiddleware.js';
 import { requestLogger } from './middleware/requestLoggerMiddleware.js';
+import { logger } from './logger.js';
 
 import { buildV1Routes } from './routes/routes.js';
 import { healthRoutes } from './routes/health.js';
@@ -23,9 +24,23 @@ import { readFileSync } from 'fs';
 import { redisStore } from './session/store.js';
 import { env } from './config/env.js';
 
-const openapiDoc = JSON.parse(
-    readFileSync('openapi/openapi.json', 'utf-8')
-) as Record<string, unknown>;
+let openapiDoc: Record<string, unknown>;
+try {
+    openapiDoc = JSON.parse(
+        readFileSync('openapi/openapi.json', 'utf-8')
+    ) as Record<string, unknown>;
+} catch (error) {
+    logger.error({ error }, 'openapi.load_failed');
+    openapiDoc = {
+        openapi: '3.0.0',
+        info: {
+            title: 'API',
+            version: 'unknown',
+            description:
+                'OpenAPI document is not available due to an error on server startup.',
+        },
+    };
+}
 
 export function createServer(): express.Express {
     const app = express();
@@ -67,6 +82,15 @@ export function createServer(): express.Express {
 
     // Rate limiter applied to all /v1 routes
     app.use('/v1', createRateLimiter());
+    // Tighter limiter for AI/QA routes
+    app.use(
+        '/v1/qa',
+        createRateLimiter({
+            max: env.AI_RATE_LIMIT_MAX,
+            windowMs: env.AI_RATE_LIMIT_WINDOW_MS,
+            prefix: 'ai-rate',
+        })
+    );
 
     // Protected routes
     // Authenticate all requests to /v1

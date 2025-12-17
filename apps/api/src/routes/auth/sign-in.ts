@@ -6,6 +6,8 @@ import {
     AppError,
 } from '@search-hub/schemas';
 import type { AuthPayload as AuthPayloadType } from '@search-hub/schemas';
+
+import { logger as baseLogger } from '../../logger.js';
 import { metrics } from '@search-hub/observability';
 
 import { validateBody } from '../../middleware/validateMiddleware.js';
@@ -13,6 +15,8 @@ import type { RequestWithValidatedBody } from '../types.js';
 
 import { db } from '@search-hub/db';
 import bcrypt from 'bcrypt';
+
+const logger = baseLogger.child({ component: 'sign-in-routes' });
 
 export function signInRoutes() {
     const router = Router();
@@ -89,6 +93,15 @@ export function signInRoutes() {
 
                 req.session.save((err) => {
                     if (err) return next(err);
+
+                    logger.info(
+                        {
+                            userId: userRecord.id,
+                            email: userRecord.email,
+                            tenantId: primaryTenantId,
+                        },
+                        'sign_in.success'
+                    );
 
                     // Track successful sign-in
                     metrics.authAttempts.inc({

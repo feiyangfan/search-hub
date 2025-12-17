@@ -1,4 +1,7 @@
 import { metrics } from '@search-hub/observability';
+import { logger as baseLogger } from '../logger.js';
+
+const logger = baseLogger.child({ component: 'circuit-breaker' });
 
 export interface CircuitBreakerOptions {
     /** Number of consecutive failures allowed before the breaker opens */
@@ -40,6 +43,11 @@ export class CircuitBreaker {
                 return false;
             }
 
+            logger.info(
+                { service: this.serviceName, previousState: 'open' },
+                'state.half_open'
+            );
+
             // move to half-open to let one request through
             this.state = 'half-open';
             metrics.circuitBreakerState.set({ service: this.serviceName }, 2);
@@ -61,12 +69,20 @@ export class CircuitBreaker {
 
     // recordSuccess resets the breaker to closed state
     recordSuccess() {
+        const previousState = this.state;
         this.state = 'closed';
         metrics.circuitBreakerState.set({ service: this.serviceName }, 0);
         this.failures = 0;
         this.openUntil = 0;
         this.halfOpenReadyAt = 0;
         this.halfOpenProbeInFlight = false;
+
+        if (previousState !== 'closed') {
+            logger.info(
+                { service: this.serviceName, previousState },
+                'state.recovered'
+            );
+        }
     }
 
     // recordFailure increments the failure count and opens the breaker if threshold is reached
@@ -77,6 +93,15 @@ export class CircuitBreaker {
             this.state === 'half-open' ||
             this.failures >= this.opts.failureThreshold
         ) {
+            logger.warn(
+                {
+                    service: this.serviceName,
+                    failures: this.failures,
+                    threshold: this.opts.failureThreshold,
+                    resetTimeoutMs: this.opts.resetTimeoutMs,
+                },
+                'state.opened'
+            );
             this.state = 'open';
             metrics.circuitBreakerState.set({ service: this.serviceName }, 1);
             this.failures = 0;

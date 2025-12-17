@@ -204,7 +204,291 @@ With these pieces in place the API balances correctness (Zod + Prisma), resilien
 
 ---
 
-## 8. Learning Notes
+## 8. Logging & Observability
+
+### Architecture Overview
+
+The API uses **structured logging** with **automatic request correlation** via AsyncLocalStorage and Pino. Every log entry automatically includes `traceId`, `userId`, `tenantId`, and `sessionId` without manual code in every handler.
+
+### How Correlation Works - The Flow
+
+```
+1. Request arrives
+   ↓
+2. [correlationMiddleware] (MUST RUN FIRST)
+   - Extracts or generates traceId from X-Trace-Id header
+   - Reads userId, tenantId from req.session
+   - Stores in AsyncLocalStorage via setRequestContext()
+   ↓
+3. [requestLogger] (pino-http)
+   - Uses logger from src/logger.ts
+   - Logger has contextMixin that calls getRequestContext()
+   - Automatically adds traceId, userId, tenantId, sessionId to log
+   - Logs "request completed" with req/res details + responseTime
+   ↓
+4. [Route handlers, services, anywhere in code]
+   - ANY logger.info(), logger.warn(), logger.error() call
+   - Automatically includes correlation context from AsyncLocalStorage
+   - No manual traceId passing needed!
+   ↓
+5. [errorHandlerMiddleware]
+   - Catches errors, logs with full context
+   - Uses structured event names (e.g., "request.failed")
+```
+
+### Example: Full Request Lifecycle
+
+**Request:**
+```bash
+curl -H "X-Trace-Id: abc123" \
+     -b "connect.sid=..." \
+     POST /v1/documents
+```
+
+**Log Output (Automatic!):**
+```json
+{
+  "level": "info",
+  "time": "2025-12-16T10:30:45.123Z",
+  "service": "api",
+  "env": "development",
+  "component": "http",
+  "traceId": "abc123",              // ← From AsyncLocalStorage
+  "userId": "user_789",              // ← From AsyncLocalStorage
+  "tenantId": "tenant_456",          // ← From AsyncLocalStorage
+  "sessionId": "sess_xyz",           // ← From AsyncLocalStorage
+  "req": {
+    "method": "POST",
+    "url": "/v1/documents"
+  },
+  "res": {
+    "statusCode": 201
+  },
+  "responseTime": 45,
+  "msg": "request completed"
+}
+```
+
+If the document service logs internally:
+```typescript
+// In documentService.ts
+logger.info({ documentId: 'doc_123' }, 'document.created');
+```
+
+Output includes correlation automatically:
+```json
+{
+  "level": "info",
+  "traceId": "abc123",              // ← Automatic!
+  "userId": "user_789",              // ← Automatic!
+  "tenantId": "tenant_456",          // ← Automatic!
+  "sessionId": "sess_xyz",           // ← Automatic!
+  "documentId": "doc_123",
+  "msg": "document.created"
+}
+```
+
+### Why This Design?
+
+**Problem:** Passing `traceId`, `userId`, `tenantId` through every function is tedious and error-prone:
+```typescript
+// ❌ Manual approach (don't do this)
+async function createDocument(data, traceId, userId, tenantId) {
+  logger.info({ traceId, userId, tenantId, ... }, 'Creating doc');
+  await someService(data, traceId, userId, tenantId);
+}
+```
+
+**Solution:** AsyncLocalStorage + Pino Mixin
+```typescript
+// ✅ Automatic approach (what we do)
+async function createDocument(data) {
+  logger.info({ documentId: data.id }, 'document.created');
+  // traceId, userId, tenantId added automatically by mixin!
+}
+```
+
+**Benefits:**
+1. **Zero boilerplate** - No correlation parameters in every function signature
+2. **Impossible to forget** - Context is always included automatically
+3. **Works everywhere** - Services, middleware, error handlers all get correlation
+4. **Centralized** - Change context fields in one place (createLogger mixin)
+5. **Type-safe** - AsyncLocalStorage typing ensures correct context shape
+
+### Structured Event Names
+
+We use **dot-notation event names** instead of human descriptions for better log aggregation:
+
+```typescript
+// ✅ Good - structured event names
+logger.info('bootstrap.started');
+logger.warn('rate_limit.exceeded');
+logger.error('circuit_breaker.opened');
+
+// ❌ Avoid - free-form descriptions
+logger.info('Starting bootstrap process');
+logger.warn('Rate limit was exceeded');
+```
+
+**Pattern:** `<resource>.<action>` or `<component>.<event>`
+
+**Real examples from codebase:**
+
+Auth & lifecycle:
+- `sign_in.success`, `sign_out.success`, `user.created`, `user.deleted`
+- `bootstrap.started`, `shutdown.completed`
+
+Documents & content:
+- `document.created`, `document.deleted`
+- `document.update_title.succeeded`, `document.update_content.succeeded`
+- `document.favorited`, `document.unfavorited`
+
+Tags & organization:
+- `tag.created`, `tag.updated`, `tag.deleted`
+- `document.tags.added`, `document.tag.removed`
+
+Search:
+- `search.lexical.succeeded`, `search.semantic.succeeded`, `search.hybrid.succeeded`
+- `qa.answer.succeeded`, `qa.answer.failed`
+
+Reminders & jobs:
+- `reminder.dismissed`, `reminders.deleted_all`, `reminder.job.scheduled`
+- `queue.enqueue.succeeded`
+
+Infrastructure:
+- `circuit_breaker.opened`, `circuit_breaker.recovered`
+- `rate_limit.exceeded`
+- `session_store.connected`, `session_store.redis_error`
+
+Tenants:
+- `tenant.created`, `tenant.deleted`, `tenant.switched`
+
+**Benefits:**
+- Easy to grep/filter: `grep "circuit_breaker.opened" logs.json`
+- Works with log aggregators: `count by event_name`
+- Consistent naming across team
+- Better for alerting rules
+
+### Component Loggers
+
+Create child loggers for different components:
+
+```typescript
+// In circuitBreaker.ts
+const logger = baseLogger.child({ component: 'circuit-breaker' });
+
+// In authMiddleware.ts
+const logger = baseLogger.child({ component: 'auth-middleware' });
+
+// Logs include: { component: 'circuit-breaker', traceId: ..., ... }
+```
+
+### Critical Middleware Order
+
+```typescript
+// In app.ts - ORDER MATTERS!
+app.use(correlationMiddleware);  // 1. MUST BE FIRST - sets up context
+app.use(requestLogger);          // 2. Uses context for logging
+app.use(rateLimiter);            // 3. Can log with context
+app.use(authRequired);           // 4. Can log with context
+// ... routes ...
+app.use(errorHandlerMiddleware); // Last - catches all errors
+```
+
+**Why:** `correlationMiddleware` sets up AsyncLocalStorage. All subsequent middleware/routes automatically get correlation context.
+
+### Where to Add Logs: Architectural Layers
+
+**Three-tier architecture determines logging responsibility:**
+
+```
+Route (thin) → Service (business logic + logs) → Database (no logs)
+```
+
+**Route Layer** - Rarely log here:
+- ✅ **Only for critical non-service operations**: tenant switching, user deletion (where data is destroyed)
+- ✅ **When context is only available in route**: session data before destruction
+- ❌ **Not for routine CRUD**: delegate to service layer
+
+Example - User deletion (logs before data is destroyed):
+```typescript
+// apps/api/src/routes/users.ts
+logger.warn({ userId, email: session.email }, 'user.deleted');
+await db.user.deleteSelf({ userId, requesterId });
+```
+
+**Service Layer** - Primary logging location:
+- ✅ **Business events**: document created, tag updated, reminder dismissed
+- ✅ **State changes**: search completed, embeddings generated
+- ✅ **Integration points**: queue jobs scheduled, AI requests completed
+- ❌ **Not for reads**: `getDocumentDetails`, `listTags` - request logger covers these
+
+Example - Document creation:
+```typescript
+// apps/api/src/services/documentService.ts
+const doc = await db.document.create({ ... });
+logger.info({ documentId: doc.id, tenantId }, 'document.created');
+```
+
+Example - Search with metrics:
+```typescript
+// apps/api/src/services/searchService.ts
+const result = await db.search.lexicalSearch({ ... });
+logger.info({ 
+  tenantId, 
+  resultCount: result.items.length,
+  totalMatches: result.total 
+}, 'search.lexical.succeeded');
+```
+
+**Database Layer** - Never log:
+- ❌ Database queries are infrastructure, not business events
+- ✅ Services own business logic and its observability
+
+### When to Log vs When to Let Error Handler Log
+
+**Log yourself:**
+- ✅ **Success events** - operations completed successfully
+- ✅ **State transitions** - circuit breaker opened/recovered, rate limits
+- ✅ **Security events** - auth failures (track before throwing)
+- ✅ **Warnings** - degraded state but not errors (missing optional data)
+
+**Let error handler log:**
+- ✅ **All AppError instances** - validation, authorization, not found
+- ✅ **Database errors** - thrown from Prisma calls
+- ✅ **Any error passed to `next(error)`**
+- ❌ **Don't log AND throw** - pick one (usually just throw)
+
+### What NOT to Log
+
+**Too noisy:**
+- ❌ Every successful request (request logger handles this)
+- ❌ Read operations (GET endpoints) - unless they're searches
+- ❌ Health checks, metrics scrapes
+- ❌ Validation success (only log failures via error handler)
+
+**Redundant:**
+- ❌ Before AND after the same operation
+- ❌ In route AND service for same event
+- ❌ Duplicate what request logger auto-captures (HTTP status, path, duration)
+
+### Metrics Integration
+
+Logs are paired with Prometheus metrics:
+
+```typescript
+// Log the event
+logger.warn({ ... }, 'rate_limit.exceeded');
+
+// Track the metric
+metrics.apiRequests.inc({ status: 'rate_limited' });
+```
+
+Available at `GET /metrics` for scraping.
+
+---
+
+## 9. Learning Notes
 
 ### SOP: how I shipped auth without losing my mind
 1. **Start from the contract.** Update `@search-hub/schemas` (`AuthPayload`, `UserProfile`) first so the API, SDK, and Next app compile against the same shapes. Regenerate OpenAPI/SDK *before* touching handlers.

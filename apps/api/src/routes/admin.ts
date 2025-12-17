@@ -12,6 +12,9 @@ import {
     QueueStatusQuerySchema,
 } from '@search-hub/schemas';
 import { indexQueue } from '../queue.js';
+import { logger as baseLogger } from '../logger.js';
+
+const logger = baseLogger.child({ component: 'admin' });
 
 const router = Router();
 
@@ -103,6 +106,17 @@ router.post('/queue/clean', async (req, res, next) => {
             graceMs,
             1000,
             status as 'completed' | 'failed'
+        );
+
+        logger.info(
+            {
+                userId: req.session.userId,
+                tenantId: req.session.currentTenantId,
+                status,
+                gracePeriodSeconds: grace,
+                removedCount: removedJobs.length,
+            },
+            'queue.cleaned'
         );
 
         res.json({

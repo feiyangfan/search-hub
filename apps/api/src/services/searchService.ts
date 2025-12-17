@@ -10,8 +10,10 @@ import type {
     SearchResponse,
     SearchResultItem,
 } from '@search-hub/schemas';
-import { logger } from '@search-hub/logger';
+import { logger as baseLogger } from '../logger.js';
 import { metrics } from '@search-hub/observability';
+
+const logger = baseLogger.child({ component: 'search-service' });
 
 export interface SemanticSearchResultItem extends SearchCandidate {
     rerankScore: number;
@@ -155,7 +157,7 @@ export function createSearchService(
             query.offset
         );
 
-        return {
+        const response = {
             total: result.total,
             items: result.items.map((row) => ({
                 id: row.id,
@@ -166,6 +168,18 @@ export function createSearchService(
             page: Math.floor(query.offset / query.limit) + 1,
             pageSize: query.limit,
         };
+
+        logger.info(
+            {
+                tenantId: query.tenantId,
+                queryLength: String(query.q).length,
+                resultCount: result.items.length,
+                totalMatches: result.total,
+            },
+            'search.lexical.succeeded'
+        );
+
+        return response;
     }
 
     async function semanticSearch(
@@ -312,6 +326,17 @@ export function createSearchService(
                     documentTitle:
                         docTitleMap.get(item.documentId) || 'Untitled',
                 }));
+
+            logger.info(
+                {
+                    tenantId,
+                    queryLength: String(q).length,
+                    candidatesCount: candidates.length,
+                    resultCount: deduplicatedItems.length,
+                    topScore: deduplicatedItems[0]?.rerankScore,
+                },
+                'search.semantic.succeeded'
+            );
 
             return { items: deduplicatedItems };
         } catch (error) {
@@ -641,12 +666,26 @@ export function createSearchService(
             return lexicalOnlyResponse;
         }
 
-        return {
+        const response = {
             total: Math.max(lexicalResponse.total, docMeta.size),
             items: fusedItems,
             page,
             pageSize: query.limit,
         };
+
+        logger.info(
+            {
+                tenantId,
+                queryLength: String(q).length,
+                lexicalCount: lexicalItems.length,
+                semanticCount: relevantSemanticItems.length,
+                fusedCount: fusedItems.length,
+                rrfK: fusionK,
+            },
+            'search.hybrid.succeeded'
+        );
+
+        return response;
     }
 
     function isSemanticSearchAvailable() {

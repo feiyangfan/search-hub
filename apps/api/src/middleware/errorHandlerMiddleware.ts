@@ -1,7 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
-import { logger, getRequestContext } from '@search-hub/logger';
+
+import { logger as baseLogger } from '../logger.js';
+import { getRequestContext } from '@search-hub/logger';
 import { AppError, type ErrorKindType } from '@search-hub/schemas';
 import { ZodError } from 'zod';
+
+const logger = baseLogger.child({ component: 'error-handler-middleware' });
 
 // Helper function to map native Node.js/Express errors to our error types
 function mapNativeError(error: Error): {
@@ -203,7 +207,7 @@ export function errorHandlerMiddleware(
             metadata,
             traceId,
         },
-        'Request failed'
+        'request.failed'
     );
 
     // TODO: Add metrics when metrics package is ready

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
-import { logger } from '@search-hub/logger';
 import { AppError } from '@search-hub/schemas';
 import { createDocumentService } from '../services/documentService.js';
 
@@ -144,11 +143,6 @@ router.patch('/:id/dismiss', async (req, res, next) => {
             userId,
             tenantId,
         });
-
-        logger.info(
-            { reminderId, userId, tenantId },
-            'Reminder marked as done'
-        );
 
         res.json({ success: true });
     } catch (error) {

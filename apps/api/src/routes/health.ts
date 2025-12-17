@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { createHealthChecker } from '@search-hub/observability';
-import { logger } from '@search-hub/logger';
+import { logger as baseLogger } from '../logger.js';
 import { prisma } from '@search-hub/db';
 import { redisClient as rateLimitRedis } from '../middleware/rateLimitMiddleware.js';
 import { redisClient as sessionRedis } from '../session/store.js';
+
+const logger = baseLogger.child({ component: 'health-routes' });
 
 export function healthRoutes() {
     const router = Router();

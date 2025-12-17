@@ -1,4 +1,5 @@
 import { Router } from 'express';
+// #TODO GET RID OF Z AND PLACE IT AT RIGHT PLACE
 import { type z } from 'zod';
 
 import {

@@ -1,7 +1,9 @@
 import { env } from '../config/env.js';
-// import { logger } from '@search-hub/logger';
 import type { RequestHandler } from 'express';
 import { Redis } from 'ioredis';
+import { logger as baseLogger } from '../logger.js';
+
+const logger = baseLogger.child({ component: 'rate-limiter' });
 
 const { REDIS_URL, API_RATE_LIMIT_WINDOW_MS, API_RATE_LIMIT_MAX } = env;
 declare global {
@@ -64,19 +66,38 @@ export function createRateLimiter(opts?: {
                 now
             );
             const tokens = Number(raws);
-            // if (process.env.DEBUG_API_RATE_LIMIT) {
-            //     const snapshot = await redisClient.hmget(
-            //         key,
-            //         'tokens',
-            //         'refill_at'
-            //     );
-            //     logger.debug(
-            //         { key, tokens: snapshot[0], refillAt: snapshot[1] },
-            //         'rate.limit.bucket'
-            //     );
-            // }
+            // Debug logging (useful for troubleshooting rate limit issues)
+            if (env.LOG_LEVEL === 'debug') {
+                const snapshot = await redisClient.hmget(
+                    key,
+                    'tokens',
+                    'refill_at'
+                );
+                logger.debug(
+                    {
+                        key,
+                        tokens: snapshot[0],
+                        refillAt: snapshot[1],
+                        prefix,
+                        ip: req.ip,
+                    },
+                    'bucket.state'
+                );
+            }
 
             if (tokens < 0) {
+                logger.warn(
+                    {
+                        ip: req.ip,
+                        prefix,
+                        path: req.path,
+                        method: req.method,
+                        userAgent: req.headers['user-agent'],
+                        max,
+                        windowMs,
+                    },
+                    'limit.exceeded'
+                );
                 return res.status(429).json({
                     error: {
                         code: 'RATE_LIMITED',
@@ -86,6 +107,15 @@ export function createRateLimiter(opts?: {
             }
             next();
         } catch (error) {
+            logger.error(
+                {
+                    error,
+                    key,
+                    prefix,
+                    ip: req.ip,
+                },
+                'redis.error'
+            );
             next(error);
         }
     };

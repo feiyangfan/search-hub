@@ -18,6 +18,9 @@ import type {
     AuthenticatedGetRequest,
 } from './types.js';
 import { db } from '@search-hub/db';
+import { logger as baseLogger } from '../logger.js';
+
+const logger = baseLogger.child({ component: 'tenant-routes' });
 
 export function tenantRoutes() {
     const router = Router();
@@ -51,6 +54,15 @@ export function tenantRoutes() {
                     name: body.name,
                     ownerId: userId,
                 });
+
+                logger.info(
+                    {
+                        tenantId: tenant.id,
+                        tenantName: tenant.name,
+                        userId,
+                    },
+                    'tenant.created'
+                );
 
                 // Track tenant creation metric
                 metrics.tenantCreations.inc();
@@ -97,6 +109,14 @@ export function tenantRoutes() {
                     tenantId: body.id,
                     requesterId: userId,
                 });
+
+                logger.info(
+                    {
+                        tenantId: body.id,
+                        userId,
+                    },
+                    'tenant.deleted'
+                );
 
                 if (body.id === req.session.currentTenantId) {
                     const tenantList = await db.tenant.listForUser({ userId });
@@ -202,6 +222,16 @@ export function tenantRoutes() {
                         );
                         return;
                     }
+
+                    logger.info(
+                        {
+                            tenantId,
+                            tenantName: tenant.name,
+                            userId,
+                        },
+                        'tenant.switched'
+                    );
+
                     res.status(204).end();
                 });
             } catch (error) {
