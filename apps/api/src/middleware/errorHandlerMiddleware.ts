@@ -180,35 +180,34 @@ export function errorHandlerMiddleware(
         metadata = mappedError.metadata;
     }
 
-    // Log with full context
-    logger.error(
-        {
-            error: {
-                name: error.name,
-                message: error.message,
-                stack: error.stack,
-                type: errorType,
-                code: errorCode,
+    // Log application-level errors with business context
+    // (pino-http automatically logs all HTTP responses including errors)
+    // Only log here if we have structured business context to add
+    if (error instanceof AppError || error instanceof ZodError) {
+        logger.error(
+            {
+                error: {
+                    type: errorType,
+                    code: errorCode,
+                    message: error.message,
+                    ...(error instanceof AppError && {
+                        domain: error.context.domain,
+                        resource: error.context.resource,
+                        operation: error.context.operation,
+                    }),
+                },
+                user: {
+                    userId,
+                    tenantId,
+                },
+                metadata,
+                traceId,
             },
-            request: {
-                method: req.method,
-                url: req.url,
-                path: req.path,
-                query: req.query,
-                userAgent: req.headers['user-agent'],
-                ip: req.ip,
-                referrer: req.headers.referer,
-            },
-            user: {
-                userId,
-                tenantId,
-                sessionId: context?.sessionId || req.sessionID,
-            },
-            metadata,
-            traceId,
-        },
-        'request.failed'
-    );
+            'application.error'
+        );
+    }
+    // For native errors (Google token, DB errors, etc.):
+    // pino-http will log them with full HTTP context - no duplication needed
 
     // TODO: Add metrics when metrics package is ready
     // metrics.increment('errors.count', {

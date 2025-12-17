@@ -55,10 +55,10 @@ export function createHttpLogger(logger: pino.Logger) {
             return 'info';
         },
         customSuccessMessage: function () {
-            return 'request completed';
+            return 'request.completed';
         },
         customErrorMessage: function () {
-            return 'request failed';
+            return 'request.failed';
         },
         customProps(_req, res) {
             const duration = Date.now() - res[startTime];
