@@ -13,3 +13,4 @@ export * from './tenantMembership.js';
 export * from './errors.js';
 export * from './tag.js';
 export * from './admin.js';
+export * from './qa.js';

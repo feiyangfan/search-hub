@@ -1,5 +1,6 @@
 import { voyageEmbed, VoyageEmbeddingInput } from './voyageEmbedding.js';
 import { voyageRerank } from './voyageRerank.js';
+import { chat, streamChat } from './llm.js';
 
 export const createVoyageHelpers = ({ apiKey }: { apiKey: string }) => ({
     embed: (
@@ -8,4 +9,10 @@ export const createVoyageHelpers = ({ apiKey }: { apiKey: string }) => ({
     ) => voyageEmbed(apiKey, texts, opts),
     rerank: (query: string, docs: string[]) =>
         voyageRerank(apiKey, query, docs),
+});
+
+// Factory for Groq LLM helpers
+export const createGroqHelpers = () => ({
+    chat,
+    streamChat,
 });

@@ -9,6 +9,7 @@ import { userRoutes } from './users.js';
 import { tagRoutes } from './tags.js';
 import reminderRoutes from './reminders.js';
 import adminRoutes from './admin.js';
+import { qaRoutes } from './qa.js';
 
 export function buildV1Routes() {
     const router = Router();
@@ -17,6 +18,7 @@ export function buildV1Routes() {
     router.use('/tenants', tenantRoutes());
     router.use('/', searchRoutes());
     router.use('/search-analytics', searchAnalyticsRoutes());
+    router.use('/qa', qaRoutes());
     router.use('/users', userRoutes());
     router.use('/tags', tagRoutes());
     router.use('/reminders', reminderRoutes);
