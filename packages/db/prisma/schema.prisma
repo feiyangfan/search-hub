@@ -186,14 +186,23 @@ model DocumentCommand {
 }
 
 model DocumentChunk {
-  id         String                @id @default(cuid())
+  id         String @id @default(cuid())
   tenantId   String
   documentId String
   idx        Int // chunk order within a document (0..N-1)
-  content    String // the chunked text
+
+  // Content fields
+  content     String // cleaned search text for embeddings/lexical search
+  rawMarkdown String? // original markdown for citations/display
+
+  // Metadata for context
+  headingPath Json? // heading hierarchy (e.g., ["Introduction", "Getting Started"])
+  startPos    Int? // character position in original document
+  endPos      Int? // character position in original document
+
   // 1024 for voyage
-  embedding  Unsupported("vector") // vector(1024)
-  createdAt  DateTime              @default(now())
+  embedding Unsupported("vector") // vector(1024)
+  createdAt DateTime              @default(now())
 
   document Document @relation(fields: [tenantId, documentId], references: [tenantId, id], onDelete: Cascade)
   // NOTE: pgvector index managed manually in prisma/manual-migrations/01_pgvector_indexes.sql

@@ -6,15 +6,11 @@
 import type { Job } from 'bullmq';
 import { db } from '@search-hub/db';
 import { logger as baseLogger } from '../logger.js';
-import { chunkText, sha256, IndexDocumentJobSchema } from '@search-hub/schemas';
+import { sha256, IndexDocumentJobSchema } from '@search-hub/schemas';
 import type { IndexDocumentJob } from '@search-hub/schemas';
-import { createVoyageHelpers } from '@search-hub/ai';
+import { createVoyageHelpers, chunkMarkdown } from '@search-hub/ai';
 import { loadWorkerEnv } from '@search-hub/config-env';
 import { metrics } from '@search-hub/observability';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkStringify from 'remark-stringify';
-import stripMarkdown from 'strip-markdown';
 
 const env = loadWorkerEnv();
 const VOYAGE_API_KEY = env.VOYAGE_API_KEY;
@@ -22,35 +18,9 @@ const MAX_CHUNK_LIMIT = Number(env.WORKER_MAX_CHUNK_LIMIT ?? 5000);
 
 const voyage = createVoyageHelpers({ apiKey: VOYAGE_API_KEY });
 
-type TextChunk = ReturnType<typeof chunkText>[number];
-
 export type ProcessorResult =
     | { ok: true; reason: 'empty-content' | 'already-indexed' | 'no-chunks' }
     | { ok: true; documentId: string; chunks: number };
-
-function cleanMarkdown(source: string): {
-    text: string;
-    cleaningFailed: boolean;
-} {
-    try {
-        const file = unified()
-            .use(remarkParse)
-            .use(stripMarkdown)
-            .use(remarkStringify)
-            .processSync(source);
-        return {
-            text: String(file.value).replace(/\s+/g, ' ').trim(),
-            cleaningFailed: false,
-        };
-    } catch (error) {
-        // Fallback: return raw text with basic normalization
-        console.warn('Markdown cleaning failed, using fallback', { error });
-        return {
-            text: source.replace(/\s+/g, ' ').trim(),
-            cleaningFailed: true,
-        };
-    }
-}
 
 /**
  * Process an index document job
@@ -95,17 +65,9 @@ export async function processIndexDocument(
             );
         }
 
-        const rawText = (doc.content ?? '').trim();
-        const { text: cleanedText, cleaningFailed } = cleanMarkdown(rawText);
+        const rawMarkdown = (doc.content ?? '').trim();
 
-        if (cleaningFailed) {
-            logger.warn(
-                { textLength: rawText.length },
-                'markdown.cleaning.fallback'
-            );
-        }
-
-        if (!cleanedText) {
+        if (!rawMarkdown) {
             // No content to index; mark job done but DON'T update DocumentIndexState
             // findStaleDocuments won't requeue because document has no content
             await db.job.markIndexed(tenantId, documentId);
@@ -114,7 +76,7 @@ export async function processIndexDocument(
         }
 
         // 4) Idempotency check - skip if content hasn't changed (unless reindex)
-        const checksum = sha256(cleanedText);
+        const checksum = sha256(rawMarkdown);
         const prev = await db.documentIndexState.findUnique(documentId);
         if (!reindex && prev?.lastChecksum === checksum) {
             // Content unchanged, but update lastIndexedAt to reflect we checked it
@@ -132,9 +94,18 @@ export async function processIndexDocument(
             return { ok: true, reason: 'already-indexed' };
         }
 
-        // 6) Chunk the text for embedding
-        const chunks = chunkText(cleanedText, 1000, 100); // 1k chars with 100 overlap
-        if (chunks.length === 0) {
+        // 5) Chunk markdown while preserving structure
+        const markdownChunks = chunkMarkdown(rawMarkdown, {
+            chunkSize: 2000,
+            overlapBlocks: 1, // Include 1 previous section for context
+        });
+
+        // Filter out chunks with empty searchText (Voyage AI rejects empty strings)
+        const validChunks = markdownChunks.filter(
+            (chunk) => chunk.searchText.trim().length > 0
+        );
+
+        if (validChunks.length === 0) {
             // Edge case: has content but produces no chunks (very short text)
             // Update index state so we don't keep retrying
             await db.documentIndexState.upsert(
@@ -147,7 +118,7 @@ export async function processIndexDocument(
             return { ok: true, reason: 'no-chunks' };
         }
 
-        const chunkCount = chunks.length;
+        const chunkCount = validChunks.length;
 
         if (chunkCount > MAX_CHUNK_LIMIT) {
             logger.error(
@@ -162,10 +133,19 @@ export async function processIndexDocument(
             );
         }
 
-        // 7) Generate embeddings via Voyage AI
+        logger.debug(
+            {
+                totalChunks: markdownChunks.length,
+                validChunks: validChunks.length,
+                filteredOut: markdownChunks.length - validChunks.length,
+            },
+            'chunking.completed'
+        );
+
+        // 6) Generate embeddings via Voyage AI (use cleaned search text)
         const startEmbedding = Date.now();
         const vectors = await voyage.embed(
-            chunks.map((c: TextChunk) => c.text),
+            validChunks.map((c) => c.searchText),
             {
                 input_type: 'document',
             }
@@ -175,7 +155,16 @@ export async function processIndexDocument(
             (Date.now() - startEmbedding) / 1000
         );
 
-        // 8) Store chunks and embeddings in database
+        // 7) Store chunks and embeddings in database
+        const chunks = validChunks.map((mc) => ({
+            idx: mc.idx,
+            text: mc.searchText, // cleaned text for embeddings/search
+            rawMarkdown: mc.rawMarkdown, // original markdown for display
+            headingPath: mc.headingPath,
+            startPos: mc.startPos,
+            endPos: mc.endPos,
+        }));
+
         await db.document.replaceChunksWithEmbeddings({
             tenantId,
             documentId,
@@ -184,7 +173,7 @@ export async function processIndexDocument(
             checksum,
         });
 
-        // 9) Transition: processing -> indexed
+        // 8) Transition: processing -> indexed
         await db.job.markIndexed(tenantId, documentId);
 
         // Track successful job duration
@@ -199,11 +188,17 @@ export async function processIndexDocument(
         );
 
         logger.info(
-            { chunks: chunks.length, durationMs: Math.round(duration * 1000) },
+            {
+                chunks: validChunks.length,
+                durationMs: Math.round(duration * 1000),
+                headingsFound: validChunks.filter(
+                    (c) => c.headingPath.length > 0
+                ).length,
+            },
             'job.completed'
         );
 
-        return { ok: true, documentId, chunks: chunks.length };
+        return { ok: true, documentId, chunks: validChunks.length };
     } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error(String(err));
 

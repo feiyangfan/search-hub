@@ -2,6 +2,7 @@ import { voyageEmbed, VoyageEmbeddingInput } from './voyageEmbedding.js';
 import { voyageRerank } from './voyageRerank.js';
 import { chat, streamChat } from './llm.js';
 import { normalizeQuery } from './queryNormalization.js';
+import { chunkMarkdown, type MarkdownChunk } from './markdownChunking.js';
 
 export const createVoyageHelpers = ({ apiKey }: { apiKey: string }) => ({
     embed: (
@@ -20,3 +21,6 @@ export const createGroqHelpers = () => ({
 
 // Query normalization utilities
 export { normalizeQuery } from './queryNormalization.js';
+
+// Markdown chunking utilities
+export { chunkMarkdown, type MarkdownChunk } from './markdownChunking.js';

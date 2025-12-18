@@ -84,10 +84,7 @@ async function lexicalSearchDocuments(
     limit: number,
     offset: number
 ): Promise<LexicalSearchResult> {
-    const terms = searchQuery
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
+    const terms = searchQuery.trim().split(/\s+/).filter(Boolean);
 
     if (terms.length === 0) {
         return { items: [], total: 0 };
@@ -125,7 +122,7 @@ async function lexicalSearchDocuments(
                            'english',
                            dt.body,
                            to_tsquery('english', ${tsQuery}),
-                           'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=30,MinWords=1'
+                           'StartSel=<mark>,StopSel=</mark>,MaxFragments=1,MaxWords=50,MinWords=15,FragmentDelimiter= ... '
                        ),
                        ''
                    ),

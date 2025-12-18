@@ -1432,6 +1432,10 @@ export const DocumentChunkScalarFieldEnum = {
   documentId: 'documentId',
   idx: 'idx',
   content: 'content',
+  rawMarkdown: 'rawMarkdown',
+  headingPath: 'headingPath',
+  startPos: 'startPos',
+  endPos: 'endPos',
   createdAt: 'createdAt'
 } as const
 

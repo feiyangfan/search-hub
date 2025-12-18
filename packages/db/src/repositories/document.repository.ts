@@ -597,7 +597,14 @@ export const documentRepository = {
     }: {
         tenantId: string;
         documentId: string;
-        chunks: { idx: number; text: string }[];
+        chunks: {
+            idx: number;
+            text: string;
+            rawMarkdown?: string;
+            headingPath?: string[];
+            startPos?: number;
+            endPos?: number;
+        }[];
         vectors: number[][];
         checksum: string;
     }) => {
@@ -619,14 +626,20 @@ export const documentRepository = {
                 await tx.$executeRawUnsafe(
                     `
                         INSERT INTO "DocumentChunk"
-                          ("id","tenantId","documentId","idx","content","embedding","createdAt")
+                          ("id","tenantId","documentId","idx","content","rawMarkdown","headingPath","startPos","endPos","embedding","createdAt")
                         VALUES
-                          (gen_random_uuid(), $1, $2, $3, $4, $5::vector, now())
+                          (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9::vector, now())
                         `,
                     tenantId,
                     documentId,
                     chunk.idx,
                     chunk.text,
+                    chunk.rawMarkdown ?? null,
+                    chunk.headingPath
+                        ? JSON.stringify(chunk.headingPath)
+                        : null,
+                    chunk.startPos ?? null,
+                    chunk.endPos ?? null,
                     `[${vector.join(',')}]`
                 );
             }
