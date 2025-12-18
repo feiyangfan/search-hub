@@ -894,6 +894,7 @@ export function createDocumentService(
         const jobPayload: IndexDocumentJob = IndexDocumentJobSchema.parse({
             tenantId: context.tenantId,
             documentId,
+            reindex: true, // Force reindex even if content unchanged
         });
 
         // Queue-first pattern: add to BullMQ before DB
