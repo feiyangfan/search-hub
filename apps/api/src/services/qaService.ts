@@ -26,12 +26,28 @@ function buildPrompt(question: string, sources: QaSource[]): string {
         .join('\n\n');
 
     return [
-        'Answer the user question using only the context below.',
-        'Cite sources with [number]. If context is missing or insufficient, say you need more information.',
+        'You must use the Context as your primary source.',
+        'If the Context fully supports the answer: answer using only the Context and cite sources like [1], [2].',
+        'If the Context is insufficient: say "Context is insufficient" and then provide a best-effort answer from general knowledge WITHOUT citations.',
+        'Never fabricate citations; only cite items present in Context.',
         `Question: ${question}`,
         'Context:',
         context || '(no context provided)',
     ].join('\n\n');
+}
+
+interface QaModelOut {
+    answer: string;
+    citations: number[];
+    noContext: boolean;
+}
+
+function safeJsonParse<T>(s: string): T | null {
+    try {
+        return JSON.parse(s) as T;
+    } catch {
+        return null;
+    }
 }
 
 export function createQaService(deps: QaDependencies = {}): QaService {
@@ -86,15 +102,20 @@ export function createQaService(deps: QaDependencies = {}): QaService {
 
         const prompt = buildPrompt(question, sources);
 
-        const systemMessage = `You are an assistant that answers using the user’s workspace documents as the primary source of truth.
-Follow these rules:
-- Always read and rely on the provided Context first. Cite sources as [1], [2], etc.
-- If the context is sufficient, answer concisely using only that context.
-- If the context is insufficient, say so and provide a brief, best-effort answer from your own knowledge. Do NOT invent citations for knowledge you supply yourself.
-- Never fabricate sources. Only cite items explicitly present in the Context.
-- If the question asks for live/online info, say you cannot browse and proceed with your best offline answer (without citations unless supported by Context).
-Tone: concise, direct, helpful.
-`;
+        const systemMessage = `
+        Return ONLY valid JSON with this schema:
+        {
+        "answer": string,
+        "citations": number[],
+        "noContext": boolean
+        }
+
+        Rules:
+        - If you used Context, citations must contain the source numbers you relied on (e.g., [1] => 1).
+        - If Context is insufficient, set noContext=true and citations=[].
+        - Never invent citations.
+        - Do not output any text outside JSON.
+        `;
 
         try {
             const answer = await chat({
@@ -104,6 +125,21 @@ Tone: concise, direct, helpful.
                 system: systemMessage,
             });
 
+            const parsed = safeJsonParse<QaModelOut>(answer);
+
+            if (!parsed) {
+                // fallback: treat as no context to avoid returning irrelevant sources
+                return { answer: answer, sources: [], noContext: true };
+            }
+
+            function isQaSource(x: QaSource | undefined): x is QaSource {
+                return x !== undefined;
+            }
+
+            const citedSources: QaSource[] = parsed.citations
+                .filter((n) => n >= 1 && n <= sources.length) // optional but recommended
+                .map((n) => sources[n - 1])
+                .filter(isQaSource);
             logger.info(
                 {
                     tenantId,
@@ -114,7 +150,11 @@ Tone: concise, direct, helpful.
                 'qa.answer.succeeded'
             );
 
-            return { answer, sources };
+            return {
+                answer: parsed.answer,
+                sources: citedSources,
+                noContext: parsed.noContext,
+            };
         } catch (error) {
             logger.error(
                 {
