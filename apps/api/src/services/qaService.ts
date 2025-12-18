@@ -1,4 +1,4 @@
-import { createGroqHelpers } from '@search-hub/ai';
+import { createGroqHelpers, normalizeQuery } from '@search-hub/ai';
 import { logger as baseLogger } from '../logger.js';
 import {
     QaRequestWithTenant,
@@ -49,9 +49,20 @@ export function createQaService(deps: QaDependencies = {}): QaService {
             maxSources = 5,
         } = params;
 
+        // Normalize query before semantic search
+        const normalizedQuery = normalizeQuery(question);
+
+        logger.debug(
+            {
+                originalQuery: question,
+                normalizedQuery,
+            },
+            'qa.query_normalized'
+        );
+
         const semanticResult = await searchService.semanticSearch({
             tenantId,
-            q: question,
+            q: normalizedQuery,
             k,
             recall_k,
         });

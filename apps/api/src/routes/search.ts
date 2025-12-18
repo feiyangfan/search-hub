@@ -9,6 +9,7 @@ import {
     AppError,
 } from '@search-hub/schemas';
 import { metrics } from '@search-hub/observability';
+import { normalizeQuery } from '@search-hub/ai';
 
 import { validateQuery } from '../middleware/validateMiddleware.js';
 import type { RequestWithValidatedQuery } from './types.js';
@@ -52,9 +53,13 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     >
                 ).validated.query;
 
+                // Normalize query for better search results
+                const normalizedQuery = normalizeQuery(query.q);
+
                 // Add tenantId from session for security
                 const searchQuery = {
                     ...query,
+                    q: normalizedQuery,
                     tenantId: activeTenantId,
                 };
 
@@ -418,9 +423,13 @@ export function searchRoutes(service: SearchService = createSearchService()) {
                     >
                 ).validated.query;
 
+                // Normalize query for better semantic search results
+                const normalizedQuery = normalizeQuery(query.q);
+
                 // Add tenantId from session for security
                 const searchQuery = {
                     ...query,
+                    q: normalizedQuery,
                     tenantId: activeTenantId,
                 };
 
