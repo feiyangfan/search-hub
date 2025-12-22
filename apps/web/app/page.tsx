@@ -1,6 +1,19 @@
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
-import { CalendarClock, Pencil, Star, Tag as TagIcon } from 'lucide-react';
+import {
+    CalendarClock,
+    CheckCircle,
+    Clock,
+    Cpu,
+    Pencil,
+    RotateCcw,
+    Search,
+    Star,
+    Tag as TagIcon,
+    Target,
+    XCircle,
+    Zap,
+} from 'lucide-react';
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
@@ -9,10 +22,9 @@ import {
     DashboardGrid,
     DashboardGridItem,
 } from '@/components/dashboard/dashboard-grid';
-import { SearchIntelligence } from '@/components/dashboard/search-intelligence';
+import { SearchQualityLineChart } from '@/components/dashboard/search-quality-line-chart';
 import { TagNetworkGraph } from '@/components/dashboard/tag-network-graph';
 import type { GraphDocumentInput } from '@/components/dashboard/tag-network-graph';
-import { IndexingPipelineStatus } from '@/components/dashboard/indexing-pipeline-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +44,44 @@ const previewTopQueries = [
     { query: 'deployment guide', count: 29 },
     { query: 'incident response', count: 22 },
     { query: 'security review', count: 18 },
+];
+
+const previewQualitySeries = [
+    {
+        timestamp: '2024-11-01T00:00:00.000Z',
+        successRate: 92.4,
+        zeroResultRate: 6.2,
+    },
+    {
+        timestamp: '2024-11-02T00:00:00.000Z',
+        successRate: 93.1,
+        zeroResultRate: 5.9,
+    },
+    {
+        timestamp: '2024-11-03T00:00:00.000Z',
+        successRate: 92.8,
+        zeroResultRate: 6.1,
+    },
+    {
+        timestamp: '2024-11-04T00:00:00.000Z',
+        successRate: 93.6,
+        zeroResultRate: 5.6,
+    },
+    {
+        timestamp: '2024-11-05T00:00:00.000Z',
+        successRate: 94.1,
+        zeroResultRate: 5.2,
+    },
+    {
+        timestamp: '2024-11-06T00:00:00.000Z',
+        successRate: 94.4,
+        zeroResultRate: 5.0,
+    },
+    {
+        timestamp: '2024-11-07T00:00:00.000Z',
+        successRate: 94.0,
+        zeroResultRate: 5.3,
+    },
 ];
 
 const previewIndexingStats = {
@@ -86,6 +136,33 @@ const previewIndexingJobs = [
         details: 'Completed in 2.3s · 156 chunks · 2m ago',
     },
 ];
+
+const previewJobStatusConfig = {
+    failed: {
+        label: 'Failed',
+        variant: 'destructive' as const,
+        icon: XCircle,
+        iconClassName: 'text-destructive',
+    },
+    processing: {
+        label: 'Processing',
+        variant: 'secondary' as const,
+        icon: Cpu,
+        iconClassName: 'text-muted-foreground',
+    },
+    queued: {
+        label: 'Queued',
+        variant: 'outline' as const,
+        icon: Clock,
+        iconClassName: 'text-muted-foreground',
+    },
+    indexed: {
+        label: 'Indexed',
+        variant: 'secondary' as const,
+        icon: CheckCircle,
+        iconClassName: 'text-emerald-600',
+    },
+} as const;
 
 const previewGraphTags = [
     { id: 'product', name: 'Product', color: '#2563eb' },
@@ -328,10 +405,7 @@ function DashboardPreview() {
                     }
                     className="h-full"
                 >
-                    <SearchIntelligence
-                        metrics={previewSearchMetrics}
-                        topQueries={previewTopQueries}
-                    />
+                    <SearchIntelligencePreview />
                 </DashboardCard>
             </DashboardGridItem>
 
@@ -397,11 +471,7 @@ function DashboardPreview() {
                     }
                     className="h-full"
                 >
-                    <IndexingPipelineStatus
-                        stats={previewIndexingStats}
-                        recentJobs={previewIndexingJobs}
-                        showRetryAll
-                    />
+                    <IndexingPipelineStatusPreview />
                 </DashboardCard>
             </DashboardGridItem>
 
@@ -420,6 +490,269 @@ function DashboardPreview() {
                 </DashboardCard>
             </DashboardGridItem>
         </DashboardGrid>
+    );
+}
+
+function SearchIntelligencePreview() {
+    const getTrendColor = (
+        metric: (typeof previewSearchMetrics)[number]
+    ) => {
+        if (metric.trendUp === undefined) {
+            return 'text-muted-foreground';
+        }
+        return metric.trendUp
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : 'text-amber-600 dark:text-amber-400';
+    };
+
+    const getMetricIcon = (label: string) => {
+        const iconProps = {
+            className: 'h-4 w-4 shrink-0 text-muted-foreground',
+        };
+        if (label.toLowerCase().includes('search')) {
+            return <Search {...iconProps} />;
+        }
+        if (
+            label.toLowerCase().includes('latency') ||
+            label.toLowerCase().includes('speed')
+        ) {
+            return <Zap {...iconProps} />;
+        }
+        if (
+            label.toLowerCase().includes('success') ||
+            label.toLowerCase().includes('rate')
+        ) {
+            return <Target {...iconProps} />;
+        }
+        return <Search {...iconProps} />;
+    };
+
+    return (
+        <div className="flex flex-col lg:flex-row gap-4 h-full min-h-0">
+            <div className="flex flex-col gap-3 flex-1 min-h-0">
+                <div className="flex gap-2 shrink-0">
+                    {previewSearchMetrics.map((metric) => (
+                        <div
+                            key={metric.label}
+                            className="rounded-lg border border-border/40 bg-card shadow-sm p-2.5 flex-1 flex flex-col justify-center"
+                        >
+                            <div className="flex items-center gap-1.5 mb-1">
+                                {getMetricIcon(metric.label)}
+                                <p className="text-[0.65rem] uppercase tracking-wide text-muted-foreground font-medium">
+                                    {metric.label}
+                                </p>
+                            </div>
+                            <p className="text-xl font-bold">{metric.value}</p>
+                            <p
+                                className={`text-[0.65rem] font-medium ${getTrendColor(
+                                    metric
+                                )}`}
+                                title="Compared to previous 7-day period"
+                            >
+                                {metric.trend}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="border-t border-border/40 pt-3 flex-1 flex flex-col min-h-0">
+                    <h4 className="text-xs font-semibold tracking-tight mb-2 text-foreground shrink-0">
+                        Top Search Queries
+                    </h4>
+                    <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto">
+                        {previewTopQueries.map((item, idx) => (
+                            <div
+                                key={`${item.query}-${idx}`}
+                                className="flex items-center justify-between rounded-lg border border-border/30 bg-card shadow-sm px-2.5 py-1.5 hover:shadow-md transition-shadow"
+                            >
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span className="text-[0.65rem] font-medium text-muted-foreground">
+                                        {idx + 1}
+                                    </span>
+                                    <p className="text-[0.65rem] font-medium truncate">
+                                        "{item.query}"
+                                    </p>
+                                </div>
+                                <Badge
+                                    variant="secondary"
+                                    className="text-[0.65rem] h-4 px-1.5"
+                                >
+                                    {item.count}
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="flex-1 min-w-0">
+                <h5 className="text-sm font-semibold pb-4">
+                    Search Quality
+                </h5>
+                <SearchQualityLineChart data={previewQualitySeries} />
+            </div>
+        </div>
+    );
+}
+
+function IndexingPipelineStatusPreview() {
+    const jobs = previewIndexingJobs.slice(0, 3);
+
+    return (
+        <div className="flex flex-col h-full min-h-0 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 shrink-0">
+                <div className="rounded-lg border border-border/40 bg-card shadow-sm p-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <XCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[0.6rem] font-medium text-muted-foreground uppercase tracking-wide leading-none truncate">
+                                Failed
+                            </p>
+                            <p className="text-xl font-bold leading-none mt-0.5 truncate">
+                                {previewIndexingStats.failed}
+                            </p>
+                        </div>
+                    </div>
+                    {previewIndexingStats.failed > 0 ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-1.5 text-[0.6rem] h-5"
+                        >
+                            <RotateCcw className="h-2.5 w-2.5 mr-0.5 shrink-0" />
+                            <span className="truncate">Retry All</span>
+                        </Button>
+                    ) : null}
+                </div>
+
+                <div className="rounded-lg border border-border/40 bg-card shadow-sm p-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <Cpu className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[0.6rem] font-medium text-muted-foreground uppercase tracking-wide leading-none truncate">
+                                Processing
+                            </p>
+                            <p className="text-xl font-bold leading-none mt-0.5 truncate">
+                                {previewIndexingStats.processing}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-[0.6rem] text-muted-foreground mt-1.5 truncate">
+                        Active: {previewIndexingStats.activeWorkers.current}/
+                        {previewIndexingStats.activeWorkers.max}
+                    </p>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-background/40 p-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[0.6rem] font-medium text-muted-foreground uppercase tracking-wide leading-none truncate">
+                                Queued
+                            </p>
+                            <p className="text-xl font-bold leading-none mt-0.5 truncate">
+                                {previewIndexingStats.queued}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-[0.6rem] text-muted-foreground mt-1.5 truncate">
+                        Wait: {previewIndexingStats.queueWaitTime}
+                    </p>
+                </div>
+
+                <div className="rounded-lg border border-border/40 bg-card shadow-sm p-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <CheckCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[0.6rem] font-medium text-muted-foreground uppercase tracking-wide leading-none truncate">
+                                Indexed
+                            </p>
+                            <p className="text-xl font-bold leading-none mt-0.5 truncate">
+                                {previewIndexingStats.indexed}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-[0.6rem] text-muted-foreground mt-1.5 truncate">
+                        +{previewIndexingStats.indexedToday} today
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex-1 min-h-0 flex flex-col">
+                <h4 className="text-[0.65rem] font-semibold tracking-tight mb-1.5 text-muted-foreground uppercase shrink-0">
+                    Recent Jobs
+                </h4>
+                <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto">
+                    {jobs.length === 0 ? (
+                        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                            No recent jobs
+                        </div>
+                    ) : (
+                        jobs.map((job) => {
+                            const statusConfig =
+                                previewJobStatusConfig[
+                                    job.status as keyof typeof previewJobStatusConfig
+                                ] ?? previewJobStatusConfig.processing;
+                            const StatusIcon = statusConfig.icon;
+
+                            return (
+                                <div
+                                    key={job.id}
+                                    className="rounded-lg border border-border/30 bg-card shadow-sm p-2"
+                                >
+                                    <div className="flex items-start gap-2">
+                                        <StatusIcon
+                                            className={`h-4 w-4 shrink-0 ${statusConfig.iconClassName}`}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs font-semibold truncate">
+                                                    {job.documentName}
+                                                </p>
+                                                <Badge
+                                                    variant={statusConfig.variant}
+                                                    className="text-[0.6rem] h-4 px-1.5"
+                                                >
+                                                    {job.statusLabel ||
+                                                        statusConfig.label}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-[0.65rem] text-muted-foreground">
+                                                {job.details}
+                                            </p>
+                                            {job.progress ? (
+                                                <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted/40">
+                                                    <div
+                                                        className="h-1.5 rounded-full bg-emerald-500"
+                                                        style={{
+                                                            width: `${job.progress.percentage}%`,
+                                                        }}
+                                                    />
+                                                </div>
+                                            ) : null}
+                                            {job.queuePosition ? (
+                                                <p className="mt-1 text-[0.6rem] text-muted-foreground">
+                                                    Queue position{' '}
+                                                    {job.queuePosition}
+                                                </p>
+                                            ) : null}
+                                            {job.hasAction ? (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-1.5 h-6 px-2 text-[0.6rem]"
+                                                >
+                                                    {job.actionLabel || 'Retry'}
+                                                </Button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }
 
