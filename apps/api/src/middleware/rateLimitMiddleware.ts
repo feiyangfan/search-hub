@@ -67,23 +67,23 @@ export function createRateLimiter(opts?: {
             );
             const tokens = Number(raws);
             // Debug logging (useful for troubleshooting rate limit issues)
-            if (env.LOG_LEVEL === 'debug') {
-                const snapshot = await redisClient.hmget(
-                    key,
-                    'tokens',
-                    'refill_at'
-                );
-                logger.debug(
-                    {
-                        key,
-                        tokens: snapshot[0],
-                        refillAt: snapshot[1],
-                        prefix,
-                        ip: req.ip,
-                    },
-                    'bucket.state'
-                );
-            }
+            // if (env.LOG_LEVEL === 'debug') {
+            //     const snapshot = await redisClient.hmget(
+            //         key,
+            //         'tokens',
+            //         'refill_at'
+            //     );
+            //     logger.debug(
+            //         {
+            //             key,
+            //             tokens: snapshot[0],
+            //             refillAt: snapshot[1],
+            //             prefix,
+            //             ip: req.ip,
+            //         },
+            //         'bucket.state'
+            //     );
+            // }
 
             if (tokens < 0) {
                 logger.warn(
