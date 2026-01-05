@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import {
     HydrationBoundary,
@@ -77,6 +77,11 @@ export default async function DocumentLayout({
             updatedAt: document?.updatedAt ?? null,
         };
     } catch (error) {
+        const status = (error as { status?: number }).status;
+        const body = (error as { body?: { code?: string } }).body;
+        if (status === 404 || body?.code === 'DOCUMENT_NOT_FOUND') {
+            notFound();
+        }
         console.error('Failed to preload document header data', error);
     }
 

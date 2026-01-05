@@ -25,16 +25,20 @@ Command.displayName = CommandPrimitive.displayName;
 
 interface CommandDialogProps extends DialogProps {
     shouldFilter?: boolean;
+    contentClassName?: string;
 }
 
 function CommandDialog({
     children,
     shouldFilter,
+    contentClassName,
     ...props
 }: CommandDialogProps) {
     return (
         <Dialog {...props}>
-            <DialogContent className="overflow-hidden p-0">
+            <DialogContent
+                className={cn('overflow-hidden p-0', contentClassName)}
+            >
                 <DialogTitle className="sr-only">Command Menu</DialogTitle>
                 <Command
                     shouldFilter={shouldFilter}
