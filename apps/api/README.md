@@ -397,6 +397,172 @@ app.use(errorHandlerMiddleware); // Last - catches all errors
 
 **Why:** `correlationMiddleware` sets up AsyncLocalStorage. All subsequent middleware/routes automatically get correlation context.
 
+---
+
+### Error Handling & Logging Strategy
+
+We use **Pattern B: Enriched Application Logs** - a dual-layer approach where business logic errors get structured context while infrastructure errors are handled by the HTTP logger.
+
+#### Two-Layer Logging Architecture
+
+```
+Error occurs in route/service
+         ↓
+errorHandlerMiddleware catches it
+         ↓
+    Is AppError or ZodError?
+    ├─ YES → Log with business context (application.error)
+    │         {
+    │           errorType: 'validation',
+    │           errorCode: 'INVALID_EMAIL',
+    │           domain: 'auth',
+    │           operation: 'sign-up',
+    │           userId, tenantId, metadata
+    │         }
+    │
+    └─ NO  → Skip logging (pino-http handles it)
+         ↓
+Transform error to HTTP response
+         ↓
+Send JSON response with status code
+         ↓
+pino-http automatically logs (request completed)
+         {
+           req: { method, url, ... },
+           res: { statusCode },
+           err: { message, stack },  // ← For native errors
+           responseTime,
+           traceId
+         }
+```
+
+#### Why This Pattern?
+
+**Benefits:**
+- ✅ **No duplicate logs for infrastructure errors** (Google OAuth, database, network)
+- ✅ **Rich business context for application errors** (AppError/ZodError with domain/operation)
+- ✅ **Clear separation of concerns:**
+  - `application.error` = Business logic issues (searchable by errorCode, domain)
+  - `request completed` / `request failed` = HTTP transport layer (searchable by statusCode, path)
+- ✅ **Cost efficient** - Single log for native errors, dual context only when valuable
+- ✅ **Same traceId** in both logs for correlation when needed
+
+#### What You'll See in Logs
+
+**For business errors (AppError/ZodError):**
+```json
+// 1. application.error log (from errorHandlerMiddleware)
+{
+  "level": "error",
+  "service": "api",
+  "component": "error-handler-middleware",
+  "error": {
+    "type": "validation",
+    "code": "INVALID_EMAIL",
+    "message": "Email format invalid",
+    "domain": "auth",
+    "operation": "sign-up"
+  },
+  "user": { "userId": "123", "tenantId": "456" },
+  "metadata": { "field": "email" },
+  "traceId": "abc-123",
+  "msg": "application.error"
+}
+
+// 2. request completed log (from pino-http)
+{
+  "component": "http",
+  "req": { "method": "POST", "url": "/v1/auth/sign-up" },
+  "res": { "statusCode": 400 },
+  "responseTime": 45,
+  "traceId": "abc-123",
+  "msg": "request completed"
+}
+```
+
+**For infrastructure errors (Google token expiration, DB errors):**
+```json
+// ONLY pino-http log (no application.error - avoids duplication)
+{
+  "component": "http",
+  "req": { "method": "POST", "url": "/v1/auth/oauth/sign-in" },
+  "res": { "statusCode": 500 },
+  "err": {
+    "message": "Token used too late, 1765989986.799 > 1765987388",
+    "stack": "Error: Token used too late..."
+  },
+  "responseTime": 281,
+  "traceId": "abc-123",
+  "msg": "request failed"
+}
+```
+
+#### Industry Context
+
+**Pattern A (Netflix/Stripe):** Only pino-http logs errors
+- Simpler, less code
+- Works great with mature log aggregation pipelines (Datadog, Splunk)
+- Best at massive scale (minimizes log volume)
+- AppError classes include all context, pino serializers extract it
+
+**Pattern B (What we use):** Dual-layer with semantic separation
+- Better for development and early-stage production
+- Easier to search logs manually (`grep "application.error"`)
+- Rich business context without external log processing
+- Scales to millions of requests before volume becomes an issue
+
+#### Client Error Responses
+
+**For 4xx errors (client can act):**
+```json
+{
+  "error": {
+    "message": "Email format invalid",
+    "code": "INVALID_EMAIL",
+    "traceId": "abc-123",
+    "details": {
+      "domain": "auth",
+      "field": "email"
+    }
+  }
+}
+```
+
+**For 5xx errors (security - don't leak internals):**
+```json
+{
+  "error": {
+    "message": "Internal server error",
+    "code": "INTERNAL_ERROR",
+    "traceId": "abc-123"
+  }
+}
+```
+
+Client receives traceId to report issues. You use traceId to find full error details in logs.
+
+#### Implementation Rules
+
+**Error Handler Responsibilities:**
+1. Normalize errors (AppError, ZodError, native errors → HTTP status)
+2. Log AppError/ZodError with business context (`application.error`)
+3. Skip logging native errors (pino-http handles them - avoid duplication)
+4. Send safe JSON response to client
+5. Add security headers (Retry-After for retryable errors)
+
+**What Gets Logged:**
+- ✅ AppError/ZodError: Both `application.error` + `request completed`
+- ✅ Native errors: Only `request completed` or `request failed` (with err.message, err.stack)
+- ✅ All logs include same traceId for correlation
+
+**Security Considerations:**
+- 4xx errors can include `details` (client caused it, safe to expose)
+- 5xx errors never include details (could leak system internals)
+- Full error details (stack traces, internal messages) always in server logs only
+- Clients use traceId to report issues for debugging
+
+---
+
 ### Where to Add Logs: Architectural Layers
 
 **Three-tier architecture determines logging responsibility:**
